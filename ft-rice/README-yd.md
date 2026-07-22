@@ -18,3 +18,26 @@
 
 输入
 - bw文件，fa文件和拆分好窗口的csv文件，这俩用于后面的dataloader构建每个样本，然后json文件记录一些元信息
+
+
+品种/个体 sample P1
+模态 modal RNA_seq
+组织或者处理 biosample 通道
+染色体
+基因组 fa地址
+基因组注释 gff地址
+
+- sample
+  - bigWig_labels_meta.csv 记录总体信息
+    ```
+    target_file_name,num_file_accession,track_index,data_source,output_type,organism,biosample_name,Assay title,strand,nonzero_mean
+    CSQ_P1_1.bw,0,1,biobigdata,RNA_SEQ,CSQ,CSQ,total RNA-seq,+,2.3212195349618283
+    ```
+  - index_stat.json 比较详细的信息，包括数据特征和数据地址
+  - sequence_split_train.csv 步长为16k，窗口为32k切分好的csv，包含三列chromosome,start,end
+
+
+- data_prepare
+- train & inference (swanlab, dataloader + running)
+- evaluation
+- application
