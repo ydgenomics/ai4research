@@ -1,0 +1,81 @@
+{
+  "inputs": {
+    "genome_fasta": "/mnt/rice/default/Workspace/Rice-Genome/RNAseq/riceRNAseqData/18k/ref/P5-new.fasta",
+    "chromosomes": [
+      "Chr01_Tebonnet_44161511",
+      "Chr03_Tebonnet_38376382",
+      "Chr05_Tebonnet_31088909",
+      "Chr07_Tebonnet_29871804",
+      "Chr09_Tebonnet_23428844",
+      "Chr11_Tebonnet_30295270",
+      "Chr02_Tebonnet_37575482",
+      "Chr04_Tebonnet_33409541",
+      "Chr06_Tebonnet_31454781",
+      "Chr08_Tebonnet_29501774",
+      "Chr10_Tebonnet_24567617",
+      "Chr12_Tebonnet_27849452"
+    ],
+    "window_size": 32768,
+    "overlap": 16384,
+    "meta_csv": "/mnt/rice/default/Workspace/yangdong/gene_expression_prediction/data/ref/YMY_YG_CSQ_Z_MFZ_P5.csv",
+    "assay_titles": [
+      "total RNA-seq"
+    ],
+    "biosample_names": [
+      "YMY",
+      "YG",
+      "CSQ",
+      "Z",
+      "MFZ"
+    ],
+    "processed_bw_dir": "/mnt/rice/default/Workspace/yangdong/gene_expression_prediction/data/processed/renorm_bigwig_output"
+  },
+  "outputs": {
+    "sequence_split_csv": "sequence_split_train.csv",
+    "bigWig_labels_meta_csv": "bigWig_labels_meta.csv"
+  },
+  "counts": {
+    "num_samples": 23284,
+    "num_samples_by_chromosome": {
+      "Chr01_Tebonnet_44161511": 2695,
+      "Chr03_Tebonnet_38376382": 2342,
+      "Chr02_Tebonnet_37575482": 2293,
+      "Chr04_Tebonnet_33409541": 2039,
+      "Chr06_Tebonnet_31454781": 1919,
+      "Chr05_Tebonnet_31088909": 1897,
+      "Chr11_Tebonnet_30295270": 1849,
+      "Chr07_Tebonnet_29871804": 1823,
+      "Chr08_Tebonnet_29501774": 1800,
+      "Chr12_Tebonnet_27849452": 1699,
+      "Chr10_Tebonnet_24567617": 1499,
+      "Chr09_Tebonnet_23428844": 1429
+    },
+    "num_modalities": 1,
+    "heads": [
+      "total_RNA-seq_+"
+    ],
+    "num_biosamples": 5,
+    "biosample_order": [
+      "CSQ",
+      "MFZ",
+      "YG",
+      "YMY",
+      "Z"
+    ],
+    "target_file_name": [
+      "CSQ_P5_1.bw",
+      "MFZ_P5_1.bw",
+      "YG_P5_1.bw",
+      "YMY_P5_1.bw",
+      "Z_P5_1.bw"
+    ],
+    "nonzero_mean": [
+      2.4182347927522656,
+      2.68937064362494,
+      2.24358236551418,
+      2.269221570411205,
+      2.4990685545717644
+    ]
+  },
+  "created_at": "2026-06-01T11:28:44.845467"
+}

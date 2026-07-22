@@ -1,0 +1,94 @@
+# =============================================================================
+# 评估配置文件（用于 gene_expression_prediction 项目）
+#
+# 用法: python run_evaluation.py --config config.yaml
+#
+# 所有文件路径均为绝对路径，显式指定，不依赖目录扫描和正则。
+# =============================================================================
+
+# ===== 输出目录 =====
+output_dir: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/evaluation
+
+# ===== 评估任务列表 =====
+# 每个任务明确指定:
+#   predict_csv: 预测CSV文件(含 predicted_expression 和 true_expression 列)
+#   species:     物种/品种 (如 P1, P7)
+#   tissue:      组织 (如 CSQ)
+#   gff:         GFF 注释文件完整路径 (可选，不配则跳过 feature 级评估)
+#   split:       train / valid / test
+#   chromosome:  染色体 (如 Chr01)
+#   biosample:   生物样本名
+#   modality:    测序模态 (如 total_RNA-seq_+)
+tasks:
+  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P1_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
+    species: P1
+    tissue: CSQ
+    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P1_EVM.all.gff3
+    split: train
+    chromosome: Chr01
+    biosample: CSQ
+    modality: total_RNA-seq_+
+
+  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P4_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
+    species: P4
+    tissue: CSQ
+    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P4_EVM.all.gff3
+    split: train
+    chromosome: Chr01
+    biosample: CSQ
+    modality: total_RNA-seq_+
+
+  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P6_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
+    species: P6
+    tissue: CSQ
+    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P6_EVM.all.gff3
+    split: train
+    chromosome: Chr01
+    biosample: CSQ
+    modality: total_RNA-seq_+
+
+  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P11_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
+    species: P11
+    tissue: CSQ
+    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P11_EVM.all.gff3
+    split: train
+    chromosome: Chr01
+    biosample: CSQ
+    modality: total_RNA-seq_+
+
+  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/valid_CSQ_P7_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
+    species: P7
+    tissue: CSQ
+    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P7_EVM.all.gff3
+    split: valid
+    chromosome: Chr01
+    biosample: CSQ
+    modality: total_RNA-seq_+
+
+  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/test_CSQ_P7_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
+    species: P7
+    tissue: CSQ
+    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P7_EVM.all.gff3
+    split: test
+    chromosome: Chr01
+    biosample: CSQ
+    modality: total_RNA-seq_+
+
+# ===== Feature级（基因/外显子）评估 =====
+feature_level:
+  feature_types: [gene, exon]
+  min_overlap_bp: 1
+  min_nonzero_bp: 2
+  min_r2_variance: 1.0e-8
+
+# ===== Delta Pearson 计算 =====
+delta:
+  normalize: global_mean
+  ref_modes:
+    - zero
+    - feature_normalized_mean
+    - true_global_mean
+
+# ===== 表达分桶 =====
+buckets:
+  n_buckets: 3
