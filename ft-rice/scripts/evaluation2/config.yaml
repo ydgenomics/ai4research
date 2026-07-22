@@ -29,51 +29,6 @@ tasks:
     biosample: CSQ
     modality: total_RNA-seq_+
 
-  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P4_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
-    species: P4
-    tissue: CSQ
-    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P4_EVM.all.gff3
-    split: train
-    chromosome: Chr01
-    biosample: CSQ
-    modality: total_RNA-seq_+
-
-  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P6_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
-    species: P6
-    tissue: CSQ
-    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P6_EVM.all.gff3
-    split: train
-    chromosome: Chr01
-    biosample: CSQ
-    modality: total_RNA-seq_+
-
-  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P11_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
-    species: P11
-    tissue: CSQ
-    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P11_EVM.all.gff3
-    split: train
-    chromosome: Chr01
-    biosample: CSQ
-    modality: total_RNA-seq_+
-
-  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/valid_CSQ_P7_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
-    species: P7
-    tissue: CSQ
-    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P7_EVM.all.gff3
-    split: valid
-    chromosome: Chr01
-    biosample: CSQ
-    modality: total_RNA-seq_+
-
-  - predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/test_CSQ_P7_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv
-    species: P7
-    tissue: CSQ
-    gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P7_EVM.all.gff3
-    split: test
-    chromosome: Chr01
-    biosample: CSQ
-    modality: total_RNA-seq_+
-
 # ===== Feature级（基因/外显子）评估 =====
 feature_level:
   feature_types: [gene, exon]

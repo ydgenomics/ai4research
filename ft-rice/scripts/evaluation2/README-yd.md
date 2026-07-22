@@ -62,3 +62,33 @@ seq2expression，这种数值型回归任务，我们使用pcc, log1p_pcc, nozer
 ## ref
 颜色 #4874CB 蓝色 #ef822f 橘黄色
 
+
+## 优化评测代码，让其通用性和计算效率提升
+- 输入的csv的列名包含那些？
+  `chromosome,start,end,sequence,biosample,modality,target_file,predicted_expression,true_expression`
+- 不同的场景
+  - RNA-seq: 分染色体保存的csv
+    - 单biosample单strand，
+    - 两biosample单strand
+  - ATAC_RNA-seq: 所有染色体保存在一个csv
+    - 单biosample双strand
+    - 双biosample双strand
+
+设置config file
+- predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P1_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv #支持多个，多个的话先按行merge，注意RNA-seq输出的chromosome这一列的值为`{Chromosome}_{varieties}_{chromosome_size}`
+  sample: XiuShui134
+  gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P1_EVM.all.gff3 # 必须包含的type
+  chromosome: Chr01 #支持多个，与predict_csv的数量一致，重命名chromosome列的值，若为all则不重写chromosome
+  strand: total_strand #有些数据不分正负链，对于分正负链的需要写入两个 "plus minus" 对应输入的csv
+  split: test # ["train", "test"]
+  biosample: CSQ # 组织/处理/时序等
+  modality: RNA-seq # ["RNA-seq", "ATAC_RNA-seq"]
+
+设置3个分辨率bp/exon/gene
+按品种/染色体/基因三个全局展示指标，region越大其IQR越小
+增加nozero_pcc, R2, delta_pcc，回应editor：模型能建模有表达的区域，尺度一致，具有一定建模品种差异的能力
+增加按基因表达低中高对基因集分箱计算指标。模型能够精准捕捉中高表达基因的调控模式，而在低表达区间性能下降，可能系统噪声导致的。
+
+- 以 品种 为全局
+
+
