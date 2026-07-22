@@ -1,0 +1,468 @@
+nohup: ignoring input
+[NbConvertApp] Converting notebook /mnt/rice/default/Workspace/yangdong/modeling_difference/gene-level/script2/main.ipynb to notebook
+Traceback (most recent call last):
+  File "/root/miniconda3/bin/jupyter-nbconvert", line 7, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/root/miniconda3/lib/python3.13/site-packages/jupyter_core/application.py", line 284, in launch_instance
+    super().launch_instance(argv=argv, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/traitlets/config/application.py", line 1075, in launch_instance
+    app.start()
+    ~~~~~~~~~^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/nbconvertapp.py", line 420, in start
+    self.convert_notebooks()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/nbconvertapp.py", line 597, in convert_notebooks
+    self.convert_single_notebook(notebook_filename)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/nbconvertapp.py", line 563, in convert_single_notebook
+    output, resources = self.export_single_notebook(
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        notebook_filename, resources, input_buffer=input_buffer
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/nbconvertapp.py", line 487, in export_single_notebook
+    output, resources = self.exporter.from_filename(
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        notebook_filename, resources=resources
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/exporters/exporter.py", line 201, in from_filename
+    return self.from_file(f, resources=resources, **kw)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/exporters/exporter.py", line 220, in from_file
+    return self.from_notebook_node(
+           ~~~~~~~~~~~~~~~~~~~~~~~^
+        nbformat.read(file_stream, as_version=4), resources=resources, **kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/exporters/notebook.py", line 36, in from_notebook_node
+    nb_copy, resources = super().from_notebook_node(nb, resources, **kw)
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/exporters/exporter.py", line 154, in from_notebook_node
+    nb_copy, resources = self._preprocess(nb_copy, resources)
+                         ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/exporters/exporter.py", line 353, in _preprocess
+    nbc, resc = preprocessor(nbc, resc)
+                ~~~~~~~~~~~~^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/preprocessors/base.py", line 48, in __call__
+    return self.preprocess(nb, resources)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/preprocessors/execute.py", line 103, in preprocess
+    self.preprocess_cell(cell, resources, index)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbconvert/preprocessors/execute.py", line 124, in preprocess_cell
+    cell = self.execute_cell(cell, index, store_history=True)
+  File "/root/miniconda3/lib/python3.13/site-packages/jupyter_core/utils/__init__.py", line 165, in wrapped
+    return loop.run_until_complete(inner)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/root/miniconda3/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/root/miniconda3/lib/python3.13/site-packages/nbclient/client.py", line 1062, in async_execute_cell
+    await self._check_raise_for_error(cell, cell_index, exec_reply)
+  File "/root/miniconda3/lib/python3.13/site-packages/nbclient/client.py", line 918, in _check_raise_for_error
+    raise CellExecutionError.from_cell_and_msg(cell, exec_reply_content)
+nbclient.exceptions.CellExecutionError: An error occurred while executing the following cell:
+------------------
+# ============================================================
+# 超参数（集中配置，按需修改）
+# ============================================================
+BATCH_SIZE = 16             # A40 46GB, cached delta 模式下可开到 64+
+EPOCHS = 300
+LR = 1e-3
+WEIGHT_DECAY = 1e-3
+DROPOUT = 0.3
+PROJECTION_DIM = 64
+GENE_EMBEDDING_DIM = 32
+PATIENCE = 40
+LOSS_TYPE = "huber"         # "huber" | "pairwise" | "mixed"
+
+# ============================================================
+# 推断 hidden_dim（从第一个基因的第一个个体的 embedding 中读取）
+# ============================================================
+from src.data import load_hap1_payload
+
+try:
+    sample_states, _, _ = load_hap1_payload(genes[0], all_individuals[0], EMBEDDING_ROOT)
+    hidden_dim = sample_states.shape[1]
+except Exception:
+    hidden_dim = 1024
+print(f"hidden_dim = {hidden_dim}  (基因数 = {len(genes)})")
+
+# ============================================================
+# 模型配置 & 训练
+# ============================================================
+model_config = {
+    "hidden_dim": hidden_dim,
+    "n_genes": len(genes),
+    "projection_dim": PROJECTION_DIM,
+    "gene_embedding_dim": GENE_EMBEDDING_DIM,
+    "dropout": DROPOUT,
+}
+
+result = run_experiment(
+    genes=genes,
+    all_individuals=all_individuals,
+    train_individuals=train_individuals,
+    val_individuals=val_set,
+    test_individuals=test_set,
+    embedding_root=EMBEDDING_ROOT,
+    expression_matrix_path=EXPRESSION_MATRIX,
+    output_dir=OUTPUT_DIR,
+    model_class=SpecificSNPRegressor,
+    model_config=model_config,
+    gene_set_size=len(genes),
+    model_variant="specific_snp_delta_hap1",
+    batch_size=BATCH_SIZE,
+    epochs=EPOCHS,
+    lr=LR,
+    weight_decay=WEIGHT_DECAY,
+    dropout=DROPOUT,
+    patience=PATIENCE,
+    loss_type=LOSS_TYPE,
+    device=DEVICE,
+    random_state=RANDOM_STATE,
+)
+
+------------------
+
+----- stdout -----
+hidden_dim = 1024  (基因数 = 97)
+Building data for 97 genes...
+  Target source: expression matrix (/mnt/genos100-new/peixunban/yecheng/data/CIMA/Monocyte_matrix_log2_TPM_annot.tsv.gz)
+----- stdout -----
+  Warning: 10 genes not found in expression matrix: ['ATOSA', 'CHCT1', 'ENSG00000258311', 'ENSG00000279073', 'ENSG00000287908', 'ENSG00000288623', 'FAM90A10', 'FAM90A23', 'RLIG1', 'SIGLEC16']
+  Expression matrix subset: 87 genes × 101 individuals
+  Processing: ACAP3_ENST00000492936.5_win_1  (ACAP3)
+----- stdout -----
+  Processing: SMIM1_ENST00000642557.4_win_2  (SMIM1)
+----- stdout -----
+  Processing: PRAMEF26_ENST00000624207.2_win_3  (PRAMEF26)
+----- stdout -----
+  Processing: A3GALT2_ENST00000442999.3_win_4  (A3GALT2)
+----- stdout -----
+  Processing: CC2D1B_ENST00000470844.5_win_5  (CC2D1B)
+----- stdout -----
+  Processing: THBS3_ENST00000498500.1_win_6  (THBS3)
+----- stdout -----
+  Processing: SFT2D2_ENST00000471981.1_win_7  (SFT2D2)
+----- stdout -----
+  Processing: PRELP_ENST00000343110.3_win_8  (PRELP)
+----- stdout -----
+  Processing: SNRPE_ENST00000414487.7_win_9  (SNRPE)
+----- stdout -----
+  Processing: CCDC185_ENST00000366875.5_win_10  (CCDC185)
+----- stdout -----
+  Processing: ZNF669_ENST00000343381.10_win_11  (ZNF669)
+----- stdout -----
+  Processing: HBG2_ENST00000336906.6_win_54  (HBG2)
+----- stdout -----
+  Processing: OR5B2_ENST00000641342.2_win_55  (OR5B2)
+----- stdout -----
+  Processing: CFL1_ENST00000530157.1_win_56  (CFL1)
+----- stdout -----
+  Processing: NUMA1_ENST00000540626.5_win_57  (NUMA1)
+----- stdout -----
+  Processing: OR2AT4_ENST00000641541.1_win_58  (OR2AT4)
+----- stdout -----
+  Processing: FDXACB1_ENST00000260257.9_win_59  (FDXACB1)
+----- stdout -----
+  Processing: KCNJ1_ENST00000392664.2_win_60  (KCNJ1)
+----- stdout -----
+  Processing: CCDC77_ENST00000537453.1_win_61  (CCDC77)
+----- stdout -----
+  Processing: NANOGNB_ENST00000382119.1_win_62  (NANOGNB)
+----- stdout -----
+  Processing: CLEC4A_ENST00000229332.12_win_63  (CLEC4A)
+----- stdout -----
+  Processing: KRT76_ENST00000332411.2_win_64  (KRT76)
+----- stdout -----
+  Processing: DCD_ENST00000456047.2_win_65  (DCD)
+----- stdout -----
+  Processing: ENSG00000258311_ENST00000550412.5_win_66  (ENSG00000258311)
+----- stdout -----
+  Processing: ENSG00000287908_ENST00000474359.7_win_67  (ENSG00000287908)
+----- stdout -----
+  Processing: TSPAN31_ENST00000553221.5_win_68  (TSPAN31)
+----- stdout -----
+  Processing: RLIG1_ENST00000356891.4_win_69  (RLIG1)
+----- stdout -----
+  Processing: ENSG00000288623_ENST00000675818.1_win_70  (ENSG00000288623)
+----- stdout -----
+  Processing: URAD_ENST00000713555.1_win_71  (URAD)
+----- stdout -----
+  Processing: INTS6_ENST00000476666.5_win_72  (INTS6)
+----- stdout -----
+  Processing: VCPKMT_ENST00000569518.5_win_73  (VCPKMT)
+----- stdout -----
+  Processing: GOLGA8F_ENST00000565126.5_win_74  (GOLGA8F)
+----- stdout -----
+  Processing: ATOSA_ENST00000568871.1_win_75  (ATOSA)
+----- stdout -----
+  Processing: SNX22_ENST00000557789.5_win_76  (SNX22)
+----- stdout -----
+  Processing: GOLGA6B_ENST00000421285.4_win_77  (GOLGA6B)
+----- stdout -----
+  Processing: NME4_ENST00000444498.5_win_78  (NME4)
+----- stdout -----
+  Processing: FBXL16_ENST00000562648.2_win_79  (FBXL16)
+----- stdout -----
+  Processing: ZNF598_ENST00000565396.5_win_80  (ZNF598)
+----- stdout -----
+  Processing: CCL17_ENST00000219244.9_win_81  (CCL17)
+----- stdout -----
+  Processing: COQ9_ENST00000566388.5_win_82  (COQ9)
+----- stdout -----
+  Processing: HSF4_ENST00000521374.6_win_83  (HSF4)
+----- stdout -----
+  Processing: TRAPPC1_ENST00000540486.5_win_84  (TRAPPC1)
+----- stdout -----
+  Processing: ARHGEF15_ENST00000361926.8_win_85  (ARHGEF15)
+----- stdout -----
+  Processing: TBC1D3F_ENST00000620210.2_win_86  (TBC1D3F)
+----- stdout -----
+  Processing: RPL19_ENST00000678573.1_win_87  (RPL19)
+----- stdout -----
+  Processing: HSPB9_ENST00000565659.2_win_88  (HSPB9)
+----- stdout -----
+  Processing: CHCT1_ENST00000269127.5_win_89  (CHCT1)
+----- stdout -----
+  Processing: CSHL1_ENST00000309894.6_win_90  (CSHL1)
+----- stdout -----
+  Processing: HMG20B_ENST00000333651.11_win_91  (HMG20B)
+----- stdout -----
+  Processing: STAP2_ENST00000600324.5_win_92  (STAP2)
+----- stdout -----
+  Processing: PSG8_ENST00000306511.5_win_93  (PSG8)
+----- stdout -----
+  Processing: IGFL1_ENST00000437936.2_win_94  (IGFL1)
+----- stdout -----
+  Processing: SIGLEC16_ENST00000602139.6_win_95  (SIGLEC16)
+----- stdout -----
+  Processing: NAT14_ENST00000205194.5_win_96  (NAT14)
+----- stdout -----
+  Processing: GEMIN6_ENST00000281950.8_win_12  (GEMIN6)
+----- stdout -----
+  Processing: MOGS_ENST00000448666.7_win_13  (MOGS)
+----- stdout -----
+  Processing: TMEM37_ENST00000409826.1_win_14  (TMEM37)
+----- stdout -----
+  Processing: PRND_ENST00000305817.3_win_97  (PRND)
+----- stdout -----
+  Processing: BLCAP_ENST00000397137.5_win_98  (BLCAP)
+----- stdout -----
+  Processing: MAFF_ENST00000538320.5_win_99  (MAFF)
+----- stdout -----
+  Processing: MAPK12_ENST00000497036.5_win_100  (MAPK12)
+----- stdout -----
+  Processing: TMPPE_ENST00000342462.5_win_15  (TMPPE)
+----- stdout -----
+  Processing: CCR2_ENST00000400888.2_win_16  (CCR2)
+----- stdout -----
+  Processing: GLYCTK_ENST00000436784.7_win_17  (GLYCTK)
+----- stdout -----
+  Processing: ATR_ENST00000658083.1_win_18  (ATR)
+----- stdout -----
+  Processing: DRD5_ENST00000304374.4_win_19  (DRD5)
+----- stdout -----
+  Processing: MAB21L2_ENST00000317605.6_win_20  (MAB21L2)
+----- stdout -----
+  Processing: RPS3A_ENST00000274065.9_win_21  (RPS3A)
+----- stdout -----
+  Processing: PRSS48_ENST00000455694.7_win_22  (PRSS48)
+----- stdout -----
+  Processing: NPY5R_ENST00000338566.8_win_23  (NPY5R)
+----- stdout -----
+  Processing: SCGB3A2_ENST00000296694.5_win_24  (SCGB3A2)
+----- stdout -----
+  Processing: SPINK7_ENST00000274565.5_win_25  (SPINK7)
+----- stdout -----
+  Processing: KIF4B_ENST00000435029.6_win_26  (KIF4B)
+----- stdout -----
+  Processing: RPP40_ENST00000380051.7_win_27  (RPP40)
+----- stdout -----
+  Processing: BTN3A3_ENST00000244519.7_win_28  (BTN3A3)
+----- stdout -----
+  Processing: SFTA2_ENST00000359086.4_win_29  (SFTA2)
+----- stdout -----
+  Processing: C6orf15_ENST00000259870.4_win_30  (C6orf15)
+----- stdout -----
+  Processing: HLA-DQB1_ENST00000487676.1_win_32  (HLA-DQB1)
+----- stdout -----
+  Processing: SYNGAP1_ENST00000637194.1_win_33  (SYNGAP1)
+----- stdout -----
+  Processing: SRF_ENST00000265354.6_win_34  (SRF)
+----- stdout -----
+  Processing: KHDC3L_ENST00000370367.4_win_35  (KHDC3L)
+----- stdout -----
+  Processing: ARG1_ENST00000356962.2_win_36  (ARG1)
+----- stdout -----
+  Processing: MAFK_ENST00000343242.9_win_37  (MAFK)
+----- stdout -----
+  Processing: FAM90A23_ENST00000648435.1_win_40  (FAM90A23)
+----- stdout -----
+  Processing: FAM90A10_ENST00000533716.2_win_41  (FAM90A10)
+----- stdout -----
+  Processing: PRSS55_ENST00000328655.8_win_42  (PRSS55)
+----- stdout -----
+  Processing: SLC10A5_ENST00000518568.3_win_43  (SLC10A5)
+----- stdout -----
+  Processing: GPIHBP1_ENST00000622500.2_win_44  (GPIHBP1)
+----- stdout -----
+  Processing: NAPRT_ENST00000340490.7_win_45  (NAPRT)
+----- stdout -----
+  Processing: KIFC2_ENST00000301332.3_win_46  (KIFC2)
+----- stdout -----
+  Processing: ANKRD18A_ENST00000625242.1_win_47  (ANKRD18A)
+----- stdout -----
+  Processing: POLE3_ENST00000479871.1_win_48  (POLE3)
+----- stdout -----
+  Processing: ENSG00000279073_ENST00000622933.1_win_49  (ENSG00000279073)
+----- stdout -----
+  Processing: ENTPD2_ENST00000355097.7_win_50  (ENTPD2)
+----- stdout -----
+  Processing: SAPCD2_ENST00000409687.5_win_51  (SAPCD2)
+----- stdout -----
+  Processing: SSNA1_ENST00000322310.10_win_52  (SSNA1)
+----- stdout -----
+  Processing: TOR4A_ENST00000357503.3_win_53  (TOR4A)
+----- stdout -----
+  Removing 1010 samples with NaN expression values
+  Removing 10 gene(s) with zero training targets: ['ENSG00000258311_ENST00000550412.5_win_66', 'ENSG00000287908_ENST00000474359.7_win_67', 'RLIG1_ENST00000356891.4_win_69', 'ENSG00000288623_ENST00000675818.1_win_70', 'ATOSA_ENST00000568871.1_win_75', 'CHCT1_ENST00000269127.5_win_89', 'SIGLEC16_ENST00000602139.6_win_95', 'FAM90A23_ENST00000648435.1_win_40', 'FAM90A10_ENST00000533716.2_win_41', 'ENSG00000279073_ENST00000622933.1_win_49']
+  Remaining genes: 87
+  Precomputing SNP deltas for 8787 samples...
+----- stdout -----
+    cached 500/8787 samples
+----- stdout -----
+    cached 1000/8787 samples
+----- stdout -----
+    cached 1500/8787 samples
+----- stdout -----
+    cached 2000/8787 samples
+----- stdout -----
+    cached 2500/8787 samples
+----- stdout -----
+    cached 3000/8787 samples
+----- stdout -----
+    cached 3500/8787 samples
+----- stdout -----
+    cached 4000/8787 samples
+----- stdout -----
+    cached 4500/8787 samples
+----- stdout -----
+    cached 5000/8787 samples
+----- stdout -----
+    cached 5500/8787 samples
+----- stdout -----
+    cached 6000/8787 samples
+----- stdout -----
+    cached 6500/8787 samples
+----- stdout -----
+    cached 7000/8787 samples
+----- stdout -----
+    cached 7500/8787 samples
+----- stdout -----
+    cached 8000/8787 samples
+----- stdout -----
+    cached 8500/8787 samples
+----- stdout -----
+    cached 8787/8787 samples
+    cached_delta: (8787, 3137, 1024) (float16)
+  Using CachedSpecificSNPDataset (precomputed deltas)
+Training specific_snp_delta_hap1: 97 genes...
+----- stdout -----
+{'epoch': 1, 'train_loss': 0.35201345666263106, 'val_loss': 0.3327564597129822, 'train_macro_pearson': 0.011306497810523215, 'train_macro_r2': -0.010039063641169523, 'val_macro_pearson': -0.008283214221094758, 'val_macro_r2': -0.18239116068666233}
+----- stdout -----
+{'epoch': 10, 'train_loss': 0.3404105785313377, 'val_loss': 0.32217106223106384, 'train_macro_pearson': 0.1211791235589652, 'train_macro_r2': -0.006143141302233641, 'val_macro_pearson': -0.00024291480018052332, 'val_macro_r2': -0.11328501518177253}
+----- stdout -----
+{'epoch': 20, 'train_loss': 0.3290097320245372, 'val_loss': 0.3252866864204407, 'train_macro_pearson': 0.27341369975885405, 'train_macro_r2': 0.03643776333110663, 'val_macro_pearson': 0.009599830251628796, 'val_macro_r2': -0.16981773066523043}
+----- stdout -----
+{'epoch': 30, 'train_loss': 0.22646787295079962, 'val_loss': 0.3872789442539215, 'train_macro_pearson': 0.6069072263275175, 'train_macro_r2': 0.3817874850637349, 'val_macro_pearson': -0.05060027815850989, 'val_macro_r2': -0.6132606483530975}
+----- stdout -----
+{'epoch': 40, 'train_loss': 0.15314148786285567, 'val_loss': 0.4097355902194977, 'train_macro_pearson': 0.7651160713436937, 'train_macro_r2': 0.5900262918958196, 'val_macro_pearson': -0.0065142536997429, 'val_macro_r2': -0.7830895950503087}
+----- stdout -----
+{'epoch': 50, 'train_loss': 0.12146453607126294, 'val_loss': 0.41734209656715393, 'train_macro_pearson': 0.8404828709438511, 'train_macro_r2': 0.7016657310460584, 'val_macro_pearson': 0.018419036225990705, 'val_macro_r2': -0.818315071057693}
+----- stdout -----
+Early stopping at epoch 51
+------------------
+
+[31m---------------------------------------------------------------------------[39m
+[31mAttributeError[39m                            Traceback (most recent call last)
+[36mCell[39m[36m [39m[32mIn[6][39m[32m, line 37[39m
+[32m     26[39m [38;5;66;03m# ============================================================[39;00m
+[32m     27[39m [38;5;66;03m# 模型配置 & 训练[39;00m
+[32m     28[39m [38;5;66;03m# ============================================================[39;00m
+[32m     29[39m model_config = {
+[32m     30[39m     [33m"[39m[33mhidden_dim[39m[33m"[39m: hidden_dim,
+[32m     31[39m     [33m"[39m[33mn_genes[39m[33m"[39m: [38;5;28mlen[39m(genes),
+[32m   (...)[39m[32m     34[39m     [33m"[39m[33mdropout[39m[33m"[39m: DROPOUT,
+[32m     35[39m }
+[32m---> [39m[32m37[39m result = [43mrun_experiment[49m[43m([49m
+[32m     38[39m [43m    [49m[43mgenes[49m[43m=[49m[43mgenes[49m[43m,[49m
+[32m     39[39m [43m    [49m[43mall_individuals[49m[43m=[49m[43mall_individuals[49m[43m,[49m
+[32m     40[39m [43m    [49m[43mtrain_individuals[49m[43m=[49m[43mtrain_individuals[49m[43m,[49m
+[32m     41[39m [43m    [49m[43mval_individuals[49m[43m=[49m[43mval_set[49m[43m,[49m
+[32m     42[39m [43m    [49m[43mtest_individuals[49m[43m=[49m[43mtest_set[49m[43m,[49m
+[32m     43[39m [43m    [49m[43membedding_root[49m[43m=[49m[43mEMBEDDING_ROOT[49m[43m,[49m
+[32m     44[39m [43m    [49m[43mexpression_matrix_path[49m[43m=[49m[43mEXPRESSION_MATRIX[49m[43m,[49m
+[32m     45[39m [43m    [49m[43moutput_dir[49m[43m=[49m[43mOUTPUT_DIR[49m[43m,[49m
+[32m     46[39m [43m    [49m[43mmodel_class[49m[43m=[49m[43mSpecificSNPRegressor[49m[43m,[49m
+[32m     47[39m [43m    [49m[43mmodel_config[49m[43m=[49m[43mmodel_config[49m[43m,[49m
+[32m     48[39m [43m    [49m[43mgene_set_size[49m[43m=[49m[38;5;28;43mlen[39;49m[43m([49m[43mgenes[49m[43m)[49m[43m,[49m
+[32m     49[39m [43m    [49m[43mmodel_variant[49m[43m=[49m[33;43m"[39;49m[33;43mspecific_snp_delta_hap1[39;49m[33;43m"[39;49m[43m,[49m
+[32m     50[39m [43m    [49m[43mbatch_size[49m[43m=[49m[43mBATCH_SIZE[49m[43m,[49m
+[32m     51[39m [43m    [49m[43mepochs[49m[43m=[49m[43mEPOCHS[49m[43m,[49m
+[32m     52[39m [43m    [49m[43mlr[49m[43m=[49m[43mLR[49m[43m,[49m
+[32m     53[39m [43m    [49m[43mweight_decay[49m[43m=[49m[43mWEIGHT_DECAY[49m[43m,[49m
+[32m     54[39m [43m    [49m[43mdropout[49m[43m=[49m[43mDROPOUT[49m[43m,[49m
+[32m     55[39m [43m    [49m[43mpatience[49m[43m=[49m[43mPATIENCE[49m[43m,[49m
+[32m     56[39m [43m    [49m[43mloss_type[49m[43m=[49m[43mLOSS_TYPE[49m[43m,[49m
+[32m     57[39m [43m    [49m[43mdevice[49m[43m=[49m[43mDEVICE[49m[43m,[49m
+[32m     58[39m [43m    [49m[43mrandom_state[49m[43m=[49m[43mRANDOM_STATE[49m[43m,[49m
+[32m     59[39m [43m)[49m
+
+[36mFile [39m[32m/mnt/rice/default/Workspace/yangdong/modeling_difference/gene-level/script2/src/training.py:407[39m, in [36mrun_experiment[39m[34m(genes, all_individuals, train_individuals, val_individuals, test_individuals, embedding_root, output_dir, bigwig_dir, reference_bw_path, sample_to_accession, expression_matrix_path, model_class, model_config, gene_set_size, model_variant, batch_size, epochs, lr, weight_decay, dropout, patience, loss_type, target_std_eps, device, random_state)[39m
+[32m    398[39m [38;5;66;03m# --- Checkpoint ---[39;00m
+[32m    399[39m model.load_state_dict(best_val[[33m"[39m[33mstate[39m[33m"[39m])
+[32m    400[39m checkpoint = build_checkpoint(
+[32m    401[39m     model=model,
+[32m    402[39m     model_config=model_config,
+[32m    403[39m     ordered_genes=[
+[32m    404[39m         {
+[32m    405[39m             [33m"[39m[33mname[39m[33m"[39m: g.name, [33m"[39m[33membedding_name[39m[33m"[39m: g.embedding_name,
+[32m    406[39m             [33m"[39m[33mchrom[39m[33m"[39m: g.chrom, [33m"[39m[33mstart[39m[33m"[39m: g.start, [33m"[39m[33mend[39m[33m"[39m: g.end,
+[32m--> [39m[32m407[39m             [33m"[39m[33mstrand[39m[33m"[39m: [43mg[49m[43m.[49m[43mstrand[49m, [33m"[39m[33mtranscript_id[39m[33m"[39m: g.transcript_id,
+[32m    408[39m         }
+[32m    409[39m         [38;5;28;01mfor[39;00m g [38;5;129;01min[39;00m genes
+[32m    410[39m     ],
+[32m    411[39m     gene_to_id=gene_to_id,
+[32m    412[39m     target_scalers=scalers,
+[32m    413[39m     snp_centers=centers,
+[32m    414[39m     positions=positions,
+[32m    415[39m     variant_keys=variant_keys,
+[32m    416[39m     max_snps=max_snps,
+[32m    417[39m     splits={
+[32m    418[39m         [33m"[39m[33mtrain[39m[33m"[39m: train_individuals,
+[32m    419[39m         [33m"[39m[33mval[39m[33m"[39m: [38;5;28msorted[39m(val_individuals),
+[32m    420[39m         [33m"[39m[33mtest[39m[33m"[39m: [38;5;28msorted[39m(test_individuals),
+[32m    421[39m     },
+[32m    422[39m     training_config={
+[32m    423[39m         [33m"[39m[33mbatch_size[39m[33m"[39m: batch_size, [33m"[39m[33mepochs[39m[33m"[39m: epochs, [33m"[39m[33mlr[39m[33m"[39m: lr,
+[32m    424[39m         [33m"[39m[33mweight_decay[39m[33m"[39m: weight_decay, [33m"[39m[33mdropout[39m[33m"[39m: dropout,
+[32m    425[39m         [33m"[39m[33mpatience[39m[33m"[39m: patience, [33m"[39m[33mloss_type[39m[33m"[39m: loss_type,
+[32m    426[39m         [33m"[39m[33mrandom_state[39m[33m"[39m: random_state,
+[32m    427[39m         [33m"[39m[33membedding_source[39m[33m"[39m: [33m"[39m[33mhap1[39m[33m"[39m, [33m"[39m[33membedding_frozen[39m[33m"[39m: [38;5;28;01mTrue[39;00m,
+[32m    428[39m     },
+[32m    429[39m     best_validation=best_val,
+[32m    430[39m     best_training=best_train,
+[32m    431[39m )
+[32m    432[39m ckpt_path = output_dir / [33mf[39m[33m"[39m[33mmodel_[39m[38;5;132;01m{[39;00mmodel_variant[38;5;132;01m}[39;00m[33m_[39m[38;5;132;01m{[39;00mgene_set_size[38;5;132;01m}[39;00m[33m.pt[39m[33m"[39m
+[32m    433[39m torch.save(checkpoint, ckpt_path)
+
+[31mAttributeError[39m: 'GeneInfo' object has no attribute 'strand'
+
