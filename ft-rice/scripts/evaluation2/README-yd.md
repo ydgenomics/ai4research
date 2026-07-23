@@ -40,12 +40,12 @@ seq2expression，这种数值型回归任务，我们使用pcc, log1p_pcc, nozer
 补充指标的表格类似下面这样，文章画的图
 |varities|tissue|split|chromosome|resolution|pcc|log1p_pcc|nozero_pcc|r2|delta_pcc|
 |-|-|-|-|-|-|-|-|-|-|
-|P1|CSQ|train|Chr01|bp||||||
-|P1|CSQ|train|Chr01|exon||||||
-|P1|CSQ|train|Chr01|gene||||||
-|P1|CSQ|train|Chr01|gene-low||||||
-|P1|CSQ|train|Chr01|gene-medium||||||
-|P1|CSQ|train|Chr01|gene-high||||||
+|P1|CSQ|train|chromosome|bp||||||
+|P1|CSQ|train|chromosome|exon||||||
+|P1|CSQ|train|chromosome|gene||||||
+|P1|CSQ|train|chromosome|gene-low||||||
+|P1|CSQ|train|chromosome|gene-medium||||||
+|P1|CSQ|train|chromosome|gene-high||||||
 
 |varities|tissue|split|resolution|pcc|log1p_pcc|nozero_pcc|r2|delta_pcc|
 |-|-|-|-|-|-|-|-|-|
@@ -75,20 +75,69 @@ seq2expression，这种数值型回归任务，我们使用pcc, log1p_pcc, nozer
     - 双biosample双strand
 
 设置config file
-- predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P1_multitrack/Chr01/CSQ__total_RNA-seq_+_predictions.csv #支持多个，多个的话先按行merge，注意RNA-seq输出的chromosome这一列的值为`{Chromosome}_{varieties}_{chromosome_size}`
+- predict_csv: /mnt/rice/default/Workspace/yangdong/gene_expression_prediction/outputs/predict/202607151304/train_CSQ_P1_multitrack/chromosome/CSQ__total_RNA-seq_+_predictions.csv #支持多个，多个的话先按行merge，注意RNA-seq输出的chromosome这一列的值为`{Chromosome}_{varieties}_{chromosome_size}`
   sample: XiuShui134
   gff: /mnt/rice/default/Workspace/Rice-Genome/application/RNAseq/riceRNAseqData/18k/ref/P1_EVM.all.gff3 # 必须包含的type
-  chromosome: Chr01 #支持多个，与predict_csv的数量一致，重命名chromosome列的值，若为all则不重写chromosome
-  strand: total_strand #有些数据不分正负链，对于分正负链的需要写入两个 "plus minus" 对应输入的csv
+  chromosome: chromosome #支持多个，与predict_csv的数量一致，重命名chromosome列的值，若为all则不重写chromosome
+  strand: total #有些数据不分正负链，对于分正负链的需要写入两个 "plus minus" 对应输入的csv
   split: test # ["train", "test"]
   biosample: CSQ # 组织/处理/时序等
   modality: RNA-seq # ["RNA-seq", "ATAC_RNA-seq"]
 
+- predict_csv:
+    - /path/to/Chr01_pred.csv
+    - /path/to/Chr02_pred.csv
+  chromosome:
+    - Chr01
+    - Chr02
+  strand:
+    - total
+    - total
+
+- predict_csv:
+    - /path/to/plus_strand.csv
+    - /path/to/minus_strand.csv
+  chromosome:
+    - all
+    - all
+  strand:
+    - plus
+    - minus
+
+
 设置3个分辨率bp/exon/gene
-按品种/染色体/基因三个全局展示指标，region越大其IQR越小
+按品种/染色体/窗口/基因四个全局展示指标，region越大其IQR越小。窗口和基因全局的不计算基因水平的指标和delta_pcc
 增加nozero_pcc, R2, delta_pcc，回应editor：模型能建模有表达的区域，尺度一致，具有一定建模品种差异的能力
+指标有pcc|log1p_pcc|nozero_pcc|zero_ratio|r2|delta_pcc，delta_pcc即原来的feature_ref模式
 增加按基因表达低中高对基因集分箱计算指标。模型能够精准捕捉中高表达基因的调控模式，而在低表达区间性能下降，可能系统噪声导致的。
 
 - 以 品种 为全局
+
+
+
+品种和染色体全局输出为一个汇总的表格为，格式类似为
+|sample|biosample|split|global|chromosome|resolution|strand|pcc|log1p_pcc|nozero_pcc|zero_ratio|r2|delta_pcc|
+|-|-|-|-|-|-|-|-|-|-|-|-|-|
+|XiuShui134|CSQ|train|sample|all|bp|total|||||||
+|XiuShui134|CSQ|train|sample|all|exon|total||||||
+|XiuShui134|CSQ|train|sample|all|gene|total||||||
+|XiuShui134|CSQ|train|sample|all|gene-low|total||||||
+|XiuShui134|CSQ|train|sample|all|gene-medium|total||||||
+|XiuShui134|CSQ|train|sample|all|gene-high|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr01|bp|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr01|exon|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr01|gene|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr01|gene-low|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr01|gene-medium|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr01|gene-high|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr02|bp|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr02|exon|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr02|gene|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr02|gene-low|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr02|gene-medium|total||||||
+|XiuShui134|CSQ|train|chromosome|Chr02|gene-high|total||||||
+
+
+窗口和基因全局的各自单独生成一个表格
 
 
