@@ -1,4 +1,22 @@
 # CHANGELOG
+## 2026-07-27
+
+### Fixed: `predictions_scaling_torch` 逆操作顺序错误
+
+**问题**：`predictions_scaling_torch` 中三段逆操作为 逆幂→乘均值→逆分段，
+与正变换 `targets_scaling_torch` 的 除均值→幂变换→分段裁剪 顺序不匹配，
+导致所有预测值经过反缩放后均不正确（ATAC-seq 和 RNA-seq 轨道均受影响）。
+训练时 loss 计算正确（在反缩放之前），但评估/推理时 `forward()` 返回的 `logits` 严重失真。
+
+**修改文件**：
+
+- **`src/model.py` — `predictions_scaling_torch`**
+  - 将逆操作顺序改为：逆分段 → 逆幂 → 乘均值
+  - 逆分段的阈值检查 `pred > 10.0` 现在在缩放空间内判断，数学正确
+  - 详细推导见 `CHAT.md` 或代码注释
+
+**效果**：模型 `forward()` 返回的 `logits` 正确反缩放到原始表达值尺度。
+
 ## 2026-07-21 (4)
 
 ### Fixed: 04_feature_level.csv 和 00_feature_summary.csv 缺少 delta_pcc

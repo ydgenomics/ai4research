@@ -10,6 +10,16 @@ $$
 - **bp**: 所有碱基（含零值）→ 零值天然相关，pcc 偏高
 - **exon/gene**: 均值后跨特征计算 → 衡量模型对基因表达水平的排序能力
 
+### spearman
+$$
+\text{spearman} = \frac{\sum (R(x_i) - \bar{R}_x)(R(y_i) - \bar{R}_y)}{\sqrt{\sum (R(x_i) - \bar{R}_x)^2}\sqrt{\sum (R(y_i) - \bar{R}_y)^2}}
+$$
+- 将原始值替换为秩(rank)后再计算 Pearson
+- **与 pcc 的区别**: pcc 衡量线性相关性，spearman 衡量**单调相关性（排序一致性）**
+- 对异常值不敏感，不受数据尺度影响
+- **bp**: 零值主导时 ≈ pcc
+- **exon/gene**: 直接反映模型对基因表达水平的**排序能力**，是论文核心参考指标之一
+
 ### log1p_pcc
 $$
 \text{log1p\_pcc} = \text{Pearson}\big(\log(1 + y_{\text{true}}),\; \log(1 + y_{\text{pred}})\big)

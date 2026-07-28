@@ -34,6 +34,29 @@ from tqdm import tqdm
 
 
 # =============================================================================
+# 0. 性能工具
+# =============================================================================
+
+def _parse_json_array(series: pd.Series) -> pd.Series:
+    """快速批量解析 JSON 数组列。"""
+    # 先尝试 json.loads（最快），失败回退 ast.literal_eval
+    def _parse(val):
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            return np.array([], dtype=np.float32)
+        text = str(val).strip()
+        if not text:
+            return np.array([], dtype=np.float32)
+        try:
+            return np.asarray(json.loads(text), dtype=np.float32)
+        except (json.JSONDecodeError, TypeError):
+            try:
+                return np.asarray(ast.literal_eval(text), dtype=np.float32)
+            except (ValueError, SyntaxError):
+                return np.array([], dtype=np.float32)
+    return series.apply(_parse)
+
+
+# =============================================================================
 # 1. 数据类
 # =============================================================================
 
@@ -120,23 +143,38 @@ def safe_spearman(a: np.ndarray, b: np.ndarray) -> float:
 # =============================================================================
 
 def load_and_merge_csvs(triplets: list[CsvTriplet]) -> pd.DataFrame:
-    """加载多个 CSV，重命名 chromosome，添加 strand 列，按行合并。"""
+    """加载多个 CSV，重命名 chromosome，添加 strand 列，按行合并。
+
+    优化：指定列类型减少内存，批量解析 JSON 数组代替逐行 parse_expression_column。
+    """
     all_dfs = []
     for t in triplets:
-        df = pd.read_csv(t.csv_path)
+        # 只读需要的列，并指定 dtypes 减少内存
+        usecols = {"chromosome", "start", "end", "predicted_expression", "true_expression"}
+        # 如果存在 sequence 列，读进来以便之后 drop（避免 warning）
+        # 先用较少的列读取
+        df = pd.read_csv(
+            t.csv_path,
+            usecols=lambda c: c in usecols or c == "sequence",
+            dtype={"start": "int32", "end": "int32"},
+            low_memory=False,
+        )
         required = {"chromosome", "start", "end", "predicted_expression", "true_expression"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(f"{t.csv_path} missing columns: {missing}")
 
-        # 解析 expression 列
-        df["parsed_pred"] = df["predicted_expression"].apply(parse_expression_column)
-        df["parsed_true"] = df["true_expression"].apply(parse_expression_column)
+        # 批量解析 expression 列（比逐行 apply parse_expression_column 更快）
+        df["parsed_pred"] = _parse_json_array(df["predicted_expression"])
+        df["parsed_true"] = _parse_json_array(df["true_expression"])
+
+        # 释放原始字符串列
+        df.drop(columns=["sequence", "true_expression", "predicted_expression"], inplace=True, errors="ignore")
 
         # 验证长度一致性
-        df["calc_length"] = df["end"] - df["start"]
-        df["parsed_length"] = df["parsed_pred"].apply(len)
-        mismatch = df["calc_length"] != df["parsed_length"]
+        calc_len = df["end"] - df["start"]
+        parsed_len = df["parsed_pred"].apply(len)
+        mismatch = calc_len != parsed_len
         if mismatch.any():
             print(f"  ⚠️  {t.csv_path.name}: {mismatch.sum()} rows with length mismatch, filtered")
             df = df[~mismatch].copy()
@@ -160,25 +198,34 @@ def flatten_to_genome_array(
 ) -> dict[str, np.ndarray]:
     """将逐窗口的值按染色体位置平均后拼接。
 
+    优化：按染色体分组后，使用 numpy 数组累积，避免嵌套 dict 的 Python 逐碱基循环。
+
     Returns: dict[chromosome] → np.ndarray (逐碱基平均值)
     """
-    pos_data = defaultdict(lambda: defaultdict(lambda: [0.0, 0]))
-    for _, row in df.iterrows():
-        chrom = str(row["chromosome"])
-        start = int(row["start"])
-        values = np.asarray(row[value_col], dtype=float)
-        for j, val in enumerate(values):
-            p = start + j
-            pos_data[chrom][p][0] += val
-            pos_data[chrom][p][1] += 1
-
     result = {}
-    for chrom in sorted(pos_data.keys()):
-        positions = sorted(pos_data[chrom].keys())
-        result[chrom] = np.array(
-            [pos_data[chrom][p][0] / pos_data[chrom][p][1] for p in positions],
-            dtype=np.float32,
-        )
+    for chrom, group in df.groupby("chromosome", sort=True):
+        starts = group["start"].to_numpy(dtype=np.int64)
+        values_list = group[value_col].to_numpy()
+        lengths = np.array([len(v) for v in values_list], dtype=np.int64)
+        ends = starts + lengths
+
+        min_pos = int(starts.min())
+        max_pos = int(ends.max())
+        span = max_pos - min_pos
+
+        sum_arr = np.zeros(span, dtype=np.float64)
+        count_arr = np.zeros(span, dtype=np.int32)
+
+        for start, vals in zip(starts, values_list):
+            v = np.asarray(vals, dtype=np.float64)
+            n = len(v)
+            i0 = int(start) - min_pos
+            sum_arr[i0:i0+n] += v
+            count_arr[i0:i0+n] += 1
+
+        mask = count_arr > 0
+        result[str(chrom)] = np.divide(sum_arr, count_arr, where=mask, dtype=np.float32)[mask]
+
     return result
 
 
@@ -210,8 +257,11 @@ def compute_track_metrics(y_pred: np.ndarray, y_true: np.ndarray) -> dict[str, f
     y_pred_nz = y_pred[nonzero_mask]
     nozero_pcc = safe_pearson(y_true_nz, y_pred_nz) if len(y_true_nz) >= 2 else np.nan
 
+    spearman = safe_spearman(y_true, y_pred)
+
     return {
         "pcc": round(pcc, 6) if not np.isnan(pcc) else np.nan,
+        "spearman": round(spearman, 6) if not np.isnan(spearman) else np.nan,
         "log1p_pcc": round(log1p_pcc, 6) if not np.isnan(log1p_pcc) else np.nan,
         "nozero_pcc": round(nozero_pcc, 6) if not np.isnan(nozero_pcc) else np.nan,
         "zero_ratio": round(zero_ratio, 4),
@@ -245,6 +295,7 @@ def compute_window_metrics(
 
         pcc_val = safe_pearson(true_nz, pred_nz) if len(pred_nz) >= 2 else np.nan
         log1p_val = safe_pearson(np.log(true_nz + 1), np.log(pred_nz + 1)) if len(pred_nz) >= 2 else np.nan
+        spearman_val = safe_spearman(true_nz, pred_nz) if len(pred_nz) >= 2 else np.nan
         zero_ratio = float(np.mean(true == 0) * 100)
 
         ss_res = np.sum((true - pred) ** 2)
@@ -258,6 +309,7 @@ def compute_window_metrics(
             "strand": str(strand),
             "length": length,
             "pcc": round(pcc_val, 6) if not np.isnan(pcc_val) else np.nan,
+            "spearman": round(spearman_val, 6) if not np.isnan(spearman_val) else np.nan,
             "log1p_pcc": round(log1p_val, 6) if not np.isnan(log1p_val) else np.nan,
             "nozero_pcc": round(pcc_val, 6) if not np.isnan(pcc_val) else np.nan,
             "zero_ratio": round(zero_ratio, 4),
@@ -276,7 +328,7 @@ def compute_feature_basic_metrics(
     true = np.asarray(true_values, dtype=np.float32)
 
     if len(pred) == 0:
-        return {"pcc": np.nan, "log1p_pcc": np.nan, "r2": np.nan}
+        return {"pcc": np.nan, "spearman": np.nan, "log1p_pcc": np.nan, "r2": np.nan}
 
     nonzero_mask = (pred > 0) & (true > 0)
     pred_nz = pred[nonzero_mask]
@@ -285,9 +337,11 @@ def compute_feature_basic_metrics(
     if len(pred_nz) >= 2 and len(np.unique(pred_nz)) > 1 and len(np.unique(true_nz)) > 1:
         pcc_val = float(stats.pearsonr(pred_nz, true_nz).statistic)
         log1p_val = safe_pearson(np.log(true_nz + 1), np.log(pred_nz + 1))
+        spearman_val = safe_spearman(pred_nz, true_nz)
     else:
         pcc_val = np.nan
         log1p_val = np.nan
+        spearman_val = np.nan
 
     diff = true - pred
     ss_res = float(np.sum(diff ** 2))
@@ -296,6 +350,7 @@ def compute_feature_basic_metrics(
 
     return {
         "pcc": round(pcc_val, 6) if not np.isnan(pcc_val) else np.nan,
+        "spearman": round(spearman_val, 6) if not np.isnan(spearman_val) else np.nan,
         "log1p_pcc": round(log1p_val, 6) if not np.isnan(log1p_val) else np.nan,
         "r2": round(r2_val, 6) if not np.isnan(r2_val) else np.nan,
     }
@@ -307,7 +362,7 @@ def compute_feature_mean_correlation(
     """跨基因的均值相关性。"""
     valid = df.dropna(subset=["pred_mean", "true_mean"])
     if len(valid) < min_features:
-        return {"pcc": np.nan, "log1p_pcc": np.nan, "nozero_pcc": np.nan, "r2": np.nan}
+        return {"pcc": np.nan, "spearman": np.nan, "log1p_pcc": np.nan, "nozero_pcc": np.nan, "r2": np.nan}
 
     pred = valid["pred_mean"].to_numpy(dtype=float)
     true = valid["true_mean"].to_numpy(dtype=float)
@@ -321,6 +376,7 @@ def compute_feature_mean_correlation(
 
     return {
         "pcc": round(safe_pearson(pred, true), 6),
+        "spearman": round(safe_spearman(pred, true), 6),
         "log1p_pcc": round(safe_pearson(np.log(pred + 1), np.log(true + 1)), 6),
         "nozero_pcc": round(nozero_pcc, 6) if not np.isnan(nozero_pcc) else np.nan,
         "r2": round(r2_val, 6),
@@ -665,84 +721,109 @@ def aggregate_to_features(
     df: pd.DataFrame, features_by_chrom: dict[str, list[Feature]],
     min_overlap_bp: int = 1,
 ) -> pd.DataFrame:
-    """将逐窗口预测值与 GFF 特征做 overlap 聚合。"""
-    feature_data: dict[str, list[Feature]] = {
-        chrom: feats for chrom, feats in features_by_chrom.items()
-    }
-    feature_values: dict[tuple, dict] = {}
+    """将逐窗口预测值与 GFF 特征做 overlap 聚合。
 
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="  Aggregating to features", leave=False):
-        chrom = str(row["chromosome"])
-        window_start = int(row["start"])
-        window_end = int(row["end"])
-        pred = np.asarray(row["parsed_pred"], dtype=float)
-        true = np.asarray(row["parsed_true"], dtype=float)
+    优化策略：
+    1. 特征为中心的外循环 + 二分查找 + 游标推进（O(F·log W)）
+    2. numpy 切片累加代替 Python dict 逐碱基循环（C 级速度）
+    3. 每特征临时分配数组，用完即释放（低内存）
+    """
+    rows = []
 
-        feats = feature_data.get(chrom, [])
+    for chrom, feats in features_by_chrom.items():
         if not feats:
             continue
 
-        for feat in feats:
-            if feat.end0 <= window_start:
-                continue
-            if feat.start0 >= window_end:
-                break
-
-            overlap_start = max(window_start, feat.start0)
-            overlap_end = min(window_end, feat.end0)
-            if overlap_end <= overlap_start:
-                continue
-
-            src_start = overlap_start - window_start
-            src_end = overlap_end - window_start
-
-            key = (feat.feature_type, feat.feature_id, feat.chrom)
-            entry = feature_values.setdefault(key, {
-                "feature": feat,
-                "pred_sum": defaultdict(float),
-                "true_sum": defaultdict(float),
-                "counts": defaultdict(int),
-            })
-            for offset in range(overlap_start, overlap_end):
-                entry["pred_sum"][offset] += float(pred[src_start + (offset - overlap_start)])
-                entry["true_sum"][offset] += float(true[src_start + (offset - overlap_start)])
-                entry["counts"][offset] += 1
-
-    rows = []
-    for entry in feature_values.values():
-        feat = entry["feature"]
-        covered = sorted(entry["counts"].keys())
-        overlap_bp = len(covered)
-        if overlap_bp < min_overlap_bp:
+        chrom_df = df[df["chromosome"] == str(chrom)]
+        if chrom_df.empty:
             continue
 
-        pred_vals = np.array([entry["pred_sum"][p] / entry["counts"][p] for p in covered], dtype=np.float32)
-        true_vals = np.array([entry["true_sum"][p] / entry["counts"][p] for p in covered], dtype=np.float32)
-        metrics = compute_feature_basic_metrics(pred_vals, true_vals)
+        # 按 start 排序窗口，建立二分查找索引
+        chrom_df = chrom_df.sort_values(["start", "end"])
+        win_starts = chrom_df["start"].to_numpy(dtype=np.int64)
+        win_ends = chrom_df["end"].to_numpy(dtype=np.int64)
+        win_preds = chrom_df["parsed_pred"].to_numpy()
+        win_trues = chrom_df["parsed_true"].to_numpy()
+        n_wins = len(win_starts)
 
-        nonzero_mask = (pred_vals > 0) & (true_vals > 0)
-        eval_length = covered[-1] - covered[0] + 1 if covered else 0
-        feature_length = feat.end0 - feat.start0
+        # 游标：特征按染色体顺序排列，左边界只增不减
+        left_cursor = 0
 
-        rows.append({
-            "feature_type": feat.feature_type,
-            "feature_id": feat.feature_id,
-            "parent_id": feat.parent_id,
-            "chromosome": feat.chrom,
-            "start": feat.start0,
-            "end": feat.end0,
-            "strand": feat.strand,
-            "feature_length": feature_length,
-            "eval_length": eval_length,
-            "overlap_bp": overlap_bp,
-            "coverage_fraction": round(overlap_bp / eval_length, 4) if eval_length else np.nan,
-            "pred_mean": float(np.mean(pred_vals)),
-            "true_mean": float(np.mean(true_vals)),
-            "pred_zero_ratio": round(float(np.mean(pred_vals == 0)), 4),
-            "true_zero_ratio": round(float(np.mean(true_vals == 0)), 4),
-            "nonzero_bp": int(np.sum(nonzero_mask)),
-            **metrics,
-        })
+        for feat in tqdm(feats, desc=f"  Features on {chrom}", leave=False):
+            f_start0 = feat.start0
+            f_end0 = feat.end0
+            f_len = f_end0 - f_start0
+
+            # 二分查找上界：第一个 start >= f_end0 的窗口
+            right = int(np.searchsorted(win_starts, f_end0, side="left"))
+
+            # 推进游标跳过 end <= f_start0 的窗口
+            while left_cursor < right and win_ends[left_cursor] <= f_start0:
+                left_cursor += 1
+            left = left_cursor
+
+            if left >= right:
+                continue
+
+            # 临时数组：按相对位置（距 feat.start0）累积
+            pred_sum = np.zeros(f_len, dtype=np.float64)
+            true_sum = np.zeros(f_len, dtype=np.float64)
+            counts = np.zeros(f_len, dtype=np.int32)
+
+            for i in range(left, right):
+                w_start = int(win_starts[i])
+                w_end = int(win_ends[i])
+
+                o_start = max(w_start, f_start0)
+                o_end = min(w_end, f_end0)
+                if o_end <= o_start:
+                    continue
+
+                src_start = o_start - w_start
+                src_end = o_end - w_start
+                dst_start = o_start - f_start0
+                dst_end = o_end - f_start0
+
+                pred = np.asarray(win_preds[i], dtype=np.float64)
+                true = np.asarray(win_trues[i], dtype=np.float64)
+                pred_sum[dst_start:dst_end] += pred[src_start:src_end]
+                true_sum[dst_start:dst_end] += true[src_start:src_end]
+                counts[dst_start:dst_end] += 1
+
+            covered_mask = counts > 0
+            overlap_bp = int(covered_mask.sum())
+            if overlap_bp < min_overlap_bp:
+                continue
+
+            pred_vals = np.divide(pred_sum, counts, where=covered_mask, dtype=np.float32)[covered_mask]
+            true_vals = np.divide(true_sum, counts, where=covered_mask, dtype=np.float32)[covered_mask]
+            metrics = compute_feature_basic_metrics(pred_vals, true_vals)
+
+            nonzero_mask = (pred_vals > 0) & (true_vals > 0)
+            first_covered = int(np.argmax(covered_mask)) + f_start0
+            last_covered = int(f_len - np.argmax(covered_mask[::-1]) - 1) + f_start0
+            eval_length = last_covered - first_covered + 1
+            feature_length = f_len
+
+            rows.append({
+                "feature_type": feat.feature_type,
+                "feature_id": feat.feature_id,
+                "parent_id": feat.parent_id,
+                "chromosome": feat.chrom,
+                "start": feat.start0,
+                "end": feat.end0,
+                "strand": feat.strand,
+                "feature_length": feature_length,
+                "eval_length": eval_length,
+                "overlap_bp": overlap_bp,
+                "coverage_fraction": round(overlap_bp / eval_length, 4) if eval_length else np.nan,
+                "pred_mean": float(np.mean(pred_vals)),
+                "true_mean": float(np.mean(true_vals)),
+                "pred_zero_ratio": round(float(np.mean(pred_vals == 0)), 4),
+                "true_zero_ratio": round(float(np.mean(true_vals == 0)), 4),
+                "nonzero_bp": int(np.sum(nonzero_mask)),
+                **metrics,
+            })
 
     return pd.DataFrame(rows)
 
@@ -945,6 +1026,7 @@ def build_main_summary(
                                 "resolution": f"{ftype}-{bucket_label}",
                                 "strand": strand_val,
                                 "pcc": srow.get("pcc", np.nan),
+                                "spearman": srow.get("spearman", np.nan),
                                 "log1p_pcc": srow.get("log1p_pcc", np.nan),
                                 "nozero_pcc": srow.get("nozero_pcc", np.nan),
                                 "zero_ratio": np.nan,
@@ -1013,6 +1095,7 @@ def build_main_summary(
                                         "resolution": f"{ftype}-{bucket_label}",
                                         "strand": strand_val,
                                         "pcc": srow.get("pcc", np.nan),
+                                        "spearman": srow.get("spearman", np.nan),
                                         "log1p_pcc": srow.get("log1p_pcc", np.nan),
                                         "nozero_pcc": srow.get("nozero_pcc", np.nan),
                                         "zero_ratio": np.nan,
@@ -1023,7 +1106,7 @@ def build_main_summary(
     df_out = pd.DataFrame(rows)
     # 确保列顺序
     cols = ["sample", "biosample", "split", "global", "chromosome",
-            "resolution", "strand", "pcc", "log1p_pcc", "nozero_pcc",
+            "resolution", "strand", "pcc", "spearman", "log1p_pcc", "nozero_pcc",
             "zero_ratio", "r2", "delta_pcc"]
     for c in cols:
         if c not in df_out.columns:
@@ -1083,6 +1166,8 @@ def build_cross_variety_delta(all_results: list[dict]) -> pd.DataFrame:
             sp = r["context"]["sample"]
             gene_df = fdf[fdf["feature_type"] == "gene"].set_index("feature_id")
             if not gene_df.empty:
+                if gene_df.index.duplicated().any():
+                    gene_df = gene_df.groupby(level=0).mean(numeric_only=True)
                 species_dfs[sp] = gene_df
                 species_splits[sp] = r["context"]["split"]
 
