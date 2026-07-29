@@ -1,0 +1,5 @@
+- 品种间的注释对齐
+  - 各品种染色体命名要与Os的一致 /mnt/rice/default/Workspace/xuxiaolong/RNAprediction/ref/ref_clean # 例如chr01
+  - liftoff转移注释后的chromosome命名与fa一致
+- 获得品种特异的基因
+  - 我想获得品种特异基因，单独计算测试集品种中的基因的PCC，说明其具有基因组内的泛化性。先拟定一个计划
