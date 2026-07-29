@@ -405,80 +405,79 @@ def _compute_global_thresholds(all_results: list[dict], n_buckets: int = 3):
 def build_cross_variety_delta_df(all_results: list[dict]) -> pd.DataFrame:
     """构建 00_cross_variety_delta_summary.csv。
 
-    对每一对品种（同 tissue, chromosome），在匹配的同源基因上计算：
+    对每一对独立 (species, tissue, chrom_unit) 组合，在匹配的同源基因上计算：
       - Δ expression Pearson/Spearman（品种间表达差异的预测精度）
       - log2FC Pearson/Spearman（差异表达分析标准指标）
       - 方向一致性 sign_accuracy
       - Up/Down 精确率
 
     品种对按 pair_type 分类：train_train / train_test。
+    不再按 (tissue, chrom_unit) 分组，而是对所有结果两两对比，
+    包括同 tissue 内不同 species、不同 tissue 间同 species 以及跨 tissue/species 的组合。
     """
     from itertools import combinations
 
-    # Group results by (tissue, chrom_unit)
-    groups: dict[tuple, list[dict]] = {}
+    # 收集所有结果的 gene 级 feature_df
+    entries: list[dict] = []
     for r in all_results:
         if r.get("error"):
             continue
+        fdf = r.get("feature_df")
+        if fdf is None or fdf.empty:
+            continue
         ctx = r["context"]
-        key = (ctx["tissue"], ctx["chrom_unit"])
-        groups.setdefault(key, []).append(r)
+        gene_df = fdf[fdf["feature_type"] == "gene"].set_index("feature_id")
+        if gene_df.empty:
+            continue
+        if gene_df.index.duplicated().any():
+            gene_df = gene_df.groupby(level=0).mean(numeric_only=True)
+        entries.append({
+            "species": ctx["species"],
+            "tissue": ctx["tissue"],
+            "chrom_unit": ctx["chrom_unit"],
+            "split": ctx["split"],
+            "gene_df": gene_df,
+        })
+
+    if len(entries) < 2:
+        return pd.DataFrame()
 
     rows = []
-    for (tissue, chrom), group_results in groups.items():
-        # Build dict: species -> gene-level DataFrame (indexed by feature_id)
-        species_dfs: dict[str, pd.DataFrame] = {}
-        species_splits: dict[str, str] = {}
-        for r in group_results:
-            fdf = r.get("feature_df")
-            if fdf is None or fdf.empty:
-                continue
-            sp = r["context"]["species"]
-            gene_df = fdf[fdf["feature_type"] == "gene"].set_index("feature_id")
-            if not gene_df.empty:
-                species_dfs[sp] = gene_df
-                species_splits[sp] = r["context"]["split"]
+    for entry_a, entry_b in combinations(entries, 2):
+        df_a = entry_a["gene_df"]
+        df_b = entry_b["gene_df"]
 
-        species_list = sorted(species_dfs.keys())
-        if len(species_list) < 2:
+        # Only genes present in both cultivars
+        common_ids = df_a.index.intersection(df_b.index)
+        if len(common_ids) < 10:
             continue
 
-        for sp_a, sp_b in combinations(species_list, 2):
-            df_a = species_dfs[sp_a]
-            df_b = species_dfs[sp_b]
+        # Determine pair type
+        split_a = entry_a["split"]
+        split_b = entry_b["split"]
+        if split_a == "train" and split_b == "train":
+            pair_type = "train_train"
+        else:
+            pair_type = "train_test"
 
-            # Only genes present in both cultivars
-            common_ids = df_a.index.intersection(df_b.index)
-            if len(common_ids) < 10:
-                continue
+        metrics = compute_pairwise_delta_metrics(
+            df_a.loc[common_ids, "pred_mean"].to_numpy(dtype=float),
+            df_a.loc[common_ids, "true_mean"].to_numpy(dtype=float),
+            df_b.loc[common_ids, "pred_mean"].to_numpy(dtype=float),
+            df_b.loc[common_ids, "true_mean"].to_numpy(dtype=float),
+        )
 
-            df_a_m = df_a.loc[common_ids]
-            df_b_m = df_b.loc[common_ids]
-
-            # Determine pair type
-            split_a = species_splits.get(sp_a, "unknown")
-            split_b = species_splits.get(sp_b, "unknown")
-            if split_a == "train" and split_b == "train":
-                pair_type = "train_train"
-            else:
-                pair_type = "train_test"
-
-            metrics = compute_pairwise_delta_metrics(
-                df_a_m["pred_mean"].to_numpy(dtype=float),
-                df_a_m["true_mean"].to_numpy(dtype=float),
-                df_b_m["pred_mean"].to_numpy(dtype=float),
-                df_b_m["true_mean"].to_numpy(dtype=float),
-            )
-
-            rows.append({
-                "tissue": tissue,
-                "chrom_unit": chrom,
-                "cultivar_a": sp_a,
-                "cultivar_b": sp_b,
-                "pair_type": pair_type,
-                **{k: round(v, 6) if isinstance(v, float) else v
-                   for k, v in metrics.items()},
-            })
+        rows.append({
+            "tissue_a": entry_a["tissue"],
+            "tissue_b": entry_b["tissue"],
+            "chrom_unit_a": entry_a["chrom_unit"],
+            "chrom_unit_b": entry_b["chrom_unit"],
+            "cultivar_a": entry_a["species"],
+            "cultivar_b": entry_b["species"],
+            "pair_type": pair_type,
+            **{k: round(v, 6) if isinstance(v, float) else v
+               for k, v in metrics.items()},
+        })
 
     return pd.DataFrame(rows)
 

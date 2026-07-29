@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.0] - 2026-07-28
+
+### 修复
+- **跨品种差异表达表只有少量行**：`build_cross_variety_delta` 按 `biosample` 分组后再配对，导致只产生组内品种对，缺失跨 biosample 的对比。
+  - 例如 YP 配置（2 biosample × 2 sample）只输出 2 行；SAM2 配置（1 biosample × 5 task）只输出 3 行。
+  - 修复：取消分组逻辑，将每个 (sample, biosample, split) 组合视为独立实体，用 `itertools.combinations` 生成所有两两对比。
+  - 输出列 `biosample` 拆分为 `biosample_a` / `biosample_b`，以区分两个个体的 biosample。
+
+### 变更文件
+- `run_evaluation.py`: 重写 `build_cross_variety_delta` 函数，取消 biosample 分组。
+
 ## [1.1.1] - 2026-07-27
 
 ### 修复

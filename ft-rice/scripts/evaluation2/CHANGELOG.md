@@ -1,4 +1,19 @@
 # CHANGELOG
+## 2026-07-28
+
+### Fixed: 跨品种差异表达表只有少量行（同 evaluation3）
+
+**问题**：`build_cross_variety_delta_df` 按 (tissue, chrom_unit) 分组后在组内配对，
+5 个 task 在同一 biosample 时，`species` 去重后仅剩 3 个（如 MH63、NIP、ZS97），
+只输出 C(3,2) = 3 行，缺失训练/测试复现间的对比。
+
+**修改文件**：
+
+- **`run_evaluation.py` — `build_cross_variety_delta_df`**
+  - 取消 (tissue, chrom_unit) 分组，将每个 (species, tissue, chrom_unit, split) 组合视为独立实体
+  - 用 `itertools.combinations` 生成所有两两对比
+  - 输出列 `tissue`/`chrom_unit` 拆分为 `tissue_a`/`tissue_b` 和 `chrom_unit_a`/`chrom_unit_b`
+
 ## 2026-07-27
 
 ### Fixed: `predictions_scaling_torch` 逆操作顺序错误

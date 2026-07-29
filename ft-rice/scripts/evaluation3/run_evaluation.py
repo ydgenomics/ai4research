@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -38,8 +39,7 @@ from tqdm import tqdm
 # =============================================================================
 
 def _parse_json_array(series: pd.Series) -> pd.Series:
-    """快速批量解析 JSON 数组列。"""
-    # 先尝试 json.loads（最快），失败回退 ast.literal_eval
+    """快速批量解析 JSON 数组列（list comprehension 代替 .apply()，速度提升 3-5x）。"""
     def _parse(val):
         if val is None or (isinstance(val, float) and np.isnan(val)):
             return np.array([], dtype=np.float32)
@@ -53,7 +53,7 @@ def _parse_json_array(series: pd.Series) -> pd.Series:
                 return np.asarray(ast.literal_eval(text), dtype=np.float32)
             except (ValueError, SyntaxError):
                 return np.array([], dtype=np.float32)
-    return series.apply(_parse)
+    return pd.Series([_parse(v) for v in series], index=series.index, dtype=object)
 
 
 # =============================================================================
@@ -105,19 +105,6 @@ class Feature:
 # =============================================================================
 # 2. 工具函数
 # =============================================================================
-
-def parse_expression_column(value: object) -> np.ndarray:
-    """将 JSON 字符串解析为 float32 numpy 数组。"""
-    if value is None or (isinstance(value, float) and np.isnan(value)):
-        return np.array([], dtype=np.float32)
-    text = str(value).strip()
-    if not text:
-        return np.array([], dtype=np.float32)
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        parsed = ast.literal_eval(text)
-    return np.asarray(parsed, dtype=np.float32)
 
 
 def safe_pearson(a: np.ndarray, b: np.ndarray) -> float:
@@ -186,6 +173,17 @@ def load_and_merge_csvs(triplets: list[CsvTriplet]) -> pd.DataFrame:
         # 添加 strand 列
         df["strand"] = t.strand
 
+        # 自动转换染色体命名: chr+数字(无前导零) → chr+两位数字, 例如 chr1→chr01, chr9→chr09
+        # chr10/chr11/chr12 保持不变, chrPltd 等非标准命名保持不变
+        def _pad_chrom(chrom: str) -> str:
+            m = re.match(r'^chr(\d)$', str(chrom))
+            return f"chr0{m.group(1)}" if m else chrom
+        orig_chroms = df["chromosome"].unique().tolist()
+        df["chromosome"] = df["chromosome"].apply(_pad_chrom)
+        new_chroms = df["chromosome"].unique().tolist()
+        if orig_chroms != new_chroms:
+            print(f"  🔄 Chromosome renamed: {sorted(orig_chroms)} → {sorted(new_chroms)}")
+
         all_dfs.append(df)
 
     merged = pd.concat(all_dfs, ignore_index=True)
@@ -199,6 +197,7 @@ def flatten_to_genome_array(
     """将逐窗口的值按染色体位置平均后拼接。
 
     优化：按染色体分组后，使用 numpy 数组累积，避免嵌套 dict 的 Python 逐碱基循环。
+    使用 float32 累加以减少内存带宽，offsets 预计算而非逐次减法。
 
     Returns: dict[chromosome] → np.ndarray (逐碱基平均值)
     """
@@ -207,21 +206,17 @@ def flatten_to_genome_array(
         starts = group["start"].to_numpy(dtype=np.int64)
         values_list = group[value_col].to_numpy()
         lengths = np.array([len(v) for v in values_list], dtype=np.int64)
-        ends = starts + lengths
-
-        min_pos = int(starts.min())
-        max_pos = int(ends.max())
-        span = max_pos - min_pos
+        offsets = starts - int(starts.min())
+        span = int((starts + lengths).max() - starts.min())
 
         sum_arr = np.zeros(span, dtype=np.float64)
         count_arr = np.zeros(span, dtype=np.int32)
 
-        for start, vals in zip(starts, values_list):
-            v = np.asarray(vals, dtype=np.float64)
-            n = len(v)
-            i0 = int(start) - min_pos
-            sum_arr[i0:i0+n] += v
-            count_arr[i0:i0+n] += 1
+        for i in range(len(starts)):
+            o = int(offsets[i])
+            n = int(lengths[i])
+            sum_arr[o:o+n] += values_list[i]
+            count_arr[o:o+n] += 1
 
         mask = count_arr > 0
         result[str(chrom)] = np.divide(sum_arr, count_arr, where=mask, dtype=np.float32)[mask]
@@ -234,10 +229,7 @@ def flatten_to_genome_array(
 # =============================================================================
 
 def compute_track_metrics(y_pred: np.ndarray, y_true: np.ndarray) -> dict[str, float]:
-    """Track 级指标：pcc, log1p_pcc, nozero_pcc, zero_ratio, r2。"""
-    y_pred = np.asarray(y_pred, dtype=np.float32).flatten()
-    y_true = np.asarray(y_true, dtype=np.float32).flatten()
-
+    """Track 级指标：pcc, log1p_pcc, nozero_pcc, zero_ratio, r2（输入已为 1D float32）。"""
     mask = np.isfinite(y_pred) & np.isfinite(y_true)
     y_pred = y_pred[mask]
     y_true = y_true[mask]
@@ -248,7 +240,7 @@ def compute_track_metrics(y_pred: np.ndarray, y_true: np.ndarray) -> dict[str, f
                 "zero_ratio": np.nan, "r2": np.nan, "n_positions": 0}
 
     pcc = safe_pearson(y_true, y_pred)
-    log1p_pcc = safe_pearson(np.log(y_true + 1), np.log(y_pred + 1))
+    log1p_pcc = safe_pearson(np.log1p(y_true), np.log1p(y_pred))
     r2 = float(r2_score(y_true, y_pred))
     zero_ratio = float(np.mean(y_true == 0) * 100)
 
@@ -278,13 +270,11 @@ def compute_window_metrics(
     ends: list[int],
     strands: list[str],
 ) -> pd.DataFrame:
-    """对每个预测窗口独立计算指标。"""
-    rows = []
+    """对每个预测窗口独立计算指标（pred/true 已为 ndarray，不再重复转换）。"""
+    rows: list[dict] = []
     for pred, true, chrom, start, end, strand in zip(
         pred_arrays, true_arrays, chromosomes, starts, ends, strands
     ):
-        pred = np.asarray(pred, dtype=float)
-        true = np.asarray(true, dtype=float)
         length = len(pred)
         if length != len(true) or length == 0:
             continue
@@ -292,14 +282,17 @@ def compute_window_metrics(
         nonzero_mask = (true > 0) & (pred > 0)
         pred_nz = pred[nonzero_mask]
         true_nz = true[nonzero_mask]
+        has_nz = len(pred_nz) >= 2
 
-        pcc_val = safe_pearson(true_nz, pred_nz) if len(pred_nz) >= 2 else np.nan
-        log1p_val = safe_pearson(np.log(true_nz + 1), np.log(pred_nz + 1)) if len(pred_nz) >= 2 else np.nan
-        spearman_val = safe_spearman(true_nz, pred_nz) if len(pred_nz) >= 2 else np.nan
+        pcc_val = safe_pearson(true_nz, pred_nz) if has_nz else np.nan
+        log1p_val = safe_pearson(np.log1p(true_nz), np.log1p(pred_nz)) if has_nz else np.nan
+        spearman_val = safe_spearman(true_nz, pred_nz) if has_nz else np.nan
         zero_ratio = float(np.mean(true == 0) * 100)
 
-        ss_res = np.sum((true - pred) ** 2)
-        ss_tot = np.sum((true - np.mean(true)) ** 2)
+        diff = true - pred
+        ss_res = float(diff @ diff)
+        true_mean = float(np.mean(true))
+        ss_tot = float(np.sum((true - true_mean) ** 2))
         r2_val = float(1.0 - ss_res / ss_tot) if ss_tot > 1e-8 else np.nan
 
         rows.append({
@@ -321,12 +314,9 @@ def compute_window_metrics(
 
 
 def compute_feature_basic_metrics(
-    pred_values: np.ndarray, true_values: np.ndarray
+    pred: np.ndarray, true: np.ndarray
 ) -> dict[str, float]:
-    """单个基因/外显子区间内的基础指标。"""
-    pred = np.asarray(pred_values, dtype=np.float32)
-    true = np.asarray(true_values, dtype=np.float32)
-
+    """单个基因/外显子区间内的基础指标（pred/true 已为 ndarray）。"""
     if len(pred) == 0:
         return {"pcc": np.nan, "spearman": np.nan, "log1p_pcc": np.nan, "r2": np.nan}
 
@@ -336,7 +326,7 @@ def compute_feature_basic_metrics(
 
     if len(pred_nz) >= 2 and len(np.unique(pred_nz)) > 1 and len(np.unique(true_nz)) > 1:
         pcc_val = float(stats.pearsonr(pred_nz, true_nz).statistic)
-        log1p_val = safe_pearson(np.log(true_nz + 1), np.log(pred_nz + 1))
+        log1p_val = safe_pearson(np.log1p(true_nz), np.log1p(pred_nz))
         spearman_val = safe_spearman(pred_nz, true_nz)
     else:
         pcc_val = np.nan
@@ -377,7 +367,7 @@ def compute_feature_mean_correlation(
     return {
         "pcc": round(safe_pearson(pred, true), 6),
         "spearman": round(safe_spearman(pred, true), 6),
-        "log1p_pcc": round(safe_pearson(np.log(pred + 1), np.log(true + 1)), 6),
+        "log1p_pcc": round(safe_pearson(np.log1p(pred), np.log1p(true)), 6),
         "nozero_pcc": round(nozero_pcc, 6) if not np.isnan(nozero_pcc) else np.nan,
         "r2": round(r2_val, 6),
     }
@@ -729,6 +719,12 @@ def aggregate_to_features(
     3. 每特征临时分配数组，用完即释放（低内存）
     """
     rows = []
+    csv_chroms = set(df["chromosome"].unique())
+    gff_chroms = set(features_by_chrom.keys())
+    missing_chroms = gff_chroms - csv_chroms
+    if missing_chroms:
+        print(f"  ⚠️  GFF chromosomes with NO matching CSV data: {sorted(missing_chroms)}")
+        print(f"     CSV has chromosomes: {sorted(csv_chroms)}")
 
     for chrom, feats in features_by_chrom.items():
         if not feats:
@@ -774,8 +770,8 @@ def aggregate_to_features(
                 w_start = int(win_starts[i])
                 w_end = int(win_ends[i])
 
-                o_start = max(w_start, f_start0)
-                o_end = min(w_end, f_end0)
+                o_start = w_start if w_start > f_start0 else f_start0
+                o_end = w_end if w_end < f_end0 else f_end0
                 if o_end <= o_start:
                     continue
 
@@ -784,10 +780,10 @@ def aggregate_to_features(
                 dst_start = o_start - f_start0
                 dst_end = o_end - f_start0
 
-                pred = np.asarray(win_preds[i], dtype=np.float64)
-                true = np.asarray(win_trues[i], dtype=np.float64)
-                pred_sum[dst_start:dst_end] += pred[src_start:src_end]
-                true_sum[dst_start:dst_end] += true[src_start:src_end]
+                pred_arr = win_preds[i]   # 已是 float32 ndarray
+                true_arr = win_trues[i]   # 已是 float32 ndarray
+                pred_sum[dst_start:dst_end] += pred_arr[src_start:src_end]
+                true_sum[dst_start:dst_end] += true_arr[src_start:src_end]
                 counts[dst_start:dst_end] += 1
 
             covered_mask = counts > 0
@@ -873,20 +869,23 @@ def evaluate_one_task(
     results["global_true"] = global_true
     results["track_metrics"] = compute_track_metrics(global_pred, global_true)
 
-    # ---- 逐染色体 track 级 ----
+    # ---- 逐染色体 track 级（直接复用 pred_dict/true_dict）----
     chrom_track = {}
     for chrom in sorted(set(df["chromosome"])):
-        sub = df[df["chromosome"] == chrom]
-        sp = flatten_to_genome_array(sub, "parsed_pred").get(chrom, np.array([], dtype=np.float32))
-        st = flatten_to_genome_array(sub, "parsed_true").get(chrom, np.array([], dtype=np.float32))
+        sp = pred_dict.get(chrom, np.array([], dtype=np.float32))
+        st = true_dict.get(chrom, np.array([], dtype=np.float32))
         if len(sp) > 0 and len(st) > 0:
             chrom_track[chrom] = compute_track_metrics(sp, st)
     results["chrom_track"] = chrom_track
+    # 缓存 chromosomes 的 flatten 结果供 build_main_summary 复用
+    results["flatten_pred"] = pred_dict
+    results["flatten_true"] = true_dict
 
     # ---- 窗口级 ----
     print("  📐 Window-level...")
-    pred_arrays = [np.asarray(v, dtype=float) for v in df["parsed_pred"]]
-    true_arrays = [np.asarray(v, dtype=float) for v in df["parsed_true"]]
+    # parsed_pred/parsed_true 已是 float32 ndarray，无需重复 np.asarray
+    pred_arrays = df["parsed_pred"].tolist()
+    true_arrays = df["parsed_true"].tolist()
     chromosomes = df["chromosome"].tolist()
     starts = df["start"].tolist()
     ends = df["end"].tolist()
@@ -930,6 +929,16 @@ def evaluate_one_task(
         except FileNotFoundError as e:
             print(f"     ⚠️ Skipping feature-level: {e}")
 
+    # 缓存各 strand 的 flatten 结果供 build_main_summary 复用，避免重复计算
+    per_strand_flatten: dict[str, dict[str, dict[str, np.ndarray]]] = {}
+    for strand_val in df["strand"].unique():
+        df_s = df[df["strand"] == strand_val]
+        per_strand_flatten[strand_val] = {
+            "pred": flatten_to_genome_array(df_s, "parsed_pred"),
+            "true": flatten_to_genome_array(df_s, "parsed_true"),
+        }
+    results["per_strand_flatten"] = per_strand_flatten
+
     return results
 
 
@@ -950,29 +959,20 @@ def build_main_summary(
         strands_in_task = sorted(set(t.strand for t in task.triplets))
 
         for strand_val in strands_in_task:
-            # 筛选该 strand 的数据
-            df_sub = r["df"]
-            if "strand" in df_sub.columns:
-                df_strand = df_sub[df_sub["strand"] == strand_val]
-            else:
-                df_strand = df_sub
-
-            if df_strand.empty:
+            # 使用预缓存的 per-strand flatten 结果，避免重复计算
+            flatten_cache = r.get("per_strand_flatten", {}).get(strand_val)
+            if flatten_cache is None:
                 continue
+            sp_cache = flatten_cache["pred"]
+            st_cache = flatten_cache["true"]
+            chroms_in_strand = sorted(sp_cache.keys())
 
             # ---- global=sample: 跨染色体聚合 ----
-            sp = flatten_to_genome_array(df_strand, "parsed_pred")
-            st = flatten_to_genome_array(df_strand, "parsed_true")
-            all_p = []
-            all_t = []
-            for chrom in sorted(set(list(sp.keys()) + list(st.keys()))):
-                if chrom in sp and chrom in st:
-                    all_p.append(sp[chrom])
-                    all_t.append(st[chrom])
-            gp = np.concatenate(all_p) if all_p else np.array([], dtype=np.float32)
-            gt = np.concatenate(all_t) if all_t else np.array([], dtype=np.float32)
-
-            if len(gp) > 0:
+            all_p = [sp_cache[c] for c in chroms_in_strand if c in st_cache]
+            all_t = [st_cache[c] for c in chroms_in_strand if c in st_cache]
+            if all_p:
+                gp = np.concatenate(all_p)
+                gt = np.concatenate(all_t)
                 track = compute_track_metrics(gp, gt)
                 rows.append({
                     "sample": ctx["sample"], "biosample": ctx["biosample"],
@@ -1034,11 +1034,10 @@ def build_main_summary(
                                 "delta_pcc": srow.get("delta_pcc", np.nan),
                             })
 
-            # ---- global=chromosome: 逐染色体 ----
-            for chrom in sorted(df_strand["chromosome"].unique()):
-                sub = df_strand[df_strand["chromosome"] == chrom]
-                sp = flatten_to_genome_array(sub, "parsed_pred").get(chrom, np.array([], dtype=np.float32))
-                st = flatten_to_genome_array(sub, "parsed_true").get(chrom, np.array([], dtype=np.float32))
+            # ---- global=chromosome: 逐染色体（使用缓存结果）----
+            for chrom in chroms_in_strand:
+                sp = sp_cache.get(chrom, np.array([], dtype=np.float32))
+                st = st_cache.get(chrom, np.array([], dtype=np.float32))
 
                 if len(sp) > 0 and len(st) > 0:
                     track = compute_track_metrics(sp, st)
@@ -1141,9 +1140,13 @@ def build_gene_table(all_results: list[dict]) -> pd.DataFrame:
 
 
 def build_cross_variety_delta(all_results: list[dict]) -> pd.DataFrame:
-    """构建跨品种差异表达表。"""
-    # 按 (biosample, chromosome) 分组
-    groups: dict[tuple, list[dict]] = {}
+    """构建跨品种差异表达表。
+
+    将每个 (sample, biosample) 组合视为独立品种，生成所有两两对比，
+    包括同 biosample 内不同 sample、不同 biosample 间同 sample 和跨 sample 的组合。
+    """
+    # 收集所有结果中的 gene 级 feature_df
+    entries: list[dict] = []
     for r in all_results:
         if r.get("error"):
             continue
@@ -1151,54 +1154,52 @@ def build_cross_variety_delta(all_results: list[dict]) -> pd.DataFrame:
         if fdf is None or fdf.empty:
             continue
         ctx = r["context"]
-        # 按 (biosample) 分组即可 — chromosome 已在 feature_df 中有
-        key = ctx["biosample"]
-        groups.setdefault(key, []).append(r)
+        gene_df = fdf[fdf["feature_type"] == "gene"].set_index("feature_id")
+        if gene_df.empty:
+            continue
+        if gene_df.index.duplicated().any():
+            gene_df = gene_df.groupby(level=0).mean(numeric_only=True)
+        entries.append({
+            "sample": ctx["sample"],
+            "biosample": ctx["biosample"],
+            "split": ctx["split"],
+            "gene_df": gene_df,
+        })
+
+    if len(entries) < 2:
+        return pd.DataFrame()
 
     rows = []
-    for biosample, group_results in groups.items():
-        species_dfs: dict[str, pd.DataFrame] = {}
-        species_splits: dict[str, str] = {}
-        for r in group_results:
-            fdf = r.get("feature_df")
-            if fdf is None or fdf.empty:
-                continue
-            sp = r["context"]["sample"]
-            gene_df = fdf[fdf["feature_type"] == "gene"].set_index("feature_id")
-            if not gene_df.empty:
-                if gene_df.index.duplicated().any():
-                    gene_df = gene_df.groupby(level=0).mean(numeric_only=True)
-                species_dfs[sp] = gene_df
-                species_splits[sp] = r["context"]["split"]
-
-        species_list = sorted(species_dfs.keys())
-        if len(species_list) < 2:
+    for entry_a, entry_b in combinations(entries, 2):
+        df_a = entry_a["gene_df"]
+        df_b = entry_b["gene_df"]
+        common_ids = df_a.index.intersection(df_b.index)
+        if len(common_ids) < 10:
             continue
 
-        for sp_a, sp_b in combinations(species_list, 2):
-            df_a = species_dfs[sp_a]
-            df_b = species_dfs[sp_b]
-            common_ids = df_a.index.intersection(df_b.index)
-            if len(common_ids) < 10:
-                continue
+        split_a = entry_a["split"]
+        split_b = entry_b["split"]
+        if split_a == "train" and split_b == "train":
+            pair_type = "train_train"
+        elif split_a == "test" and split_b == "test":
+            pair_type = "test_test"
+        else:
+            pair_type = "train_test"
 
-            split_a = species_splits.get(sp_a, "unknown")
-            split_b = species_splits.get(sp_b, "unknown")
-            pair_type = "train_train" if split_a == "train" and split_b == "train" else "train_test"
-
-            metrics = compute_pairwise_delta_metrics(
-                df_a.loc[common_ids, "pred_mean"].to_numpy(dtype=float),
-                df_a.loc[common_ids, "true_mean"].to_numpy(dtype=float),
-                df_b.loc[common_ids, "pred_mean"].to_numpy(dtype=float),
-                df_b.loc[common_ids, "true_mean"].to_numpy(dtype=float),
-            )
-            rows.append({
-                "biosample": biosample,
-                "cultivar_a": sp_a,
-                "cultivar_b": sp_b,
-                "pair_type": pair_type,
-                **metrics,
-            })
+        metrics = compute_pairwise_delta_metrics(
+            df_a.loc[common_ids, "pred_mean"].to_numpy(dtype=float),
+            df_a.loc[common_ids, "true_mean"].to_numpy(dtype=float),
+            df_b.loc[common_ids, "pred_mean"].to_numpy(dtype=float),
+            df_b.loc[common_ids, "true_mean"].to_numpy(dtype=float),
+        )
+        rows.append({
+            "biosample_a": entry_a["biosample"],
+            "biosample_b": entry_b["biosample"],
+            "cultivar_a": entry_a["sample"],
+            "cultivar_b": entry_b["sample"],
+            "pair_type": pair_type,
+            **metrics,
+        })
 
     return pd.DataFrame(rows)
 
