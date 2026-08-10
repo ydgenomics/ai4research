@@ -93,9 +93,19 @@ def load_finetuned_model(
             dist_print("⚠️ 使用 Flash Attention 2 需要 torch.float16 或 torch.bfloat16，已自动设置为 torch.bfloat16")
             torch_dtype = torch.bfloat16
         config._attn_implementation = "flash_attention_2"
+    else:
+        config._attn_implementation = "eager"
 
     # 3. ✅ 直接在目标设备上初始化模型
-    base_model = AutoModel.from_config(config, trust_remote_code=trust_remote_code)
+    try:
+        base_model = AutoModel.from_config(config, trust_remote_code=trust_remote_code)
+    except ImportError as exc:
+        if use_flash_attn and "flash_attn" in str(exc).lower():
+            dist_print("⚠️ Flash Attention 2 未安装，已自动回退到默认 attention 实现")
+            config._attn_implementation = "eager"
+            base_model = AutoModel.from_config(config, trust_remote_code=trust_remote_code)
+        else:
+            raise
     # 兼容：允许传入其他构造参数给 model_class（例如 GenOmics 需要 index_stat）
     init_args = model_init_args or []
     init_kwargs = model_init_kwargs or {}
@@ -107,6 +117,26 @@ def load_finetuned_model(
     model = model.to(device)
 
     # 5. ✅ 直接注入已在 GPU 上的 state_dict
+    model_state = model.state_dict()
+    for name, target_tensor in model_state.items():
+        if name not in state_dict:
+            continue
+
+        source_tensor = state_dict[name]
+        if source_tensor.shape != target_tensor.shape:
+            if source_tensor.numel() == 1 and target_tensor.numel() > 1:
+                try:
+                    source_tensor = source_tensor.expand_as(target_tensor)
+                    dist_print(f"⚠️ 兼容加载: {name} 从 {tuple(source_tensor.shape)} 扩展为 {tuple(target_tensor.shape)}")
+                except RuntimeError:
+                    pass
+
+            if source_tensor.shape != target_tensor.shape:
+                dist_print(f"⚠️ 跳过不兼容权重: {name} checkpoint={tuple(source_tensor.shape)} model={tuple(target_tensor.shape)}")
+                continue
+
+        state_dict[name] = source_tensor.to(dtype=target_tensor.dtype, device=target_tensor.device)
+
     load_info = model.load_state_dict(state_dict, strict=False)
     if load_info.missing_keys:
         dist_print(f"⚠️  缺失 keys: {load_info.missing_keys[:5]}...")

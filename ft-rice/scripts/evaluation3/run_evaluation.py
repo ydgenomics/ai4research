@@ -191,6 +191,33 @@ def load_and_merge_csvs(triplets: list[CsvTriplet]) -> pd.DataFrame:
     return merged
 
 
+def _accumulate_flatten(
+    group: pd.DataFrame, value_col: str
+) -> tuple[np.ndarray, np.ndarray, int, int]:
+    """对单条染色体的窗口组做逐碱基累加。
+
+    Returns: (sum_arr, count_arr, origin, span)
+        sum_arr/count_arr 为相对 origin 的累加和/覆盖计数（float64 / int32）
+    """
+    starts = group["start"].to_numpy(dtype=np.int64)
+    values_list = group[value_col].to_numpy()
+    lengths = np.array([len(v) for v in values_list], dtype=np.int64)
+    offsets = starts - int(starts.min())
+    span = int((starts + lengths).max() - starts.min())
+    origin = int(starts.min())
+
+    sum_arr = np.zeros(span, dtype=np.float64)
+    count_arr = np.zeros(span, dtype=np.int32)
+
+    for i in range(len(starts)):
+        o = int(offsets[i])
+        n = int(lengths[i])
+        sum_arr[o:o + n] += values_list[i]
+        count_arr[o:o + n] += 1
+
+    return sum_arr, count_arr, origin, span
+
+
 def flatten_to_genome_array(
     df: pd.DataFrame, value_col: str = "parsed_pred"
 ) -> dict[str, np.ndarray]:
@@ -203,22 +230,43 @@ def flatten_to_genome_array(
     """
     result = {}
     for chrom, group in df.groupby("chromosome", sort=True):
-        starts = group["start"].to_numpy(dtype=np.int64)
-        values_list = group[value_col].to_numpy()
-        lengths = np.array([len(v) for v in values_list], dtype=np.int64)
-        offsets = starts - int(starts.min())
-        span = int((starts + lengths).max() - starts.min())
-
-        sum_arr = np.zeros(span, dtype=np.float64)
-        count_arr = np.zeros(span, dtype=np.int32)
-
-        for i in range(len(starts)):
-            o = int(offsets[i])
-            n = int(lengths[i])
-            sum_arr[o:o+n] += values_list[i]
-            count_arr[o:o+n] += 1
-
+        sum_arr, count_arr, _origin, _span = _accumulate_flatten(group, value_col)
         mask = count_arr > 0
+        result[str(chrom)] = np.divide(sum_arr, count_arr, where=mask, dtype=np.float32)[mask]
+    return result
+
+
+def flatten_to_genome_gene(
+    df: pd.DataFrame, value_col: str,
+    gene_intervals_by_chrom: Optional[dict[str, np.ndarray]],
+) -> dict[str, np.ndarray]:
+    """将逐窗口的值按染色体位置平均后，只保留基因区域内的碱基。
+
+    与 flatten_to_genome_array 相同的累加逻辑，但在输出前用基因区间掩码过滤，
+    只返回落在任一基因区间（整基因跨度 start-end，含内含子）内的逐碱基平均值。
+    用于 bp_gene 碱基分辨率指标。
+
+    Returns: dict[chromosome] → np.ndarray (仅基因区域内的逐碱基平均值)
+    """
+    result = {}
+    for chrom, group in df.groupby("chromosome", sort=True):
+        intervals = (gene_intervals_by_chrom or {}).get(str(chrom))
+        if intervals is None or intervals.size == 0:
+            continue
+
+        sum_arr, count_arr, origin, span = _accumulate_flatten(group, value_col)
+
+        # 基因区域掩码：直接用绝对坐标映射到 span 内，避免物化 int64 坐标数组
+        gene_mask = np.zeros(span, dtype=bool)
+        for s, e in intervals:
+            lo = max(int(s) - origin, 0)
+            hi = min(int(e) - origin, span)
+            if hi > lo:
+                gene_mask[lo:hi] = True
+
+        mask = gene_mask & (count_arr > 0)
+        if not mask.any():
+            continue
         result[str(chrom)] = np.divide(sum_arr, count_arr, where=mask, dtype=np.float32)[mask]
 
     return result
@@ -707,6 +755,50 @@ def load_features_from_gff(
     return result
 
 
+def load_gene_regions_from_gff(gff_path: Path) -> dict[str, np.ndarray]:
+    """从 GFF 加载每个染色体的基因区间（整基因跨度 start-end，含内含子）。
+
+    用于 bp_gene 碱基分辨率指标：只统计基因区域内的碱基。
+    与 load_features_from_gff 不同，这里保留 gene 特征的原始跨度（不替换为 exon 并集）。
+
+    Returns: dict[chromosome] → np.ndarray shape (N, 2) 的 [start0, end0) 半开区间，
+             已合并重叠/相邻区间为并集，按 start 升序。
+    """
+    intervals_by_chrom: dict[str, list[tuple[int, int]]] = defaultdict(list)
+
+    with gff_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip() or line.startswith("#"):
+                continue
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) < 5:
+                continue
+            chrom, _source, ftype, start, end = parts[:5]
+            if ftype != "gene":
+                continue
+            start0 = int(start) - 1
+            end0 = int(end)
+            if start0 < 0 or end0 <= start0:
+                continue
+            intervals_by_chrom[chrom].append((start0, end0))
+
+    result: dict[str, np.ndarray] = {}
+    for chrom, intervals in intervals_by_chrom.items():
+        arr = np.asarray(sorted(intervals), dtype=np.int64)
+        if arr.size == 0:
+            continue
+        # 合并重叠/相邻区间为并集
+        merged: list[list[int]] = [[int(arr[0][0]), int(arr[0][1])]]
+        for s, e in arr[1:]:
+            if int(s) <= merged[-1][1]:
+                if int(e) > merged[-1][1]:
+                    merged[-1][1] = int(e)
+            else:
+                merged.append([int(s), int(e)])
+        result[chrom] = np.asarray(merged, dtype=np.int64)
+    return result
+
+
 def aggregate_to_features(
     df: pd.DataFrame, features_by_chrom: dict[str, list[Feature]],
     min_overlap_bp: int = 1,
@@ -831,6 +923,7 @@ def aggregate_to_features(
 def evaluate_one_task(
     task: EvalTask, config: EvalConfig,
     features_cache: Optional[dict] = None,
+    gene_regions_cache: Optional[dict] = None,
 ) -> dict:
     """对单个评估任务执行全部计算。"""
     print(f"\n{'='*60}")
@@ -850,6 +943,19 @@ def evaluate_one_task(
     }
 
     results = {"task": task, "context": context, "df": df}
+
+    # ---- 基因区域（整基因跨度 start-end）加载 —— 用于 bp_gene 碱基分辨率指标 ----
+    gene_regions: Optional[dict[str, np.ndarray]] = None
+    if task.gff is not None and task.gff.is_file():
+        if gene_regions_cache is not None:
+            gene_regions = gene_regions_cache.get(str(task.gff))
+        if gene_regions is None:
+            gene_regions = load_gene_regions_from_gff(task.gff)
+            if gene_regions_cache is not None:
+                gene_regions_cache[str(task.gff)] = gene_regions
+        n_interval = sum(len(v) for v in gene_regions.values())
+        print(f"  🧬 Gene regions loaded: {n_interval} intervals across {len(gene_regions)} chroms")
+    results["gene_regions"] = gene_regions
 
     # ---- Track 级 ----
     print("  📐 Track-level...")
@@ -930,16 +1036,40 @@ def evaluate_one_task(
             print(f"     ⚠️ Skipping feature-level: {e}")
 
     # 缓存各 strand 的 flatten 结果供 build_main_summary 复用，避免重复计算
+    # pred_gene / true_gene 为仅基因区域（整基因跨度）内的碱基，用于 bp_gene 分辨率
     per_strand_flatten: dict[str, dict[str, dict[str, np.ndarray]]] = {}
     for strand_val in df["strand"].unique():
         df_s = df[df["strand"] == strand_val]
         per_strand_flatten[strand_val] = {
             "pred": flatten_to_genome_array(df_s, "parsed_pred"),
             "true": flatten_to_genome_array(df_s, "parsed_true"),
+            "pred_gene": flatten_to_genome_gene(df_s, "parsed_pred", gene_regions),
+            "true_gene": flatten_to_genome_gene(df_s, "parsed_true", gene_regions),
         }
     results["per_strand_flatten"] = per_strand_flatten
 
     return results
+
+
+def _concat_gene_track(
+    pred_gene: Optional[dict[str, np.ndarray]],
+    true_gene: Optional[dict[str, np.ndarray]],
+    chromosomes: list[str],
+) -> tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """把逐染色体的基因区域过滤结果拼接，供 bp_gene 指标使用。
+
+    Returns: (pred_gene_concat, true_gene_concat)；无基因区域或无可保留碱基时返回 (None, None)。
+    """
+    if pred_gene is None or true_gene is None:
+        return None, None
+    all_p, all_t = [], []
+    for c in chromosomes:
+        if c in pred_gene and c in true_gene and len(pred_gene[c]) > 0 and len(true_gene[c]) > 0:
+            all_p.append(pred_gene[c])
+            all_t.append(true_gene[c])
+    if not all_p:
+        return None, None
+    return np.concatenate(all_p), np.concatenate(all_t)
 
 
 def build_main_summary(
@@ -980,6 +1110,20 @@ def build_main_summary(
                     "chromosome": "all", "resolution": "bp",
                     "strand": strand_val, **track,
                 })
+
+                # ---- global=sample: bp_gene（只保留基因区域内碱基）----
+                gp_g, gt_g = _concat_gene_track(
+                    flatten_cache.get("pred_gene"), flatten_cache.get("true_gene"),
+                    chroms_in_strand,
+                )
+                if gp_g is not None:
+                    track_g = compute_track_metrics(gp_g, gt_g)
+                    rows.append({
+                        "sample": ctx["sample"], "biosample": ctx["biosample"],
+                        "split": ctx["split"], "global": "sample",
+                        "chromosome": "all", "resolution": "bp_gene",
+                        "strand": strand_val, **track_g,
+                    })
 
             # Feature 级 (exon/gene)
             fdf = r.get("feature_df")
@@ -1047,6 +1191,20 @@ def build_main_summary(
                         "chromosome": chrom, "resolution": "bp",
                         "strand": strand_val, **track,
                     })
+
+                    # ---- 逐染色体 bp_gene（只保留基因区域内碱基）----
+                    pg_cache = flatten_cache.get("pred_gene")
+                    tg_cache = flatten_cache.get("true_gene")
+                    sp_g = pg_cache.get(chrom) if pg_cache else None
+                    st_g = tg_cache.get(chrom) if tg_cache else None
+                    if sp_g is not None and st_g is not None and len(sp_g) > 0 and len(st_g) > 0:
+                        track_g = compute_track_metrics(sp_g, st_g)
+                        rows.append({
+                            "sample": ctx["sample"], "biosample": ctx["biosample"],
+                            "split": ctx["split"], "global": "chromosome",
+                            "chromosome": chrom, "resolution": "bp_gene",
+                            "strand": strand_val, **track_g,
+                        })
 
                 # 逐染色体的 feature 级
                 if fdf is not None and not fdf.empty:
@@ -1343,9 +1501,10 @@ def main():
 
     # 逐任务评估
     features_cache = {} if not args.skip_features else None
+    gene_regions_cache: dict[str, dict[str, np.ndarray]] = {}
     all_results = []
     for task in tqdm(config.tasks, desc="Evaluating", unit="task"):
-        result = evaluate_one_task(task, config, features_cache)
+        result = evaluate_one_task(task, config, features_cache, gene_regions_cache)
         all_results.append(result)
 
     # 全局阈值 + 参考表

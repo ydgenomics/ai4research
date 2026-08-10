@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.0] - 2026-07-31
+
+### 新增
+- **碱基分辨率新增 `bp_gene` 指标**：计算碱基分辨率指标时只保留基因区域内的碱基。
+  - 基因区域定义为 GFF 中 `gene` 特征的整基因跨度 start-end（含内含子），重叠/相邻区间合并为并集（`load_gene_regions_from_gff`）。
+  - 例如某染色体原本有 2 万个碱基元素，按基因注释过滤后仅保留约 5 千。
+  - 现有 `bp` 指标**保留不变**，另新增 `resolution=bp_gene` 行（`global=sample` 和 `global=chromosome` 两个层面均输出）。
+  - `n_positions` 反映过滤后的碱基数（主表最终只保留固定列，未直接输出，但通过 pcc/zero_ratio 等体现）。
+
+### 变更文件
+- `run_evaluation.py`:
+  - 新增 `load_gene_regions_from_gff`（读取 gene 整基因跨度，合并重叠区间）。
+  - 新增 `flatten_to_genome_gene`（逐碱基累加后只保留基因区域碱基，供 bp_gene 使用）。
+  - 重构 `flatten_to_genome_array`，抽出公共累加逻辑 `_accumulate_flatten`。
+  - `evaluate_one_task` 新增 `gene_regions_cache` 参数与 `pred_gene`/`true_gene` per-strand 缓存。
+  - `build_main_summary` 新增 `bp_gene` 行（global=sample + global=chromosome），并新增拼接辅助 `_concat_gene_track`。
+
 ## [1.2.0] - 2026-07-28
 
 ### 修复
