@@ -259,3 +259,138 @@ INFO:     Waiting for application shutdown.
 2026-08-20 10:16:05,396 - INFO - Predictor released.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [2236383]
+INFO:     Started server process [2401445]
+INFO:     Waiting for application startup.
+2026-08-20 13:52:12,005 - INFO - Initializing RiceMutationPredictor ...
+2026-08-20 13:52:12,005 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/rice_1B_stage2_8k_hf
+2026-08-20 13:52:12,005 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/csq-5_model.safetensors
+2026-08-20 13:52:12,005 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/index_stat.json
+2026-08-20 13:52:12,005 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/osa1_r7.asm.ch.fa
+2026-08-20 13:52:12,005 - INFO -   device          = cuda:0
+2026-08-20 13:52:12,005 - INFO -   inference_batch_size = 4
+2026-08-20 13:52:12,019 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-20 13:52:12,127 - INFO - Loading GenOmics model ...
+2026-08-20 13:52:43.618269: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-08-20 13:52:45.553295: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+ERROR:    Traceback (most recent call last):
+  File "/root/miniconda3/lib/python3.13/site-packages/starlette/routing.py", line 638, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 241, in __aenter__
+    await self._router._startup()
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 4886, in _startup
+    handler()
+    ~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/api.py", line 155, in on_startup
+    init_predictor()
+    ~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/prediction_service.py", line 566, in init_predictor
+    predictor.initialize()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/core/predictor.py", line 174, in initialize
+    model = load_finetuned_model(
+        model_class=GenOmics,
+    ...<8 lines>...
+        },
+    )
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/src/model.py", line 98, in load_finetuned_model
+    base_model = AutoModel.from_config(config, trust_remote_code=trust_remote_code)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/auto/auto_factory.py", line 456, in from_config
+    return model_class._from_config(config, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2315, in _from_config
+    model = cls(config, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 403, in __init__
+    super().__init__(config)
+    ~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2080, in __init__
+    self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.config._attn_implementation, is_init_check=True
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2690, in _check_and_adjust_attn_implementation
+    applicable_attn_implementation = self.get_correct_attn_implementation(
+        applicable_attn_implementation, is_init_check
+    )
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2718, in get_correct_attn_implementation
+    self._flash_attn_2_can_dispatch(is_init_check)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2426, in _flash_attn_2_can_dispatch
+    raise ImportError(f"{preface} the package flash_attn seems to be not installed. {install_message}")
+ImportError: FlashAttention2 has been toggled on, but it cannot be used due to the following error: the package flash_attn seems to be not installed. Please refer to the documentation of https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2.
+
+ERROR:    Application startup failed. Exiting.
+INFO:     Started server process [2408977]
+INFO:     Waiting for application startup.
+2026-08-20 13:58:36,922 - INFO - Initializing RiceMutationPredictor ...
+2026-08-20 13:58:36,922 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/rice_1B_stage2_8k_hf
+2026-08-20 13:58:36,922 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/csq-5_model.safetensors
+2026-08-20 13:58:36,922 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/index_stat.json
+2026-08-20 13:58:36,922 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/DATA/osa1_r7.asm.ch.fa
+2026-08-20 13:58:36,922 - INFO -   device          = cuda:0
+2026-08-20 13:58:36,922 - INFO -   inference_batch_size = 4
+2026-08-20 13:58:36,938 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-20 13:58:37,025 - INFO - Loading GenOmics model ...
+2026-08-20 13:59:13.461904: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-08-20 13:59:15.192987: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+ERROR:    Traceback (most recent call last):
+  File "/root/miniconda3/lib/python3.13/site-packages/starlette/routing.py", line 638, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 241, in __aenter__
+    await self._router._startup()
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 4886, in _startup
+    handler()
+    ~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/api.py", line 155, in on_startup
+    init_predictor()
+    ~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/prediction_service.py", line 566, in init_predictor
+    predictor.initialize()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/core/predictor.py", line 174, in initialize
+    model = load_finetuned_model(
+        model_class=GenOmics,
+    ...<8 lines>...
+        },
+    )
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/src/model.py", line 98, in load_finetuned_model
+    base_model = AutoModel.from_config(config, trust_remote_code=trust_remote_code)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/auto/auto_factory.py", line 456, in from_config
+    return model_class._from_config(config, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2315, in _from_config
+    model = cls(config, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 403, in __init__
+    super().__init__(config)
+    ~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2080, in __init__
+    self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.config._attn_implementation, is_init_check=True
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2690, in _check_and_adjust_attn_implementation
+    applicable_attn_implementation = self.get_correct_attn_implementation(
+        applicable_attn_implementation, is_init_check
+    )
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2718, in get_correct_attn_implementation
+    self._flash_attn_2_can_dispatch(is_init_check)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2426, in _flash_attn_2_can_dispatch
+    raise ImportError(f"{preface} the package flash_attn seems to be not installed. {install_message}")
+ImportError: FlashAttention2 has been toggled on, but it cannot be used due to the following error: the package flash_attn seems to be not installed. Please refer to the documentation of https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2.
+
+ERROR:    Application startup failed. Exiting.
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/rice_reg/rice-mutation/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/rice_reg/rice-mutation/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes

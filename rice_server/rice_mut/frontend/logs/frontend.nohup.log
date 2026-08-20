@@ -1,0 +1,2 @@
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/app.py:1067: UserWarning: The parameters have been moved from the Blocks constructor to the launch() method in Gradio 6.0: theme, css. Please pass these parameters to launch() instead.
+  with gr.Blocks(

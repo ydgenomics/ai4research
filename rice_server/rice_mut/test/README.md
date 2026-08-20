@@ -4,16 +4,35 @@
 
 ```bash
 cd /mnt/rice/default/Workspace/yangdong/rice_reg/rice-server/rice-mut
-BACKEND_PORT=8001 /root/miniconda3/envs/vllm/bin/python backend/dcs_adapter.py
+BACKEND_PORT=8001 python backend/dcs_adapter.py
 ```
 
+```bash
+docker run -d \
+  --name org-mut \
+  --gpus all \
+  --shm-size=32g \
+  -v /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut:/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut \
+  -p 8001:8001 \
+  -p 8000:8000 \
+  -w /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut \
+  ydgenomics/org_web:jupyter \
+  tail -f /dev/null
+
+docker exec -it org-mut bash
+```
 > 若提示 `address already in use`,说明 8001 已有服务,先 `kill $(cat backend/logs/backend.pid)` 或用 `fuser -k 8001/tcp` 清理。
 
 ## 2. 健康检查
 
 ```bash
-curl -s http://127.0.0.1:8001/api/aigress/openai/health
+curl -s http://10.200.124.17/api/aigress/openai/health
 # {"status":"ok","predictor_initialized":true,"genomes":["osa1_r7"]}
+
+curl --location 'http://127.0.0.1:8001/api/aigress/openai/rice-mut' \
+--header 'Authorization: Bearer hello' \
+--header 'Content-Type: application/json' \
+-d '{"model":"rice-mut","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541}'
 ```
 
 ## 3. 参考序列表达预测(核心推理)
