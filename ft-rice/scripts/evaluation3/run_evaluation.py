@@ -947,11 +947,14 @@ def aggregate_to_features(
             continue
 
         # 按 start 排序窗口，建立二分查找索引
+        # 注意：调用方已按 strand 过滤 df（_evaluate_task 中 per-strand 聚合），
+        # 但为防御性编程，内层仍按特征链匹配窗口（strand="total" 时不过滤）
         chrom_df = chrom_df.sort_values(["start", "end"])
         win_starts = chrom_df["start"].to_numpy(dtype=np.int64)
         win_ends = chrom_df["end"].to_numpy(dtype=np.int64)
         win_preds = chrom_df["parsed_pred"].to_numpy()
         win_trues = chrom_df["parsed_true"].to_numpy()
+        win_strands = chrom_df["strand"].to_numpy()
         n_wins = len(win_starts)
 
         # 游标：特征按染色体顺序排列，左边界只增不减
@@ -961,6 +964,7 @@ def aggregate_to_features(
             f_start0 = feat.start0
             f_end0 = feat.end0
             f_len = f_end0 - f_start0
+            feat_strand = feat.strand
 
             # 二分查找上界：第一个 start >= f_end0 的窗口
             right = int(np.searchsorted(win_starts, f_end0, side="left"))
@@ -979,6 +983,10 @@ def aggregate_to_features(
             counts = np.zeros(f_len, dtype=np.int32)
 
             for i in range(left, right):
+                # 按链匹配：跳过链不匹配的窗口（strand="total" 时匹配所有链）
+                if feat_strand != "total" and win_strands[i] != feat_strand:
+                    continue
+
                 w_start = int(win_starts[i])
                 w_end = int(win_ends[i])
 
@@ -1126,6 +1134,7 @@ def evaluate_one_task(
     # ---- Feature 级 ----
     results["feature_df"] = pd.DataFrame()
     results["feature_summary"] = {}
+    results["feature_df_per_strand"] = {}
 
     if task.gff is not None and task.gff.is_file() and features_cache is not None:
         try:
@@ -1138,14 +1147,24 @@ def evaluate_one_task(
                 )
                 features_cache[str(gff_path)] = features_by_chrom
 
-            fdf = aggregate_to_features(df, features_by_chrom, config.min_overlap_bp)
-            if not fdf.empty:
-                for key, value in context.items():
-                    fdf.insert(0, key, value)
-                results["feature_df"] = fdf
+            # 按链分别聚合，确保基因水平指标区分正负链
+            fdf_per_strand: dict[str, pd.DataFrame] = {}
+            for strand_val in df["strand"].unique():
+                df_s = df[df["strand"] == strand_val]
+                fdf_s = aggregate_to_features(df_s, features_by_chrom, config.min_overlap_bp)
+                if not fdf_s.empty:
+                    for key, value in context.items():
+                        fdf_s.insert(0, key, value)
+                    fdf_per_strand[strand_val] = fdf_s
+            results["feature_df_per_strand"] = fdf_per_strand
 
-                for ftype in fdf["feature_type"].unique():
-                    part = fdf[fdf["feature_type"] == ftype]
+            # 兼容旧接口：取第一条链的结果作为 feature_df（用于 build_gene_table 等下游）
+            if fdf_per_strand:
+                first_strand_fdf = next(iter(fdf_per_strand.values()))
+                results["feature_df"] = first_strand_fdf
+
+                for ftype in first_strand_fdf["feature_type"].unique():
+                    part = first_strand_fdf[first_strand_fdf["feature_type"] == ftype]
                     corr = compute_feature_mean_correlation(part)
                     results["feature_summary"][ftype] = {
                         "n_features": len(part),
@@ -1246,8 +1265,9 @@ def build_main_summary(
                         "strand": strand_val, **track_g,
                     })
 
-            # Feature 级 (exon/gene)
-            fdf = r.get("feature_df")
+            # Feature 级 (exon/gene) — 使用 per-strand feature_df
+            fdf_per_strand = r.get("feature_df_per_strand", {})
+            fdf = fdf_per_strand.get(strand_val)
             if fdf is not None and not fdf.empty:
                 for ftype in config.feature_types:
                     part = fdf[fdf["feature_type"] == ftype]
@@ -1345,7 +1365,7 @@ def build_main_summary(
                             "strand": strand_val, **track_g,
                         })
 
-                # 逐染色体的 feature 级
+                # 逐染色体的 feature 级 — 使用 per-strand feature_df
                 if fdf is not None and not fdf.empty:
                     fdf_chrom = fdf[fdf["chromosome"] == chrom]
                     if not fdf_chrom.empty:
