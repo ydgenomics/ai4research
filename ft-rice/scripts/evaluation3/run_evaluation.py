@@ -982,9 +982,17 @@ def aggregate_to_features(
             true_sum = np.zeros(f_len, dtype=np.float64)
             counts = np.zeros(f_len, dtype=np.int32)
 
+            # 将 GFF 链符号（+/-）归一化为 CSV 格式（plus/minus/total），用于窗口匹配
+            if feat_strand == "+":
+                _feat_strand_norm = "plus"
+            elif feat_strand == "-":
+                _feat_strand_norm = "minus"
+            else:
+                _feat_strand_norm = feat_strand
+
             for i in range(left, right):
                 # 按链匹配：跳过链不匹配的窗口（strand="total" 时匹配所有链）
-                if feat_strand != "total" and win_strands[i] != feat_strand:
+                if _feat_strand_norm != "total" and win_strands[i] != _feat_strand_norm:
                     continue
 
                 w_start = int(win_starts[i])
