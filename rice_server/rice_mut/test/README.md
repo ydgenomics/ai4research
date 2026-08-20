@@ -26,6 +26,20 @@ curl --location 'http://127.0.0.1:8001/api/aigress/openai/rice-mut' \
 ```
 
 ```bash
+curl -X POST "https://www.dcs.cloud/api/aigress/openai/v1" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-BxVGisztHyXMivKtO-NiZsQ0RfYxD-GUZpCN8f7vHvz1QZuu" \
+  -d '{"model":"org-mut", "genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541}'
+
+
+curl -X POST "https://www.dcs.cloud/api/aigress/openai/v1" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-BxVGisztHyXMivKtO-NiZsQ0RfYxD-GUZpCN8f7vHvz1QZuu" \
+  -d '{"model":"OGR-Mutation", "genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541}'
+
+```
+
+```bash
 # full 格式(逐碱基数组,约 286KB 响应)
 curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/rice-mut \
   -H "Content-Type: application/json" \
