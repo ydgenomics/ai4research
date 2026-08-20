@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.4.0] - 2026-08-18
+
+### 新增
+- **新增均值参考样本 delta 指标（ref_sample 模式）**：从训练集构建"平均品种"参考样本，评估测试样本相对参考的品种特异偏差模式预测能力。
+  - 参考样本 = 训练集所有品种 gene 级 `pred_mean` / `true_mean` 的跨品种均值（`build_ref_sample_from_train`），训练完即可固定，部署时直接套用，**不依赖任何事后统计量**（无需样本均值 scale），更贴近真实应用。
+  - 两种参考模式（替换原 `*_ref` 系列列）：
+    - `delta_pcc_pred` 及 `delta_spearman_pred` / `delta_rmse_pred` / `sign_accuracy_pred`：Δ_pred = pred − ref_pred_mean，与 cross_variety pairwise 同口径，**宽松版**（模型系统偏差被参考抵消）。
+    - `delta_pcc_true` 及 `delta_spearman_true` / `delta_rmse_true` / `sign_accuracy_true`：Δ_pred / Δ_true 都减去同一个 ref_true_mean，**严格版**（模型系统偏差如实反映）。
+  - 输出至 `00_main_summary.csv` 的 `resolution=gene` 与 `gene-low/medium/high` 行（`global=sample` + `global=chromosome`）。
+  - 保留原 `delta_pcc`（feature_ref 归一化版）不变，三套可对照。
+- **新增文档 `delta_pcc.md`**：完整说明背景动机、三个指标定义、参考样本构建、与 cross_variety 的区别、数值模拟验证与边界处理。
+
+### 变更文件
+- `run_evaluation.py`:
+  - 新增 `build_ref_sample_from_train`（从训练集构建均值参考样本，含 `ref_pred_mean` / `ref_true_mean`）。
+  - 新增 `compute_ref_sample_delta_metrics`（两种参考模式，复用 pairwise 口径）与 `compute_ref_sample_delta_from_df`（按 feature_id 匹配参考样本）。
+  - `compute_stratified_metrics` / `build_main_summary` 接入 ref_sample 参数，输出 pred/true 两组共 8 列，替换原 `*_ref` 4 列。
+  - 修复：`compute_ref_sample_delta_metrics` 返回 dict 始终含全部键（ref_pred 含 NaN 时 pred 版为 NaN、true 版正常）。
+- 新增 `delta_pcc.md`。
+
 ## [1.3.0] - 2026-07-31
 
 ### 新增

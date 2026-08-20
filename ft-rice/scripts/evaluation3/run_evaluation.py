@@ -566,12 +566,122 @@ def compute_all_delta_pearson(
     return compute_pearson_delta_metrics(pred[valid_mask], true[valid_mask], normalize, ref_vals)
 
 
+# ---- Delta vs 均值参考样本 (ref_sample 模式, 绝对尺度, 无归一化) ----
+# 参考样本 = 训练集所有品种 gene 级 true/pred 的跨品种均值。
+# 两种参考模式：
+#   delta_pcc_pred  (ref_pred 参考): Δ_pred = pred − ref_pred_mean, Δ_true = true − ref_true_mean
+#       与 cross_variety 的 pairwise 口径一致 (把品种 B 换成训练集预测均值参考)，宽松版
+#   delta_pcc_true  (ref_true 参考): Δ_pred = pred − ref_true_mean, Δ_true = true − ref_true_mean
+#       预测值与真值减去同一个训练集真实均值参考，模型系统性偏差无法被抵消，严格版
+# 不依赖任何事后统计量（无需样本均值 scale），训练完即可固定，
+# 测试/部署时直接套用，更贴近真实应用。
+
+def build_ref_sample_from_train(all_results: list[dict]) -> pd.DataFrame:
+    """从所有训练集样本构建均值参考样本 (gene 级)。
+
+    Returns: DataFrame with columns [feature_id, ref_pred_mean, ref_true_mean]。
+    delta_pcc_pred 用 ref_pred_mean，delta_pcc_true 用 ref_true_mean。
+    """
+    pred_cols: list[pd.Series] = []
+    true_cols: list[pd.Series] = []
+    for r in all_results:
+        if r.get("error"):
+            continue
+        if r["context"].get("split") != "train":
+            continue
+        fdf = r.get("feature_df")
+        if fdf is None or fdf.empty:
+            continue
+        gene_df = fdf[fdf["feature_type"] == "gene"].set_index("feature_id")
+        if gene_df.empty:
+            continue
+        if gene_df.index.duplicated().any():
+            gene_df = gene_df.groupby(level=0).mean(numeric_only=True)
+        pred_cols.append(gene_df["pred_mean"])
+        true_cols.append(gene_df["true_mean"])
+    if not pred_cols:
+        return pd.DataFrame(columns=["feature_id", "ref_pred_mean", "ref_true_mean"])
+    ref_pred = pd.concat(pred_cols, axis=1).mean(axis=1)
+    ref_true = pd.concat(true_cols, axis=1).mean(axis=1)
+    return pd.DataFrame({
+        "feature_id": ref_pred.index.to_numpy(),
+        "ref_pred_mean": ref_pred.to_numpy(dtype=float),
+        "ref_true_mean": ref_true.to_numpy(dtype=float),
+    })
+
+
+def compute_ref_sample_delta_metrics(
+    pred: np.ndarray, true: np.ndarray,
+    ref_true: np.ndarray, ref_pred: Optional[np.ndarray] = None,
+) -> dict[str, float]:
+    """与均值参考样本的 delta 指标 (两种参考模式, 绝对尺度, 无归一化)。
+
+    - ref_true 模式: Δ_pred = pred − ref_true, Δ_true = true − ref_true (严格)
+    - ref_pred 模式: Δ_pred = pred − ref_pred, Δ_true = true − ref_true (cross_variety 同口径)
+    复用 pairwise 口径 (与 compute_pairwise_delta_metrics 一致)。
+    """
+    empty = {
+        "delta_pcc_pred": np.nan, "delta_spearman_pred": np.nan,
+        "delta_rmse_pred": np.nan, "sign_accuracy_pred": np.nan,
+        "delta_pcc_true": np.nan, "delta_spearman_true": np.nan,
+        "delta_rmse_true": np.nan, "sign_accuracy_true": np.nan,
+    }
+    if len(pred) < 2 or len(ref_true) != len(pred):
+        return empty
+    # ref_true 模式: 两边减同一个训练集真值均值参考
+    mt = compute_pairwise_delta_metrics(pred, true, ref_true, ref_true)
+    out = dict(empty)
+    out.update({
+        "delta_pcc_true": mt.get("delta_pearson", np.nan),
+        "delta_spearman_true": mt.get("delta_spearman", np.nan),
+        "delta_rmse_true": mt.get("delta_rmse", np.nan),
+        "sign_accuracy_true": mt.get("sign_accuracy", np.nan),
+    })
+    # ref_pred 模式: 预测减训练集预测均值参考 (cross_variety 同口径)
+    if ref_pred is not None and len(ref_pred) == len(pred) and not np.isnan(ref_pred).any():
+        mp = compute_pairwise_delta_metrics(pred, true, ref_pred, ref_true)
+        out.update({
+            "delta_pcc_pred": mp.get("delta_pearson", np.nan),
+            "delta_spearman_pred": mp.get("delta_spearman", np.nan),
+            "delta_rmse_pred": mp.get("delta_rmse", np.nan),
+            "sign_accuracy_pred": mp.get("sign_accuracy", np.nan),
+        })
+    return out
+
+
+def compute_ref_sample_delta_from_df(
+    feature_df: pd.DataFrame, ref_sample: pd.DataFrame,
+) -> dict[str, float]:
+    """对单个样本的 gene 级 feature_df 计算与参考样本的 delta 指标 (pred + true 两种参考)。"""
+    empty = {
+        "delta_pcc_pred": np.nan, "delta_spearman_pred": np.nan,
+        "delta_rmse_pred": np.nan, "sign_accuracy_pred": np.nan,
+        "delta_pcc_true": np.nan, "delta_spearman_true": np.nan,
+        "delta_rmse_true": np.nan, "sign_accuracy_true": np.nan,
+    }
+    valid = feature_df.dropna(subset=["pred_mean", "true_mean"])
+    if valid.empty:
+        return empty
+    merged = valid[["feature_id"]].merge(ref_sample, on="feature_id", how="left")
+    mask = merged["ref_true_mean"].notna().to_numpy()
+    if mask.sum() < 2:
+        return empty
+    ref_true = merged.loc[mask, "ref_true_mean"].to_numpy(dtype=float)
+    ref_pred = merged.loc[mask, "ref_pred_mean"].to_numpy(dtype=float)
+    return compute_ref_sample_delta_metrics(
+        valid["pred_mean"].to_numpy(dtype=float)[mask],
+        valid["true_mean"].to_numpy(dtype=float)[mask],
+        ref_true, ref_pred,
+    )
+
+
 def compute_stratified_metrics(
     df: pd.DataFrame, feature_type: str = "",
     ref_table: Optional[pd.DataFrame] = None,
     biosample: str = "", normalize: str = "global_mean",
+    ref_sample: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
-    """按 expression_bucket 分组计算指标 (gene 级别含 delta_pcc)。"""
+    """按 expression_bucket 分组计算指标 (gene 级别含 delta_pcc 与 ref_sample delta)。"""
     rows = []
     for bucket in ["low", "medium", "high"]:
         part = df[df["expression_bucket"] == bucket]
@@ -590,6 +700,16 @@ def compute_stratified_metrics(
             delta = compute_all_delta_pearson(part, ref_table, normalize, biosample)
             row["delta_pcc"] = delta.get("delta_pcc", np.nan)
             row["delta_rmse"] = delta.get("delta_rmse", np.nan)
+        if ref_sample is not None and not ref_sample.empty and feature_type == "gene":
+            ds = compute_ref_sample_delta_from_df(part, ref_sample)
+            row["delta_pcc_pred"] = ds.get("delta_pcc_pred", np.nan)
+            row["delta_spearman_pred"] = ds.get("delta_spearman_pred", np.nan)
+            row["delta_rmse_pred"] = ds.get("delta_rmse_pred", np.nan)
+            row["sign_accuracy_pred"] = ds.get("sign_accuracy_pred", np.nan)
+            row["delta_pcc_true"] = ds.get("delta_pcc_true", np.nan)
+            row["delta_spearman_true"] = ds.get("delta_spearman_true", np.nan)
+            row["delta_rmse_true"] = ds.get("delta_rmse_true", np.nan)
+            row["sign_accuracy_true"] = ds.get("sign_accuracy_true", np.nan)
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -1075,6 +1195,7 @@ def _concat_gene_track(
 def build_main_summary(
     all_results: list[dict], config: EvalConfig,
     bucket_thresholds=None, ref_table: Optional[pd.DataFrame] = None,
+    ref_sample: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """构建主表: global=sample + global=chromosome。"""
     rows = []
@@ -1144,6 +1265,16 @@ def build_main_summary(
                             part, ref_table, "global_mean", ctx.get("biosample", "")
                         )
                         row["delta_pcc"] = delta.get("delta_pcc", np.nan)
+                    if ref_sample is not None and not ref_sample.empty and ftype == "gene":
+                        ds = compute_ref_sample_delta_from_df(part, ref_sample)
+                        row["delta_pcc_pred"] = ds.get("delta_pcc_pred", np.nan)
+                        row["delta_spearman_pred"] = ds.get("delta_spearman_pred", np.nan)
+                        row["delta_rmse_pred"] = ds.get("delta_rmse_pred", np.nan)
+                        row["sign_accuracy_pred"] = ds.get("sign_accuracy_pred", np.nan)
+                        row["delta_pcc_true"] = ds.get("delta_pcc_true", np.nan)
+                        row["delta_spearman_true"] = ds.get("delta_spearman_true", np.nan)
+                        row["delta_rmse_true"] = ds.get("delta_rmse_true", np.nan)
+                        row["sign_accuracy_true"] = ds.get("sign_accuracy_true", np.nan)
                     rows.append(row)
 
                 # 分桶 (gene-low/medium/high)
@@ -1159,7 +1290,7 @@ def build_main_summary(
                         stratified = compute_stratified_metrics(
                             bucketed, feature_type=ftype,
                             ref_table=ref_table, biosample=ctx.get("biosample", ""),
-                            normalize="global_mean",
+                            normalize="global_mean", ref_sample=ref_sample,
                         )
                         for _, srow in stratified.iterrows():
                             bucket_label = srow.get("expression_bucket", "unknown")
@@ -1176,6 +1307,14 @@ def build_main_summary(
                                 "zero_ratio": np.nan,
                                 "r2": srow.get("r2", np.nan),
                                 "delta_pcc": srow.get("delta_pcc", np.nan),
+                                "delta_pcc_pred": srow.get("delta_pcc_pred", np.nan),
+                                "delta_spearman_pred": srow.get("delta_spearman_pred", np.nan),
+                                "delta_rmse_pred": srow.get("delta_rmse_pred", np.nan),
+                                "sign_accuracy_pred": srow.get("sign_accuracy_pred", np.nan),
+                                "delta_pcc_true": srow.get("delta_pcc_true", np.nan),
+                                "delta_spearman_true": srow.get("delta_spearman_true", np.nan),
+                                "delta_rmse_true": srow.get("delta_rmse_true", np.nan),
+                                "sign_accuracy_true": srow.get("sign_accuracy_true", np.nan),
                             })
 
             # ---- global=chromosome: 逐染色体（使用缓存结果）----
@@ -1226,6 +1365,16 @@ def build_main_summary(
                                     part, ref_table, "global_mean", ctx.get("biosample", "")
                                 )
                                 row["delta_pcc"] = delta.get("delta_pcc", np.nan)
+                            if ref_sample is not None and not ref_sample.empty and ftype == "gene":
+                                ds = compute_ref_sample_delta_from_df(part, ref_sample)
+                                row["delta_pcc_pred"] = ds.get("delta_pcc_pred", np.nan)
+                                row["delta_spearman_pred"] = ds.get("delta_spearman_pred", np.nan)
+                                row["delta_rmse_pred"] = ds.get("delta_rmse_pred", np.nan)
+                                row["sign_accuracy_pred"] = ds.get("sign_accuracy_pred", np.nan)
+                                row["delta_pcc_true"] = ds.get("delta_pcc_true", np.nan)
+                                row["delta_spearman_true"] = ds.get("delta_spearman_true", np.nan)
+                                row["delta_rmse_true"] = ds.get("delta_rmse_true", np.nan)
+                                row["sign_accuracy_true"] = ds.get("sign_accuracy_true", np.nan)
                             rows.append(row)
 
                         # 分桶
@@ -1241,7 +1390,7 @@ def build_main_summary(
                                 stratified = compute_stratified_metrics(
                                     bucketed, feature_type=ftype,
                                     ref_table=ref_table, biosample=ctx.get("biosample", ""),
-                                    normalize="global_mean",
+                                    normalize="global_mean", ref_sample=ref_sample,
                                 )
                                 for _, srow in stratified.iterrows():
                                     bucket_label = srow.get("expression_bucket", "unknown")
@@ -1258,13 +1407,23 @@ def build_main_summary(
                                         "zero_ratio": np.nan,
                                         "r2": srow.get("r2", np.nan),
                                         "delta_pcc": srow.get("delta_pcc", np.nan),
+                                        "delta_pcc_pred": srow.get("delta_pcc_pred", np.nan),
+                                        "delta_spearman_pred": srow.get("delta_spearman_pred", np.nan),
+                                        "delta_rmse_pred": srow.get("delta_rmse_pred", np.nan),
+                                        "sign_accuracy_pred": srow.get("sign_accuracy_pred", np.nan),
+                                        "delta_pcc_true": srow.get("delta_pcc_true", np.nan),
+                                        "delta_spearman_true": srow.get("delta_spearman_true", np.nan),
+                                        "delta_rmse_true": srow.get("delta_rmse_true", np.nan),
+                                        "sign_accuracy_true": srow.get("sign_accuracy_true", np.nan),
                                     })
 
     df_out = pd.DataFrame(rows)
     # 确保列顺序
     cols = ["sample", "biosample", "split", "global", "chromosome",
             "resolution", "strand", "pcc", "spearman", "log1p_pcc", "nozero_pcc",
-            "zero_ratio", "r2", "delta_pcc"]
+            "zero_ratio", "r2", "delta_pcc",
+            "delta_pcc_pred", "delta_spearman_pred", "delta_rmse_pred", "sign_accuracy_pred",
+            "delta_pcc_true", "delta_spearman_true", "delta_rmse_true", "sign_accuracy_true"]
     for c in cols:
         if c not in df_out.columns:
             df_out[c] = np.nan
@@ -1507,11 +1666,14 @@ def main():
         result = evaluate_one_task(task, config, features_cache, gene_regions_cache)
         all_results.append(result)
 
-    # 全局阈值 + 参考表
+    # 全局阈值 + 参考表 + 均值参考样本
     bucket_thresholds = _compute_global_thresholds(all_results, config.n_expression_buckets)
     ref_table = _build_ref_table(all_results, "global_mean")
     if not ref_table.empty:
         print(f"  Built reference table: {len(ref_table)} genes")
+    ref_sample = build_ref_sample_from_train(all_results)
+    if not ref_sample.empty:
+        print(f"  Built mean ref-sample (pred+true): {len(ref_sample)} genes")
 
     # 写输出
     print(f"\n{'='*60}")
@@ -1520,7 +1682,7 @@ def main():
     outdir = config.output_dir
 
     # 00_main_summary.csv
-    df = build_main_summary(all_results, config, bucket_thresholds, ref_table)
+    df = build_main_summary(all_results, config, bucket_thresholds, ref_table, ref_sample)
     if not df.empty:
         df.to_csv(outdir / "00_main_summary.csv", index=False)
         print(f"  ✅ 00_main_summary.csv ({len(df)} rows)")
