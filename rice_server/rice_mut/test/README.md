@@ -23,6 +23,11 @@ curl --location 'http://127.0.0.1:8001/api/aigress/openai/rice-mut' \
 --header 'Authorization: Bearer hello' \
 --header 'Content-Type: application/json' \
 -d '{"model":"rice-mut","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541}'
+
+curl -X POST "https://www.dcs.cloud/api/aigress/openai/rice_mut" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-BxVGisztHyXMivKtO-NiZsQ0RfYxD-GUZpCN8f7vHvz1QZuu" \
+  -d '{"model":"OGR-Mutation","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541}'
 ```
 
 ```bash

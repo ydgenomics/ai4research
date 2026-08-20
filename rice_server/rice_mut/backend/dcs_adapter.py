@@ -1,9 +1,9 @@
-"""DCS API 适配层 — rice-mut (DNA → 多组学表达预测)
+"""DCS API 适配层 — rice_mut (DNA → 多组学表达预测)
 
 对外提供 OpenAI 风格的 HTTP API,由 DCS 平台网关转发:
 
-    POST /api/aigress/openai/rice-mut        参考序列表达预测
-    POST /api/aigress/openai/rice-mut/snv    单碱基变异 (SNV) 双轨对比预测
+    POST /api/aigress/openai/rice_mut        参考序列表达预测
+    POST /api/aigress/openai/rice_mut/snv    单碱基变异 (SNV) 双轨对比预测
     GET  /api/aigress/openai/health          健康检查
 
 坐标约定:请求使用 1-based(与网页版一致),内部转 0-based 后调用现有
@@ -23,14 +23,14 @@
     prompt_tokens      = 输入窗口碱基数 × DCS_PROMPT_TOKEN_MULTIPLIER      (默认 1)
     completion_tokens  = 输出数组元素总数 × DCS_COMPLETION_TOKEN_MULTIPLIER (默认 1)
 
-鉴权(可选):在 rice-mut/.env 配置 DCS_API_KEY 后,POST 路由需要请求头
+鉴权(可选):在 rice_mut/.env 配置 DCS_API_KEY 后,POST 路由需要请求头
     Authorization: Bearer <DCS_API_KEY>  (或 X-API-Key: <DCS_API_KEY>)
     留空则不启用鉴权;GET /health 始终免鉴权。
 
 请求体示例(参考预测):
 
     {
-      "model": "rice-mut",
+      "model": "rice_mut",
       "genome": "osa1_r7",
       "chromosome": "chr01",
       "start": 20716774,          # 1-based inclusive
@@ -43,7 +43,7 @@
 请求体示例(SNV 预测,额外两个字段):
 
     {
-      "model": "rice-mut",
+      "model": "rice_mut",
       "genome": "osa1_r7",
       "chromosome": "chr01",
       "start": 20716774,
@@ -80,8 +80,8 @@ def _load_env_file(path: Path):
         os.environ.setdefault(key.strip(), val.strip())
 
 
-ROOT_DIR = Path(__file__).resolve().parents[1]   # rice-mut/
-BACKEND_DIR = Path(__file__).resolve().parent     # rice-mut/backend/
+ROOT_DIR = Path(__file__).resolve().parents[1]   # rice_mut/
+BACKEND_DIR = Path(__file__).resolve().parent     # rice_mut/backend/
 _load_env_file(ROOT_DIR / ".env")
 
 # backend/ 下含 src/ 包 (from src.util import ...),加入 sys.path
@@ -226,7 +226,7 @@ def _unauthorized(message: str = "无效或缺失的 API Key"):
     }
 
 
-app = FastAPI(title="DCS Adapter (rice-mut)", version="0.1.0")
+app = FastAPI(title="DCS Adapter (rice_mut)", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -250,7 +250,7 @@ def health():
     }
 
 
-@app.post("/api/aigress/openai/rice-mut")
+@app.post("/api/aigress/openai/rice_mut")
 async def predict_ref(
     req: Request,
     authorization: str | None = Header(default=None),
@@ -296,7 +296,7 @@ async def predict_ref(
         usage=_usage(prompt_tokens, completion_tokens),
         message="参考序列表达预测成功",
         result={
-            "model": "rice-mut",
+            "model": "rice_mut",
             "genome": result["genome"],
             "chromosome": pos_chrom,
             "position_1based": {"start": pos_start + 1, "end": pos_end},
@@ -307,7 +307,7 @@ async def predict_ref(
     )
 
 
-@app.post("/api/aigress/openai/rice-mut/snv")
+@app.post("/api/aigress/openai/rice_mut/snv")
 async def predict_snv(
     req: Request,
     authorization: str | None = Header(default=None),
@@ -364,7 +364,7 @@ async def predict_snv(
         usage=_usage(prompt_tokens, completion_tokens),
         message=f"SNV 预测成功 (ref {result['ref_base']} → {result['snv_base']})",
         result={
-            "model": "rice-mut",
+            "model": "rice_mut",
             "genome": result["genome"],
             "chromosome": pos_chrom,
             "position_1based": {"start": pos_start + 1, "end": pos_end},
