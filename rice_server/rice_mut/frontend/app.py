@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional
 from urllib import request, error
@@ -57,8 +58,21 @@ FRONTEND_HOST = os.getenv("FRONTEND_HOST", "0.0.0.0")
 FRONTEND_PORT = int(os.getenv("FRONTEND_PORT", "8000"))
 ALLOWED_FASTA_SUFFIXES = (".fa", ".fasta", ".fna", ".FA", ".FASTA")
 
-# Configure IGV static file serving via backend HTTP
-set_static_base_url(f"{BACKEND_API_URL}/static-files")
+# Configure IGV static file serving — served same-origin through the frontend's
+# /backend/* reverse proxy (see __main__ below).  Using a same-origin relative
+# path here means the browser only ever talks to the frontend port, so IGV/Plotly
+# and bigWig/GFF/FASTA loading no longer depends on the browser being able to
+# reach the backend port (e.g. 10.200.124.17:8001).
+set_static_base_url("/backend/static-files")
+
+# Backend responses embed static-file URLs that are absolute
+# (http://<host>:<port>/static-files/...) or relative (/static-files/...) — both
+# depend on how the backend is configured and are NOT reachable from the
+# browser.  Rewrite every one of them to the frontend same-origin proxy path so
+# the browser always loads IGV tracks through the frontend port.  This keeps the
+# whole setup portable: it works on any machine regardless of the backend
+# host/port.
+_STATIC_URL_RE = re.compile(r"(?:https?://[^/]+)?/static-files/")
 
 # Default window
 DEFAULT_WINDOW = 32768
@@ -403,15 +417,21 @@ def _igv_html(
     if ref is None:
         return "<p style='color:red;'>Unknown genome. Check .env configuration.</p>"
 
-    ref_json = json.dumps(ref)
-    tracks_json = json.dumps(igv_payload.get("tracks", [])) if igv_payload else "[]"
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+    tracks_json = _STATIC_URL_RE.sub(
+        "/backend/static-files/",
+        json.dumps(igv_payload.get("tracks", [])) if igv_payload else "[]",
+    )
     locus_str = igv_payload.get("locus", locus) if igv_payload else locus
 
     pred_id_json = json.dumps(prediction_id or "")
     win_start_int = int(win_start or 0)
     win_end_int = win_start_int + int(win_len or 0)
 
-    igv_js_url = f"{BACKEND_API_URL}/static-files{STATIC_DIR_ABS}/igv.min.js"
+    # Same-origin URL: resolved against the parent page (srcdoc iframe inherits
+    # the parent document's base URI), then proxied to the backend by the
+    # frontend /backend/* reverse proxy.
+    igv_js_url = f"/backend/static-files{STATIC_DIR_ABS}/igv.min.js"
 
     inner_html = f"""<!DOCTYPE html>
 <html>
@@ -479,12 +499,15 @@ def _igv_html(
             // the prediction window.
             var lastBarCall = 0;
             function parseLoci(s) {{
-                var m = /^([^:]+):([0-9,]+)-([0-9,]+)$/.exec(s || "");
+                // IGV currentLoci() may return fractional coordinates after
+                // zoom/pan (e.g. "Chr7:1-12367.761741122566"); allow a decimal
+                // point and round to whole bp so the bar plot always follows.
+                var m = /^([^:]+):([0-9,.]+)-([0-9,.]+)$/.exec(s || "");
                 if (!m) return null;
                 return {{
                     chr: m[1],
-                    start: parseInt(m[2].replace(/,/g, ""), 10),
-                    end: parseInt(m[3].replace(/,/g, ""), 10),
+                    start: Math.round(parseFloat(m[2].replace(/,/g, ""))),
+                    end: Math.round(parseFloat(m[3].replace(/,/g, ""))),
                 }};
             }}
             function emitViewport(loc) {{
@@ -577,8 +600,9 @@ def _bar_plot_html(lang: str = DEFAULT_LANG) -> str:
     side.  Without an SNV prediction only result1 bars are shown.
     """
     t = I18N.get(lang, I18N[DEFAULT_LANG])
-    plotly_js_url = f"{BACKEND_API_URL}/static-files{STATIC_DIR_ABS}/plotly.min.js"
-    api_url_json = json.dumps(BACKEND_API_URL)
+    plotly_js_url = f"/backend/static-files{STATIC_DIR_ABS}/plotly.min.js"
+    # Same-origin API base so the bar iframe talks to the frontend proxy too.
+    api_url_json = json.dumps("/backend")
 
     inner_html = f"""<!DOCTYPE html>
 <html>
@@ -1304,4 +1328,55 @@ if __name__ == "__main__":
         server_name=FRONTEND_HOST,
         server_port=FRONTEND_PORT,
         show_error=True,
+        # Don't block: we need to mount the /backend reverse proxy on the running
+        # FastAPI app before blocking on the server thread below.
+        prevent_thread_lock=True,
     )
+
+    # ------------------------------------------------------------------
+    # Same-origin reverse proxy:  /backend/*  ->  backend (port 8001)
+    # ------------------------------------------------------------------
+    # The IGV iframe, Plotly bar iframe, and IGV tracks (bigWig / GFF / FASTA)
+    # all load their resources through the browser.  Pointing those at the raw
+    # backend port (BACKEND_API_URL) breaks whenever the browser cannot reach
+    # that address (e.g. only port 8000 is exposed / forwarded).  Proxying them
+    # through the frontend means the browser only ever talks to the frontend
+    # port and the frontend reaches the backend locally.
+    import httpx
+    from fastapi import Request
+    from fastapi.responses import StreamingResponse
+
+    _BACKEND_UPSTREAM = BACKEND_API_URL.rstrip("/")
+    _SKIP_REQ_HEADERS = {"host", "content-length", "connection"}
+    _SKIP_RESP_HEADERS = {"content-length", "transfer-encoding", "connection"}
+
+    @demo.app.api_route(
+        "/backend/{path:path}",
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    )
+    async def _backend_proxy(path: str, request: Request):
+        url = f"{_BACKEND_UPSTREAM}/{path}"
+        headers = {
+            k: v for k, v in request.headers.items()
+            if k.lower() not in _SKIP_REQ_HEADERS
+        }
+        body = await request.body()
+        async with httpx.AsyncClient(timeout=600) as client:
+            upstream = await client.request(
+                request.method,
+                url,
+                params=request.query_params,
+                headers=headers,
+                content=body,
+            )
+        resp_headers = {
+            k: v for k, v in upstream.headers.items()
+            if k.lower() not in _SKIP_RESP_HEADERS
+        }
+        return StreamingResponse(
+            upstream.aiter_bytes(),
+            status_code=upstream.status_code,
+            headers=resp_headers,
+        )
+
+    demo.block_thread()

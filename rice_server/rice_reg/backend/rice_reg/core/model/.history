@@ -1,0 +1,65 @@
+cd model
+ls
+lh
+cp predictor_h2b{,.v1}.py
+lh
+ls
+cd model
+ls
+cp predictor_h2b.{,v2.}py
+mkdir H2b3_w1
+ls
+mv H2b3_w1 ../../model/
+cd model
+ls
+cd model
+ls
+less scaling.py 
+realpath scaling.py 
+realpath scaling.py 
+less scaling.py 
+less scaling.py 
+cd model
+ls
+cp -aux fusion.md fusion.kimi.md
+cd model
+cd model
+ls
+lh
+cd model
+ls
+less predictor_h2.py 
+cd model
+ls
+less dataset.py 
+ls
+ls
+cd ../model
+ls
+cd model
+ls
+python predict2bw.py 
+conda env list
+/bin/rm /mnt/zzb/default/Workspace/xuyu/miniconda3/envs/dna
+cd model
+ls
+conda activate seq
+SAM2_MH63_2.checkpoint-140000
+conda config --show envs_dirs
+/bin/rm -r /mnt/zzb/default/Workspace/xuyu/miniconda3/envs/dna
+/bin/rm -r /mnt/zzb/default/Workspace/xuyu/miniconda3/envs/dna
+/bin/rm -r /mnt/zzb/default/Workspace/xuyu/miniconda3/envs/dna
+conda config --remove envs_dirs /mnt/zzb/default/Workspace/xuyu/miniconda3/envs
+conda config --show envs_dirs
+conda envs
+conda env list
+python predict2bw.py 
+conda activate model
+python predict2bw.py 
+python predict2bw.py --help
+lh
+cd model
+ll
+view predictor_fusion.py 
+realpath predictor_fusion.py 
+ls /mnt/genos100-new/peixunban/xuyu/metrics/PBMC100
