@@ -476,3 +476,5 @@ Traceback (most recent call last):
   File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
     raise mapped_exc(message) from exc
 httpx.ConnectError: All connection attempts failed
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/app.py:1131: UserWarning: The parameters have been moved from the Blocks constructor to the launch() method in Gradio 6.0: theme, css. Please pass these parameters to launch() instead.
+  with gr.Blocks(
