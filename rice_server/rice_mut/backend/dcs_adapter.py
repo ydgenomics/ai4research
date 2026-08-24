@@ -240,6 +240,7 @@ app.add_middleware(
 #  Routes
 # ---------------------------------------------------------------------------
 @app.get("/api/aigress/openai/health")
+@app.get("/health")
 def health():
     from rice_mutation.prediction_service import _PREDICTOR
 
@@ -251,6 +252,7 @@ def health():
 
 
 @app.post("/api/aigress/openai/rice_mut")
+@app.post("/rice_mut")
 async def predict_ref(
     req: Request,
     authorization: str | None = Header(default=None),
@@ -308,6 +310,7 @@ async def predict_ref(
 
 
 @app.post("/api/aigress/openai/rice_mut/snv")
+@app.post("/rice_mut/snv")
 async def predict_snv(
     req: Request,
     authorization: str | None = Header(default=None),
@@ -377,6 +380,19 @@ async def predict_snv(
             "mut_values": _format_values(mut_values, fmt, max_points),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+#  调试回显路由(排查用):捕获一切未匹配路径,回显网关实际转发的路径与方法。
+#  确认网关转发形态后即可删除。
+# ---------------------------------------------------------------------------
+@app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def _debug_echo_path(request: Request, full_path: str):
+    return {
+        "debug_received_path": f"/{full_path}",
+        "method": request.method,
+        "note": "请求已到达 dcs_adapter(网关确实把请求转了过来)",
+    }
 
 
 if __name__ == "__main__":

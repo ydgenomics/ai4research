@@ -9,6 +9,8 @@
 ```bash
 cd /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut
 BACKEND_PORT=8001 python backend/dcs_adapter.py
+
+BACKEND_PORT=8001 /root/miniconda3/envs/vllm/bin/python backend/dcs_adapter.py
 ```
 
 dcs
