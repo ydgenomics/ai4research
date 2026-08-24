@@ -15,11 +15,13 @@ BACKEND_PORT=8001 /root/miniconda3/envs/vllm/bin/python backend/dcs_adapter.py
 
 dcs
 ```bash
-curl -X POST http://www.dcs.cloud/api/aigress/openai/health
+curl -s -X POST https://www.dcs.cloud/api/aigress/openai/health \
+  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx"
+curl -X POST https://www.dcs.cloud/api/aigress/openai/health
 curl -X POST "https://www.dcs.cloud/api/aigress/openai/rice_mut" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
-  -d '{"model":"rice_mut","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541,"output_format":"mean"}'
+  -d '{"model":"rice_mut","genome":"osa1_r7","chromosome":"chr01","start":20716775,"end":20749542,"output_format":"mean"}'
 ```
 
 > 若提示 `address already in use`，说明 8001 已有服务，先 `kill $(cat backend/logs/backend.pid)` 或用 `fuser -k 8001/tcp` 清理。

@@ -226,6 +226,85 @@ def _unauthorized(message: str = "无效或缺失的 API Key"):
     }
 
 
+# ---------------------------------------------------------------------------
+#  环境诊断与容错初始化(排查部署问题用):
+#   1) init_predictor() 失败不再退出进程 —— 服务照常监听端口,网关可连通;
+#   2) 失败原因存入 _INIT_ERROR,由 /health 与推理接口返回,无需 SSH 即可查看。
+# ---------------------------------------------------------------------------
+_INIT_ERROR: dict | None = None      # init_predictor() 失败时保存的错误信息
+
+
+def _collect_diagnostics() -> dict:
+    """收集部署机环境诊断:python/依赖/GPU/模型文件/关键配置。"""
+    import importlib.util
+
+    def _ver(mod: str):
+        try:
+            m = importlib.import_module(mod)
+            return getattr(m, "__version__", "installed")
+        except Exception as e:
+            return f"MISSING ({e.__class__.__name__})"
+
+    def _exists(p: str | None):
+        return bool(p and Path(p).exists())
+
+    diag: dict = {
+        "python": {
+            "executable": sys.executable,
+            "version": sys.version.split()[0],
+            "env_python_bin": os.getenv("BACKEND_PYTHON_BIN", ""),
+        },
+        "deps": {
+            "torch": _ver("torch"),
+            "flash_attn": _ver("flash_attn"),
+            "fastapi": _ver("fastapi"),
+            "transformers": _ver("transformers"),
+        },
+        "gpu": {"cuda_available": False, "device_count": 0, "device_name": ""},
+        "files": {
+            "BASE_MODEL_PATH": os.getenv("BASE_MODEL_PATH", ""),
+            "CHECKPOINT_PATH": os.getenv("CHECKPOINT_PATH", ""),
+            "INDEX_STAT_PATH": os.getenv("INDEX_STAT_PATH", ""),
+            "GENOME_FASTA": os.getenv("GENOME_osa1_r7_FASTA", ""),
+            "GENOME_FAI": os.getenv("GENOME_osa1_r7_FAI", ""),
+            "base_model_exists": _exists(os.getenv("BASE_MODEL_PATH")),
+            "checkpoint_exists": _exists(os.getenv("CHECKPOINT_PATH")),
+            "index_stat_exists": _exists(os.getenv("INDEX_STAT_PATH")),
+            "genome_fasta_exists": _exists(os.getenv("GENOME_osa1_r7_FASTA")),
+            "genome_fai_exists": _exists(os.getenv("GENOME_osa1_r7_FAI")),
+        },
+        "listen": {
+            "BACKEND_HOST": os.getenv("BACKEND_HOST", "0.0.0.0"),
+            "BACKEND_PORT": os.getenv("BACKEND_PORT", "8001"),
+            "PORT": os.getenv("PORT", ""),
+        },
+        "init_error": _INIT_ERROR,
+    }
+    try:
+        import torch
+        diag["gpu"]["cuda_available"] = bool(torch.cuda.is_available())
+        diag["gpu"]["device_count"] = int(torch.cuda.device_count())
+        if torch.cuda.is_available():
+            diag["gpu"]["device_name"] = torch.cuda.get_device_name(0)
+    except Exception as e:
+        diag["gpu"]["torch_error"] = f"{e.__class__.__name__}: {e}"
+    return diag
+
+
+def init_predictor_safe():
+    """包装 init_predictor():失败不崩溃,错误保存到 _INIT_ERROR,服务照常监听。"""
+    global _INIT_ERROR
+    try:
+        init_predictor()
+        _INIT_ERROR = None
+    except Exception as e:
+        _INIT_ERROR = {
+            "error": f"{e.__class__.__name__}: {e}",
+            "traceback": traceback.format_exc()[-4000:],
+        }
+        print(f"[dcs_adapter] init_predictor FAILED: {_INIT_ERROR['error']}", flush=True)
+
+
 app = FastAPI(title="DCS Adapter (rice_mut)", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -239,15 +318,19 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 #  Routes
 # ---------------------------------------------------------------------------
-@app.get("/api/aigress/openai/health")
-@app.get("/health")
+@app.api_route("/api/aigress/openai/health", methods=["GET", "POST"])
+@app.api_route("/health", methods=["GET", "POST"])
 def health():
     from rice_mutation.prediction_service import _PREDICTOR
 
+    initialized = _PREDICTOR.get("instance") is not None
     return {
+        # status 恒为 ok = uvicorn 在运行(HTTP 服务存活,不破坏平台探活);
+        # 模型是否就绪看 predictor_initialized,失败原因看 diagnostics.init_error
         "status": "ok",
-        "predictor_initialized": _PREDICTOR.get("instance") is not None,
-        "genomes": list_genomes(),
+        "predictor_initialized": initialized,
+        "genomes": list_genomes() if initialized else [],
+        "diagnostics": _collect_diagnostics(),
     }
 
 
@@ -268,6 +351,9 @@ async def predict_ref(
         body = await req.json()
     except Exception:
         return _err("请求体不是合法 JSON", 400)
+
+    if _INIT_ERROR:
+        return _err(f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503)
 
     try:
         genome, chromosome, start_1, end_0, biosample_names, fmt, max_points = (
@@ -326,6 +412,9 @@ async def predict_snv(
         body = await req.json()
     except Exception:
         return _err("请求体不是合法 JSON", 400)
+
+    if _INIT_ERROR:
+        return _err(f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503)
 
     try:
         genome, chromosome, start_1, end_0, biosample_names, fmt, max_points = (
@@ -396,7 +485,8 @@ async def _debug_echo_path(request: Request, full_path: str):
 
 
 if __name__ == "__main__":
-    init_predictor()
+    # 容错初始化:失败不退出,错误写入 _INIT_ERROR 由 /health 返回
+    init_predictor_safe()
     _host = os.getenv("BACKEND_HOST", "0.0.0.0")
     # 优先平台注入的 PORT,回退 BACKEND_PORT(本地/网页版)
     _port = int(os.getenv("PORT", os.getenv("BACKEND_PORT", "8001")))
