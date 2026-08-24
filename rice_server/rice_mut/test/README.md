@@ -11,6 +11,15 @@ cd /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut
 BACKEND_PORT=8001 python backend/dcs_adapter.py
 ```
 
+dcs
+```bash
+curl -X POST http://www.dcs.cloud/api/aigress/openai/health
+curl -X POST "https://www.dcs.cloud/api/aigress/openai/rice_mut" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
+  -d '{"model":"rice_mut6","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541,"output_format":"mean"}'
+```
+
 > 若提示 `address already in use`，说明 8001 已有服务，先 `kill $(cat backend/logs/backend.pid)` 或用 `fuser -k 8001/tcp` 清理。
 
 ---
