@@ -112,6 +112,11 @@ COMPLETION_TOKEN_MULTIPLIER = float(os.getenv("DCS_COMPLETION_TOKEN_MULTIPLIER",
 #   Authorization: Bearer <DCS_API_KEY> 或 X-API-Key: <DCS_API_KEY>
 DCS_API_KEY = os.getenv("DCS_API_KEY", "").strip()
 
+# 监听地址/端口:__main__ 与 diagnostics / health 共用同一份,避免两份代码漂移。
+# 端口优先级:平台注入的 PORT > BACKEND_PORT(本地/网页版)。
+_LISTEN_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
+_LISTEN_PORT = int(os.getenv("PORT", os.getenv("BACKEND_PORT", "8001")))
+
 
 def _count_elements(values: dict) -> int:
     """统计输出数组元素总数(用于 completion_tokens)。"""
@@ -193,13 +198,25 @@ def _ok(usage: dict, message: str, result: dict):
     }
 
 
-def _err(message: str, status: int = 400):
-    return {
+def _err(message: str, status: int = 400, detail: dict | None = None):
+    resp = {
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         "status": status,
         "message": message,
         "result": None,
     }
+    if detail:
+        resp["detail"] = detail
+    return resp
+
+
+def _summarize_body(body: dict) -> dict:
+    """请求体摘要:只保留定位/复现所需的字段,用于出错时的 detail。"""
+    keys = (
+        "model", "genome", "chromosome", "start", "end",
+        "snv_index", "snv_base", "output_format", "max_points",
+    )
+    return {k: body[k] for k in keys if k in body}
 
 
 def _check_api_key(authorization: str | None = None, x_api_key: str | None = None) -> None:
@@ -277,6 +294,8 @@ def _collect_diagnostics() -> dict:
             "BACKEND_HOST": os.getenv("BACKEND_HOST", "0.0.0.0"),
             "BACKEND_PORT": os.getenv("BACKEND_PORT", "8001"),
             "PORT": os.getenv("PORT", ""),
+            "actual_host": _LISTEN_HOST,   # 实际监听地址
+            "actual_port": _LISTEN_PORT,   # 实际监听端口(与 uvicorn.run 同一变量)
         },
         "init_error": _INIT_ERROR,
     }
@@ -320,10 +339,13 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 @app.api_route("/api/aigress/openai/health", methods=["GET", "POST"])
 @app.api_route("/health", methods=["GET", "POST"])
-def health():
+async def health(request: Request):
     from rice_mutation.prediction_service import _PREDICTOR
 
     initialized = _PREDICTOR.get("instance") is not None
+    # scope["server"] = 请求实际到达的 socket 地址(uvicorn 注入),即平台转发目标端口
+    served = request.scope.get("server") or [None, None]
+    served_port = served[1]
     return {
         # status 恒为 ok = uvicorn 在运行(HTTP 服务存活,不破坏平台探活);
         # 模型是否就绪看 predictor_initialized,失败原因看 diagnostics.init_error
@@ -331,6 +353,24 @@ def health():
         "predictor_initialized": initialized,
         "genomes": list_genomes() if initialized else [],
         "diagnostics": _collect_diagnostics(),
+        "gateway": {
+            # 平台实际转发进来的路径(排查 404 用)
+            "received_path": request.url.path,
+            # 容器内实际接收请求的地址 / 端口 = 平台转发目标端口
+            "served_host": served[0],
+            "served_port": served_port,
+            # 外部入口 host[:port](与 served_port 不一致属正常,平台网关会改写)
+            "host_header": request.headers.get("host", ""),
+            "remote_addr": (
+                f"{request.client.host}:{request.client.port}"
+                if request.client else None
+            ),
+            # 便捷布尔:端口/路径是否与预期一致
+            "port_matches": served_port == _LISTEN_PORT if served_port else None,
+            "path_matches": request.url.path in (
+                "/api/aigress/openai/health", "/health",
+            ),
+        },
     }
 
 
@@ -353,7 +393,10 @@ async def predict_ref(
         return _err("请求体不是合法 JSON", 400)
 
     if _INIT_ERROR:
-        return _err(f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503)
+        return _err(
+            f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503,
+            detail={"init_error": _INIT_ERROR, "request": _summarize_body(body)},
+        )
 
     try:
         genome, chromosome, start_1, end_0, biosample_names, fmt, max_points = (
@@ -372,10 +415,20 @@ async def predict_ref(
             genome_config=genome_config,
         )
     except RequestError as e:
-        return _err(f"参考预测失败: {e}", 400)
+        return _err(
+            f"参考预测失败: {e}", 400,
+            detail={"request": _summarize_body(body)},
+        )
     except Exception as e:
         traceback.print_exc()
-        return _err(f"参考预测失败: {e}", 500)
+        return _err(
+            f"参考预测失败: {e}", 500,
+            detail={
+                "error_type": e.__class__.__name__,
+                "traceback": traceback.format_exc()[-2000:],
+                "request": _summarize_body(body),
+            },
+        )
 
     pos_chrom, pos_start, pos_end = result["position"]
     prompt_tokens = pos_end - pos_start
@@ -414,7 +467,10 @@ async def predict_snv(
         return _err("请求体不是合法 JSON", 400)
 
     if _INIT_ERROR:
-        return _err(f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503)
+        return _err(
+            f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503,
+            detail={"init_error": _INIT_ERROR, "request": _summarize_body(body)},
+        )
 
     try:
         genome, chromosome, start_1, end_0, biosample_names, fmt, max_points = (
@@ -442,10 +498,20 @@ async def predict_snv(
             genome_config=genome_config,
         )
     except RequestError as e:
-        return _err(f"SNV 预测失败: {e}", 400)
+        return _err(
+            f"SNV 预测失败: {e}", 400,
+            detail={"request": _summarize_body(body)},
+        )
     except Exception as e:
         traceback.print_exc()
-        return _err(f"SNV 预测失败: {e}", 500)
+        return _err(
+            f"SNV 预测失败: {e}", 500,
+            detail={
+                "error_type": e.__class__.__name__,
+                "traceback": traceback.format_exc()[-2000:],
+                "request": _summarize_body(body),
+            },
+        )
 
     pos_chrom, pos_start, pos_end = result["position"]
     ref_values = result["ref_values"]
@@ -487,8 +553,6 @@ async def _debug_echo_path(request: Request, full_path: str):
 if __name__ == "__main__":
     # 容错初始化:失败不退出,错误写入 _INIT_ERROR 由 /health 返回
     init_predictor_safe()
-    _host = os.getenv("BACKEND_HOST", "0.0.0.0")
-    # 优先平台注入的 PORT,回退 BACKEND_PORT(本地/网页版)
-    _port = int(os.getenv("PORT", os.getenv("BACKEND_PORT", "8001")))
-    print(f"[dcs_adapter] starting on {_host}:{_port} ...")
-    uvicorn.run(app, host=_host, port=_port, reload=False)
+    # 与 diagnostics/health 共用 _LISTEN_HOST/_LISTEN_PORT(见文件头部定义)
+    print(f"[dcs_adapter] starting on {_LISTEN_HOST}:{_LISTEN_PORT} ...")
+    uvicorn.run(app, host=_LISTEN_HOST, port=_LISTEN_PORT, reload=False)

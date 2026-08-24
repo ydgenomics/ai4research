@@ -1,0 +1,32 @@
+nohup: ignoring input
+2026-08-24 19:15:36,045 - INFO - Initializing RiceMutationPredictor ...
+2026-08-24 19:15:36,045 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-24 19:15:36,045 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-24 19:15:36,047 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-24 19:15:36,049 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-24 19:15:36,050 - INFO -   device          = cuda:0
+2026-08-24 19:15:36,051 - INFO -   inference_batch_size = 4
+2026-08-24 19:15:36,056 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-24 19:15:36,061 - INFO - Loading GenOmics model ...
+Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`
+2026-08-24 19:15:51,755 - INFO - RiceMutationPredictor initialized successfully.
+2026-08-24 19:15:51,756 - INFO - RiceMutationPredictor initialised and ready.
+INFO:     Started server process [179677]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+[dcs_adapter] starting on 0.0.0.0:8001 ...
+INFO:     127.0.0.1:42626 - "POST /api/aigress/openai/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44546 - "POST /api/aigress/openai/rice_mut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35758 - "GET /api/aigress/openai/health HTTP/1.1" 200 OK
+2026-08-24 19:20:13,103 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 1.07 s
+INFO:     127.0.0.1:35228 - "POST /api/aigress/openai/rice_mut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41090 - "POST /api/aigress/openai/rice_mut HTTP/1.1" 200 OK
+2026-08-24 19:21:05,292 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 0.73 s
+INFO:     127.0.0.1:60512 - "POST /api/aigress/openai/rice_mut HTTP/1.1" 200 OK
+2026-08-24 19:21:19,746 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 0.73 s
+INFO:     127.0.0.1:55522 - "POST /api/aigress/openai/rice_mut HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [179677]
