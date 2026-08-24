@@ -1,0 +1,264 @@
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined
+Traceback (most recent call last):
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2191, in process_api
+    result = await self.call_function(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 1698, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 2518, in run_sync_in_worker_thread
+    return await future
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/anyio/_backends/_asyncio.py", line 1002, in run
+    result = context.run(func, *args)
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/utils.py", line 915, in wrapper
+    response = f(*args, **kwargs)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 798, in _on_predict
+    return _igv_html(genome, locus, igv_payload)
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
+    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
+NameError: name '_STATIC_URL_RE' is not defined

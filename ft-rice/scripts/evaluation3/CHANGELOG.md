@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.5.0] - 2026-08-20
+
+### 修复
+- **基因水平指标（gene/exon/分桶）正负链不区分**：plus 和 minus 链的 feature 级指标完全相同，因为计算时合并了所有链的窗口再做聚合，然后只是机械地给结果打上不同链标签。影响范围包括主表 `00_main_summary.csv` 的 `gene`/`exon`/`gene-low/medium/high` 行，以及 `build_gene_table`、`build_cross_variety_delta`、`_build_ref_table` 等下游函数。
+  - 根因：`_evaluate_task` 中对聚合后的全量 df（plus+minus 混合）只调用了一次 `aggregate_to_features`，导致基因表达量混入了反义链窗口的信号。
+  - 修复 1（`_evaluate_task`）：按链分别过滤 df 后调用 `aggregate_to_features`，结果存入 `results["feature_df_per_strand"]`（字典，key=strand）。
+  - 修复 2（`build_main_summary`）：global=sample 和 global=chromosome 的 feature 级行改为从 `feature_df_per_strand[strand_val]` 取数，而非从混合的 `feature_df` 取数。
+  - 修复 3（`aggregate_to_features`）：在内层窗口循环中加入按链匹配过滤（`feat.strand != "total" and win_strands[i] != feat.strand` 时跳过），防御性编程确保即使调用方传入混合链数据也能正确按链聚合。
+  - 兼容性：`results["feature_df"]` 保留第一条链的结果，确保 `build_gene_table`、`build_cross_variety_delta`、`_build_ref_table` 等下游函数不受影响（仍使用旧接口，但输出需注意已是单链结果）。
+
+### 修复（追加）
+- **基因指标直接丢失**：`aggregate_to_features` 中按链过滤时，GFF 使用 `+`/`-` 表示链，而 CSV 窗口使用 `plus`/`minus`，符号不一致导致所有窗口被判定为链不匹配而跳过，基因水平指标全部丢失。
+  - 修复：在窗口匹配前将 GFF 链符号 `+`/`-` 归一化为 CSV 格式 `plus`/`minus`（`total` 不过滤）。
+  - 该问题不会影响 `build_gene_table`、`build_cross_variety_delta` 等下游，因为那些函数从未使用链过滤结果。
+
+### 变更文件
+- `run_evaluation.py`:
+  - `_evaluate_task`: 新增 `feature_df_per_strand` 字典，按链分别聚合 feature。
+  - `build_main_summary`: 改为从 `feature_df_per_strand` 取数，使 feature 级指标按链独立计算。
+  - `aggregate_to_features`: 内层循环加入按链过滤（`total` 时不过滤），确保窗口与基因链匹配。新增 `feat_strand` 归一化（`+`/`-` → `plus`/`minus`），避免 GFF 与 CSV 符号不一致导致窗口全被跳过。
+
 ## [1.4.0] - 2026-08-18
 
 ### 新增
