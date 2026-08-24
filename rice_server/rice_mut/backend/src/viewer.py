@@ -541,8 +541,6 @@ class DatasetViewer:
                         dest_start = max(0, row_start - final_start)
                         seg[dest_start:dest_start + (src_end - src_start)] = sig[src_start:src_end]
                     signals_to_plot.append(seg)
-                # 对于直接坐标模式，signals_to_plot就是signals本身
-                signals_to_plot = signals
         
         # 对于直接坐标模式，生成显示位置数组
         if direct_coords:
@@ -677,11 +675,8 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter
 from typing import Dict, List, Optional, Tuple
 
-# 假设这些辅助函数已定义（如 gaussian_smooth, _to_numpy）
-# 如果未定义，请确保它们存在
-def gaussian_smooth(arr, sigma=1.0):
-    from scipy.ndimage import gaussian_filter1d
-    return gaussian_filter1d(arr, sigma=sigma, mode='nearest')
+# 注：gaussian_smooth 已在文件顶部定义（numpy 实现，无 scipy 依赖）；
+# 这里不再重复定义，避免覆盖顶部实现。
 
 def _to_numpy(x):
     """
@@ -895,6 +890,22 @@ class ResultsViewer:
             self.genes_by_chrom = genes
             self.transcripts_by_chrom = transcripts   # 新增
             self.exons_by_transcript = exons               # 外显子现在关联到转录本 ID
+
+            # 构建 transcript_id -> gene_id 映射，把外显子挂到所属基因上
+            _tr_to_gene = {}
+            for _chrom, _trs in transcripts.items():
+                for (_ts, _te, _st, _tid, _gid) in _trs:
+                    _tr_to_gene[_tid] = _gid
+
+            # exons_by_chrom: 外显子第 4 个字段用 gene_id（供 plot/plot2 里
+            # gene_exons = [e for e in exons if e[3] == name] 直接匹配）
+            _exons_by_chrom = {}
+            for _chrom, _exs in exons.items():
+                _lst = []
+                for (_es, _ee, _st, _tid) in _exs:
+                    _lst.append((_es, _ee, _st, _tr_to_gene.get(_tid, _tid or "")))
+                _exons_by_chrom[_chrom] = _lst
+            self.exons_by_chrom = _exons_by_chrom
 
             logging.info(f"Loaded annotation: genes={len(genes)} chromosomes, transcripts={len(transcripts)} chromosomes")
 

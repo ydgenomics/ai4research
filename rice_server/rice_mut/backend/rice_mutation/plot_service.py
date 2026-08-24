@@ -251,7 +251,35 @@ def _fallback_plot(results: Dict[str, Any], results2: Optional[Dict[str, Any]]):
     ax_gene.set_yticks([])
     ax_gene.set_ylabel("Genes", fontsize=10, rotation=0, ha="right", va="center")
 
-    positions = np.arange(start, end)
+    # Signal length is taken from the first available track (all tracks share
+    # the same prediction window).  Positions are aligned to the array length
+    # (single-base), NOT to the bp window, so shorter arrays (e.g. windows
+    # clipped at the chromosome end) do not cause a length-mismatch ValueError.
+    n_sig_pts = None
+    for tn in track_names:
+        for b in biosamples:
+            arr = values.get(tn, {}).get(b)
+            if arr is not None:
+                n_sig_pts = len(_to_numpy_1d(arr))
+                break
+        if n_sig_pts is not None:
+            break
+
+    # Downsample very long windows so fallback rendering stays fast.
+    # (Normal 32 kb windows stay at full resolution.)
+    max_points = 60000
+    if n_sig_pts is not None and n_sig_pts > max_points:
+        sample_idx = np.linspace(0, n_sig_pts - 1, max_points).astype(int)
+        positions = start + sample_idx
+    else:
+        sample_idx = None
+        positions = start + np.arange(n_sig_pts) if n_sig_pts else np.arange(start, end)
+
+    def _sample(yy):
+        if yy is None or sample_idx is None:
+            return yy
+        return yy[sample_idx]
+
     idx = 1
     for tn in track_names:
         for b in biosamples:
@@ -260,11 +288,11 @@ def _fallback_plot(results: Dict[str, Any], results2: Optional[Dict[str, Any]]):
             arr2 = values2.get(tn, {}).get(b) if values2 else None
             y = y2 = None
             if arr is not None:
-                y = _to_numpy_1d(arr)
+                y = _sample(_to_numpy_1d(arr))
                 ax.plot(positions, y, color="tab:blue", linewidth=1.2)
                 ax.fill_between(positions, 0, y, color="tab:blue", alpha=0.15)
             if arr2 is not None:
-                y2 = _to_numpy_1d(arr2)
+                y2 = _sample(_to_numpy_1d(arr2))
                 ax.plot(positions, y2, color="tab:red", linewidth=1.2, linestyle="--")
             y_max = 0.1
             for yy in (y, y2):

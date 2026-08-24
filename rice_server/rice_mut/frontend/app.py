@@ -120,6 +120,7 @@ I18N = {
         "err_snv_predict": "SNV prediction failed",
         "snv_info": "SNV: {ref}@{pos:,}→{alt} (window {ws:,}–{we:,} bp). Drag/zoom the IGV below to compare expression across regions.",
         "bar_placeholder": "Run a prediction, then the mean expression of each track in the current IGV window (result1/result2) appears here.",
+        "bar_loading": "Plotly chart library is loading, please wait…",
         "bar_err_http": "Bar plot data unavailable (HTTP {code}{detail}). Please re-run the prediction.",
         "bar_err_load": "Bar plot failed to load: {msg} Please re-run the prediction.",
         "bar_title": "Mean expression in window (result1 vs result2)",
@@ -165,6 +166,7 @@ I18N = {
         "err_snv_predict": "SNV 预测失败",
         "snv_info": "SNV：{ref}@{pos:,}→{alt}（窗口 {ws:,}–{we:,} bp）。拖动/缩放下方 IGV 查看不同区域的表达量对比。",
         "bar_placeholder": "运行预测后，这里显示当前 IGV 窗口内各轨道平均表达量（result1/result2）。",
+        "bar_loading": "图表库加载中，请稍候…",
         "bar_err_http": "柱状图数据不可用（HTTP {code}{detail}）。请重新运行预测。",
         "bar_err_load": "柱状图加载失败：{msg}。请重新运行预测。",
         "bar_title": "窗口内平均表达量（result1 vs result2）",
@@ -510,35 +512,45 @@ def _igv_html(
                     end: Math.round(parseFloat(m[3].replace(/,/g, ""))),
                 }};
             }}
+            // Returns true when the viewport was handled (rendered, or there is
+            // nothing to do), false when the bar renderer is not ready yet so
+            // the polling loop can retry on the next tick.  This prevents the
+            // very first bar plot from being missed when the bar iframe
+            // registers after the IGV iframe has already fired.
             function emitViewport(loc) {{
-                if (!loc) return;
+                if (!loc) return true;
                 // IGV currentLoci() -> "chr:start-end" (1-based inclusive);
                 // convert to 0-based half-open [v0, v1)
                 var v0 = (loc.start || 0) - 1;
                 var v1 = loc.end || 0;
-                // No overlap with the prediction window -> do not redraw
+                // No overlap with the prediction window -> nothing to redraw
                 var ov0 = Math.max(v0, {win_start_int});
                 var ov1 = Math.min(v1, {win_end_int});
-                if (ov1 <= ov0) return;
+                if (ov1 <= ov0) return true;
                 var now = Date.now();
-                if (now - lastBarCall < 300) return;  // throttle pan/zoom
+                if (now - lastBarCall < 300) return true;  // throttle pan/zoom
                 lastBarCall = now;
                 var fn = window.parent && window.parent.__rmBarRenderer;
-                if (fn) {{
-                    fn({{
-                        predictionId: {pred_id_json},
-                        regionStart: Math.round(ov0),
-                        regionEnd: Math.round(ov1),
-                    }});
-                }}
+                if (!fn) return false;  // renderer not registered yet -> retry
+                fn({{
+                    predictionId: {pred_id_json},
+                    regionStart: Math.round(ov0),
+                    regionEnd: Math.round(ov1),
+                }});
+                return true;
             }}
             function fireBarFromBrowser() {{
                 try {{
                     var s = browser.currentLoci();
                     if (s === lastLociStr) return;  // no change -> skip
-                    lastLociStr = s;
                     var loc = parseLoci(s);
-                    if (loc) emitViewport(loc);
+                    // Only remember the locus once it has been handled (or is
+                    // outside the prediction window).  If the bar renderer is
+                    // still unregistered, keep the old value so the next poll
+                    // retries and the initial bar plot is not missed.
+                    if (!loc || emitViewport(loc)) {{
+                        lastLociStr = s;
+                    }}
                 }} catch (e) {{}}
             }}
             browser.on("viewport", fireBarFromBrowser);
@@ -622,18 +634,38 @@ def _bar_plot_html(lang: str = DEFAULT_LANG) -> str:
   </div>
   <script>
     var placeholderEl = document.getElementById('rm-placeholder');
-    function showMsg(txt) {{
+    function showMsg(txt, isError) {{
       if (!placeholderEl) return;
-      placeholderEl.style.color = '#c0392b';
+      placeholderEl.style.color = isError === false ? '#888' : '#c0392b';
       placeholderEl.style.display = 'block';
       placeholderEl.textContent = txt;
     }}
-    function renderBarPlot(p) {{
+    // Turn an API error detail (may be an object) into a short readable string.
+    function fmtDetail(x) {{
+      if (x == null) return "";
+      var s = (typeof x === "string") ? x : JSON.stringify(x);
+      return s.length > 200 ? s.slice(0, 200) + "…" : s;
+    }}
+    // Plotly (3.5 MB) may still be downloading on the very first render,
+    // especially over a slow link.  Wait politely with a soft "loading" note
+    // instead of a hard error; the next tick renders as soon as Plotly is
+    // ready.  A new viewport event resets the retry budget, and after ~60 s a
+    // genuinely broken library stops being polled without alarming the user.
+    var plotlyRetries = 0;
+    function renderBarPlot(p, isRetry) {{
       if (!p || !p.predictionId) return;
       if (!window.Plotly) {{
-        setTimeout(function() {{ renderBarPlot(p); }}, 400);
+        if (!isRetry) plotlyRetries = 0;  // new viewport event -> fresh budget
+        plotlyRetries++;
+        if (plotlyRetries === 1 || plotlyRetries % 10 === 0) {{
+          showMsg({json.dumps(t['bar_loading'])}, false);
+        }}
+        if (plotlyRetries < 150) {{
+          setTimeout(function() {{ renderBarPlot(p, true); }}, 400);
+        }}
         return;
       }}
+      plotlyRetries = 0;
       fetch({api_url_json} + "/predict/bar", {{
         method: "POST",
         headers: {{"Content-Type": "application/json"}},
@@ -645,7 +677,7 @@ def _bar_plot_html(lang: str = DEFAULT_LANG) -> str:
       }})
       .then(function(d) {{
         if (d && d.httpError) {{
-          showMsg({json.dumps(t['bar_err_http'])}.replace("{{code}}", d.httpError).replace("{{detail}}", d.detail ? ": " + d.detail : ""));
+          showMsg({json.dumps(t['bar_err_http'])}.replace("{{code}}", d.httpError).replace("{{detail}}", d.detail ? ": " + fmtDetail(d.detail) : ""));
           return;
         }}
         if (!d || !d.success || !d.overlap || !d.values.length) return;
@@ -676,13 +708,21 @@ def _bar_plot_html(lang: str = DEFAULT_LANG) -> str:
           showlegend: true,
           legend: {{font: {{size: 10}}}},
         }};
-        // Rebuild cleanly: purge any stale/corrupted Plotly instance first,
-        // then render fresh. Hide the placeholder once the chart is drawn.
-        try {{ Plotly.purge('rm-barplot'); }} catch (e) {{}}
-        Plotly.newPlot('rm-barplot', traces, layout, {{displaylogo: false, responsive: true}})
-          .then(function() {{
-            if (placeholderEl) placeholderEl.style.display = 'none';
-          }});
+        // Update in place with Plotly.react so the chart does not flash on
+        // every viewport change; only fall back to a full re-create if the
+        // existing instance is missing/corrupted. Hide the placeholder once
+        // the chart is drawn.
+        var plotCfg = {{displaylogo: false, responsive: true}};
+        var plotPromise;
+        try {{
+          plotPromise = Plotly.react('rm-barplot', traces, layout, plotCfg);
+        }} catch (e) {{
+          try {{ Plotly.purge('rm-barplot'); }} catch (e2) {{}}
+          plotPromise = Plotly.newPlot('rm-barplot', traces, layout, plotCfg);
+        }}
+        plotPromise.then(function() {{
+          if (placeholderEl) placeholderEl.style.display = 'none';
+        }});
       }})
       .catch(function(err) {{
         console.error("bar plot error", err);
