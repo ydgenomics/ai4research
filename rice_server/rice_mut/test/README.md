@@ -17,6 +17,7 @@ dcs
 ```bash
 curl -s -X POST https://www.dcs.cloud/api/aigress/openai/health \
   -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx"
+  
 curl -X POST https://www.dcs.cloud/api/aigress/openai/health
 curl -X POST "https://www.dcs.cloud/api/aigress/openai/rice_mut" \
   -H "Content-Type: application/json" \
