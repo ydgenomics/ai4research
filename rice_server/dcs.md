@@ -1,17 +1,48 @@
 # DCS 平台调用规范（三服务速查）
 
 > 本文档面向 **DCS 平台上的调用方**，统一描述 `rice_server` 三个服务的 DCS API。
-> 三个服务均为 **OpenAI 风格单入口**：`POST /api/aigress/openai/<service>` + body `mode` 分发。
-> 本地联调地址与启动命令见 §1；DCS 网关地址由平台提供（`https://<dcs-host>/api/aigress/openai/<service>`）。
-> 只想快速调用：见 [quick_start.md](quick_start.md)（外部用户一页速查）。
+> **对外只有一个统一入口**：`POST https://<dcs-host>/api/aigress/openai/OGR`，
+> 请求体 `model_sub` 字段路由到三个服务（网关 `dcs_gateway/` 实现）。
+> 本地联调地址与启动命令见 §1；只想快速调用：见 [quick_start.md](quick_start.md)。
 
-| 服务 | DCS 入口 path | 本地 API 地址 | 本地启动命令 |
+| 服务 | model_sub | 本地 API 地址 | 本地启动命令 |
 |---|---|---|---|
-| rice_mut（变异预测/SNV） | `/api/aigress/openai/rice_mut` | `http://localhost:8001` | `cd rice_mut/backend && python dcs_adapter.py` |
-| rice_reg（ATAC 条件预测） | `/api/aigress/openai/rice_reg` | `http://localhost:7001` | `cd rice_reg/backend && python dcs_adapter.py` |
-| rice_OGR（embedding/碱基预测） | `/api/aigress/openai/rice_ogr` | `http://localhost:8001` | `cd rice_OGR && python dcs_adapter.py` |
+| rice_mut（变异预测/SNV） | `rice_mut` | `http://localhost:8001` | `cd rice_mut/backend && python dcs_adapter.py` |
+| rice_reg（ATAC 条件预测） | `rice_reg` | `http://localhost:7001` | `cd rice_reg/backend && python dcs_adapter.py` |
+| rice_OGR（embedding/碱基预测） | `rice_ogr`（**缺省**） | `http://localhost:8003` | `cd rice_OGR && python dcs_adapter.py` |
 
 ---
+
+## 0. 统一入口与 model_sub 路由（网关）
+
+**外部（DCS 平台）只要一个地址**：
+
+```text
+POST https://<dcs-host>/api/aigress/openai/OGR
+```
+
+- 请求体必须带 **`model_sub`** 指明调用哪个服务：`rice_mut` / `rice_reg` / `rice_ogr`
+  （**`model_sub` 缺省时默认 `rice_ogr`**，即主服务 embedding/碱基预测）。
+- `model_sub` **只用于网关路由，不传给后端**；其余字段（`mode`/`sequence`/`start`/…）与
+  请求头（`Authorization`/`X-API-Key`）原样透传，后端计费/错误语义不变。
+- 网关为轻量反代（`dcs_gateway/app.py`），**不加载模型**：三个模型仍由各自后端进程加载。
+- 网关探活：`GET/POST /health`（或 `/api/aigress/openai/health`）返回三个后端的聚合状态。
+
+```bash
+# 统一入口调用示例（三个服务同地址，仅 model_sub 不同）
+curl -s https://<dcs-host>/api/aigress/openai/OGR \
+  -H 'Authorization: Bearer <key>' -H 'Content-Type: application/json' \
+  -d '{
+    "model_sub": "rice_mut",          # 路由到 rice_mut 后端
+    "mode": "predict",
+    "genome": "osa1_r7",
+    "chromosome": "chr01",
+    "start": 20716774
+  }'
+```
+
+> `model` 字段说明：rice_OGR 后端仍以 `model_name` 指定实际模型名（如 `1B_8k`）；
+> `model_sub` 是**网关专用**的二级路由字段，不要与后端 `model`/`model_name` 混淆。
 
 ## 1. 统一返回结构与计费
 
@@ -35,11 +66,11 @@
 ## 2. 通用健康检查（免鉴权）
 
 ```bash
-curl -s http://localhost:8001/health | python3 -m json.tool    # 本地
-curl -s https://<dcs-host>/api/aigress/openai/rice_mut/health   # DCS 网关（三服务同构，替换 path）
+curl -s http://localhost:8001/health | python3 -m json.tool    # 本地（各后端各自 /health）
+curl -s https://<dcs-host>/api/aigress/openai/OGR/health     # 统一网关（聚合三后端状态）
 ```
 
-返回（以 rice_OGR 为例）：`status` 200 / `device` 设备 / `loaded_models` 已加载模型 / **`init_error` 必须为 `null`**（非 null 表示模型加载失败，见 §7 503）。
+返回（以 rice_OGR 为例）：`status` 200 / `device` 设备 / `loaded_models` 已加载模型 / **`init_error` 必须为 `null`**（非 null 表示模型加载失败，见 §7 503）。网关的 `/health` 返回 `status`（`ok`/`degraded`）+ 三个后端的 `reachable`/`predictor_initialized`/`init_error`。
 
 ---
 
@@ -47,15 +78,17 @@ curl -s https://<dcs-host>/api/aigress/openai/rice_mut/health   # DCS 网关（�
 
 mode 均为必填。坐标窗口统一 `chr01`–`chr12` 命名，位置 **1-based inclusive**。
 
+> 经统一网关调用时，请求体追加 **`"model_sub": "rice_mut"`**（本地直连后端可省略）。
 > **模式自动推断**（显式 `mode` 优先级最高）：空 body → `health`；带 `snv_index` → `snv`；其余（有 `start`）→ `predict`。
 > `model` 字段固定为 `rice_mut`（服务名），非必填。
 
 ### 3.1 mode=predict（参考序列表达预测）
 
 ```bash
-curl -s http://localhost:8001/api/aigress/openai/rice_mut \
-  -H 'Content-Type: application/json' \
+curl -s https://<dcs-host>/api/aigress/openai/OGR \
+  -H 'Authorization: Bearer <key>' -H 'Content-Type: application/json' \
   -d '{
+    "model_sub": "rice_mut",
     "mode": "predict",
     "genome": "osa1_r7",
     "chromosome": "chr01",
@@ -70,9 +103,10 @@ curl -s http://localhost:8001/api/aigress/openai/rice_mut \
 ### 3.2 mode=snv（单突变居中的窗口轨迹）
 
 ```bash
-curl -s http://localhost:8001/api/aigress/openai/rice_mut \
-  -H 'Content-Type: application/json' \
+curl -s https://<dcs-host>/api/aigress/openai/OGR \
+  -H 'Authorization: Bearer <key>' -H 'Content-Type: application/json' \
   -d '{
+    "model_sub": "rice_mut",
     "mode": "snv",
     "genome": "osa1_r7",
     "chromosome": "chr01",
@@ -90,10 +124,13 @@ curl -s http://localhost:8001/api/aigress/openai/rice_mut \
 
 ## 4. rice_reg：ATAC 条件表达预测（DNA + ATAC → RNA-seq）
 
+经统一网关调用时，请求体追加 **`"model_sub": "rice_reg"`**。
+
 ```bash
-curl -s http://localhost:7001/api/aigress/openai/rice_reg \
-  -H 'Content-Type: application/json' \
+curl -s https://<dcs-host>/api/aigress/openai/OGR \
+  -H 'Authorization: Bearer <key>' -H 'Content-Type: application/json' \
   -d '{
+    "model_sub": "rice_reg",
     "mode": "predict",
     "genome": "MH63RS3",
     "chromosome": "chr01",
@@ -120,34 +157,35 @@ curl -s http://localhost:7001/api/aigress/openai/rice_reg \
 ## 5. rice_OGR：embedding 提取 / 下游碱基预测
 
 mode 可省略（自动推断）：带 `predict_length` → `predict`，否则 → `dna_embedding`。
+经统一网关调用时，请求体带 **`"model_sub": "rice_ogr"`**（**缺省默认即为 rice_ogr**，可省略）。
 
 ### 5.1 mode=dna_embedding（默认，提取序列向量）
 
 ```bash
-curl -s http://localhost:8001/api/aigress/openai/rice_ogr \
-  -H 'Content-Type: application/json' \
+curl -s https://<dcs-host>/api/aigress/openai/OGR \
+  -H 'Authorization: Bearer <key>' -H 'Content-Type: application/json' \
   -d '{
+    "model_sub": "rice_ogr",          # 缺省默认 rice_ogr,可省略
     "mode": "dna_embedding",
-    "model": "rice_ogr",            # 服务名（与入口 path 末段一致）
-    "model_name": "1B_8k",          # 实际模型注册名（.env MODEL_<NAME>_PATH，<NAME> 即此值）
+    "model_name": "1B_8k",           # 实际模型注册名(.env MODEL_<NAME>_PATH,<NAME> 即此值)
     "sequence": "ACGTTGCATGCAACGTACGTTGCATGCAACGT",
-    "pooling_method": "mean"        # mean(默认) / max / last / none
+    "pooling_method": "mean"         # mean(默认) / max / last / none
   }'
 ```
 
 - `pooling_method=mean|max|last` → 输出 `embedding_shape: [1, 1024]`（1B 模型 hidden_size=1024）；
   `none` → `[1, L, 1024]`（保留每个位置的向量）。
-- `model` 为服务名（`rice_ogr`）；实际模型名放 `model_name`（`model_name` 缺省时向后兼容取 `model` 作为模型名；两者都缺省取注册表第一个）。
+- `model_name` 指定实际模型名（`model_name` 缺省时向后兼容取 `model` 作为模型名；两者都缺省取注册表第一个）。
 - `result` 含 `embedding`、`embedding_shape`、`token_count`（= 序列长度）、`device`、`model_name`。
 
 ### 5.2 mode=predict（下游碱基预测）
 
 ```bash
-curl -s http://localhost:8001/api/aigress/openai/rice_ogr \
-  -H 'Content-Type: application/json' \
+curl -s https://<dcs-host>/api/aigress/openai/OGR \
+  -H 'Authorization: Bearer <key>' -H 'Content-Type: application/json' \
   -d '{
+    "model_sub": "rice_ogr",
     "mode": "predict",
-    "model": "rice_ogr",
     "model_name": "1B_8k",
     "sequence": "ACGTTGCATGCAACGT",
     "predict_length": 8
@@ -157,7 +195,8 @@ curl -s http://localhost:8001/api/aigress/openai/rice_ogr \
 ### 5.3 免鉴权辅助接口
 
 ```bash
-curl -s http://localhost:8001/models    # 列出已注册/已加载模型
+curl -s http://localhost:8003/models    # 本地直连后端:列出已注册/已加载模型
+curl -s https://<dcs-host>/api/aigress/openai/OGR/models  # 经网关(默认路由 rice_ogr)
 ```
 
 ---
@@ -176,7 +215,8 @@ curl -s http://localhost:8001/models    # 列出已注册/已加载模型
 
 ## 7. 部署注意
 
-- **端口**：rice_mut 8000/8001、rice_reg 7000/7001、rice_OGR 默认 8000/8001 —— **rice_OGR 与 rice_mut 冲突，同机部署用 `PORT=8002`/`BACKEND_PORT=8003` 错开**。
+- **统一网关（推荐）**：只需对外暴露一个端口（`dcs_gateway/`，默认 9000；DCS 平台注入 `PORT` 时自动覆盖）。外部统一入口 `POST /api/aigress/openai/OGR` + body `model_sub` 路由；网关不加载模型。
+- **后端端口（网关模式下）**：rice_mut 8001、rice_reg 7001、**rice_OGR 必须用 8003**（`BACKEND_PORT=8003`，与 rice_mut 错开）。
 - **鉴权开关**：`.env` 中 `DCS_API_KEY` 留空 = 不鉴权（仅限内网联调），上 DCS 必须配置。
 - **容器内模型路径**：DCS 容器中通过环境变量注入，如 `MODEL_1B_8k_PATH=/AI_models/rice_mut/rice_1B_stage2_8k_hf`（rice_OGR）；rice_mut/rice_reg 同理覆盖 checkpoint 路径。
 - **多卡**：rice_OGR 支持 `--device cuda:0,cuda:1 --device_map auto`；rice_mut/rice_reg 用 `CUDA_VISIBLE_DEVICES` 控制。

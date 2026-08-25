@@ -10,14 +10,16 @@
 
 ## 1. 三个服务一览
 
-| 服务 | 任务 | 基础模型 | 输入 | 输出 | 本地端口(网页/API) | DCS 单入口 |
+| 服务 | 任务 | 基础模型 | 输入 | 输出 | 本地端口(网页/API) | DCS 入口 |
 |---|---|---|---|---|---|---|
-| **rice_mut** | DNA → 多组学表达预测（**参考 vs SNV 变异对比**） | `rice_1B_stage2_8k_hf` | DNA 序列 | assay×biosample 多维表达 + bigWig | 8000 / 8001 | `/api/aigress/openai/rice_mut` |
-| **rice_reg** | DNA + **ATAC** → RNA-seq 表达预测 | `rice_1B_32k_hf` | DNA + ATAC bigWig | RNA-seq ± 两通道 + bigWig | 7000 / 7001 | `/api/aigress/openai/rice_reg` |
-| **rice_OGR** | **embedding 提取 / 下游碱基预测**（基模直接开放） | 两者均可（注册表） | DNA 序列 | 1024 维向量 / 预测碱基 | 8000(本地 Sanic) / 8001(DCS 适配) | `/api/aigress/openai/rice_ogr` |
+| **rice_mut** | DNA → 多组学表达预测（**参考 vs SNV 变异对比**） | `rice_1B_stage2_8k_hf` | DNA 序列 | assay×biosample 多维表达 + bigWig | 8000 / 8001 | 统一入口 `…/OGR` + `model_sub=rice_mut` |
+| **rice_reg** | DNA + **ATAC** → RNA-seq 表达预测 | `rice_1B_32k_hf` | DNA + ATAC bigWig | RNA-seq ± 两通道 + bigWig | 7000 / 7001 | 统一入口 `…/OGR` + `model_sub=rice_reg` |
+| **rice_OGR** | **embedding 提取 / 下游碱基预测**（基模直接开放） | 两者均可（注册表） | DNA 序列 | 1024 维向量 / 预测碱基 | 8000(本地 Sanic) / **8003**(DCS 适配) | 统一入口 `…/OGR`（`model_sub` 缺省即此） |
 
 > ⚠️ **端口规划**：rice_mut 与 rice_OGR 本地都以 8000/8001 为默认值；**同机部署时二者必须错开**
 > （例如 rice_OGR 用 `PORT=8002` / `BACKEND_PORT=8003`，见各项目 `.env`）。
+> **统一网关**：`dcs_gateway/` 单端口（默认 9000）收口三个服务，对外**唯一入口**
+> `POST /api/aigress/openai/OGR`，请求体 `model_sub` 路由（详见 [dcs.md](dcs.md) §0）。
 
 | 服务 | 快速入口 |
 |---|---|
@@ -48,6 +50,11 @@ rice_server/
 │   ├── dna_embedding.py     #   Sanic 原服务
 │   ├── dcs_adapter.py       #   FastAPI DCS 适配层(单入口 + mode 分发)
 │   └── README.md            #   DCS 调用章节
+│
+├── dcs_gateway/            # ★ 统一网关：单端口收口三个服务的 DCS API
+│   ├── app.py               #   FastAPI 轻量反代（model_sub 路由，不加载模型）
+│   ├── .env.example         #   后端地址 / 端口配置
+│   └── run_gateway.sh       #   启动脚本
 │
 ├── docker/                  # 交付镜像
 │   ├── org_web/             #   DCS 平台镜像(包含依赖)
@@ -83,21 +90,21 @@ python backend/dcs_adapter.py        # rice_mut: 8001(与网页后端同端口, 
 
 ---
 
-## 4. DCS 平台部署（三服务一致的模式）
+## 4. DCS 平台部署（统一网关模式）
 
-三个服务的 DCS 适配层遵循**同一套约定**（详见 [dcs.md](dcs.md)）：
+三个服务的 DCS 适配层遵循**同一套约定**，对外由 **`dcs_gateway/` 统一收口**（详见 [dcs.md](dcs.md)）：
 
-- **单入口**：`POST /api/aigress/openai/<service>`，用请求体 `mode` 区分具体操作
+- **唯一入口**：`POST /api/aigress/openai/OGR`，请求体 **`model_sub`** 路由（`rice_mut`/`rice_reg`/`rice_ogr` 缺省）
 - **统一返回**：`{"usage": {prompt_tokens, completion_tokens}, "status", "message", "result"}`
 - **鉴权**：`.env` 配 `DCS_API_KEY` 后 POST 需 `Authorization: Bearer <key>`（`health` 免鉴权）
 - **计费**：`prompt_tokens = 输入碱基数 × 系数`，`completion_tokens = 输出元素数 × 系数`（系数可调）
 
 ```bash
-# 示例：调用 rice_OGR 提取 embedding（model=服务名，model_name=实际模型名）
-curl --location 'https://<dcs-host>/api/aigress/openai/rice_ogr' \
+# 示例：经统一入口调用 rice_OGR 提取 embedding
+curl --location 'https://<dcs-host>/api/aigress/openai/OGR' \
   --header 'Authorization: Bearer <YOUR_API_KEY>' \
   --header 'Content-Type: application/json' \
-  --data '{"model": "rice_ogr", "model_name": "1B_8k", "mode": "dna_embedding", "sequence": "ACGTTGCATGCAACGT", "pooling_method": "mean"}'
+  --data '{"model_sub": "rice_ogr", "mode": "dna_embedding", "model_name": "1B_8k", "sequence": "ACGTTGCATGCAACGT", "pooling_method": "mean"}'
 ```
 
 ---

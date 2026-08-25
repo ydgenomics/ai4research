@@ -47,6 +47,11 @@ rice_server/
 │   ├── README.md / ref_genos.md
 │   └── requirements.txt
 │
+├── dcs_gateway/         # ★ 统一网关（单端口收口三个服务的 DCS API）
+│   ├── app.py               #   FastAPI 轻量反代（model_sub 路由，不加载模型）
+│   ├── .env.example         #   后端地址 / 端口配置
+│   └── run_gateway.sh       #   启动脚本
+│
 ├── docker/              # 交付镜像
 │   ├── org_web/               # DCS 平台镜像(含依赖)
 │   ├── org_web-jupyter/       # Jupyter 变体
@@ -82,7 +87,8 @@ rice_server/
 | 端口（前端/后端） | **8000 / 8001** | **7000 / 7001** | **8000(Sanic) / 8001(DCS)** |
 
 > ⚠️ 三项目端口规划：rice_mut 用 8000/8001，rice_reg 用 7000/7001；**rice_OGR 默认 8000/8001 与 rice_mut 冲突，同机部署需错开**（见 §6）。
-> DCS 适配层（三个项目的 `dcs_adapter.py`）统一采用 OpenAI 风格单入口 `POST /api/aigress/openai/<service>` + body `mode` 分发，详见 [dcs.md](dcs.md)。
+> 三个项目的 `dcs_adapter.py` 统一采用 OpenAI 风格单入口 + body `mode` 分发；
+> **对外统一入口由 `dcs_gateway/` 收口**：外部只需 `POST /api/aigress/openai/OGR`，请求体 `model_sub` 字段路由到对应服务（详见 [dcs.md](dcs.md) §0）。
 
 ### 架构设计（rice_mut / rice_reg 一致）
 
@@ -278,10 +284,18 @@ bash test/test_api.sh               # 完整 API 冒烟测试（需后端已启�
 |---|---|---|---|
 | rice_mut | 8000 | 8001（网页后端） | 8001（与网页后端同端口，部署时二选一） |
 | rice_reg | 7000 | 7001（网页后端） | 7001（与网页后端同端口，部署时二选一） |
-| rice_OGR | 无 | 8000（Sanic `dna_embedding.py`） | **8001**（`dcs_adapter.py`） |
+| rice_OGR | 无 | 8000（Sanic `dna_embedding.py`） | **8003**（`dcs_adapter.py`，需与 rice_mut 错开） |
+| **dcs_gateway** | — | — | **9000**（单端口对外；`PORT` 注入优先） |
+
+> **统一对外入口**：DCS 平台只配置 `/api/aigress/openai/OGR` 一个转发地址 → 网关 9000；
+> 网关按请求体 `model_sub` 路由：`rice_mut`→8001、`rice_reg`→7001、`rice_ogr`（缺省）→8003。
 
 > ⚠️ **rice_mut 与 rice_OGR 都以 8000/8001 为默认** —— 同机部署二者必须错开！
-> 建议 rice_OGR 使用 `PORT=8002`（Sanic）/ `BACKEND_PORT=8003`（DCS 适配），或在容器内用平台注入的 `PORT`（适配层已支持 `PORT` 优先级最高）。
+> 建议 rice_OGR 使用 `PORT=8002`（Sanic）/ **`BACKEND_PORT=8003`（DCS 适配）**，或在容器内用平台注入的 `PORT`（适配层已支持 `PORT` 优先级最高）。
+>
+> **统一网关部署（推荐）**：`dcs_gateway/` 单端口（默认 9000）收口三个后端，
+> 外部统一入口 `POST /api/aigress/openai/OGR` + body `model_sub` 分发；网关不加载模型，
+> 后端仍各自独立进程（rice_OGR 必须用 8003 与 rice_mut 错开）。
 
 ### 6.2 rice_OGR 部署提醒
 
