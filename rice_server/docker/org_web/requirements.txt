@@ -4,6 +4,7 @@
 #
 # 注：rice-mut 与 rice-reg 两个项目共用同一套环境，
 #     此清单已覆盖两个项目的全部运行依赖。
+#     rice_OGR(Sanic embedding 服务) 也复用此环境。
 #
 # 安装方式:
 #   pip install -r requirements.txt
@@ -19,6 +20,9 @@ httpx>=0.25.0
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
+
+# ===== rice_OGR Embedding 服务 (Sanic) =====
+sanic>=23.6.0               # dna_embedding.py (e.g. sanic 25.12.1 验证通过)
 
 # ===== 深度学习推理 =====
 torch>=2.1.0

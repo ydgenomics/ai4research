@@ -1,14 +1,25 @@
-"""DCS API 适配层 — rice_mut (DNA → 多组学表达预测)
+"""DCS API 适配层 — rice_reg (ATAC → RNA-seq 表达预测)
 
-对外提供 OpenAI 风格的 HTTP API,由 DCS 平台网关转发:
+对外提供 OpenAI 风格的 HTTP API,由 DCS 平台网关转发(单地址,路径前缀被剥离):
 
-    POST /api/aigress/openai/rice_mut        参考序列表达预测
-    POST /api/aigress/openai/rice_mut/snv    单碱基变异 (SNV) 双轨对比预测
-    GET  /api/aigress/openai/health          健康检查
+    POST /api/aigress/openai/rice_reg    单入口:body mode 分发(health/predict/genomes/chromosomes)
+    GET  /api/aigress/openai/health      健康检查
 
-坐标约定:请求使用 1-based(与网页版一致),内部转 0-based 后调用现有
-``rice_mutation.prediction_service`` 的 ``run_prediction_core`` /
-``run_snv_core``(复用染色体别名归一化、窗口中心对齐与缓存)。
+由于 DCS 平台**只允许一个转发地址**,无法使用 /health、/genomes、
+/predict/rice-reg 等子路径,因此单入口按请求体 ``mode`` 字段分发:
+
+    {"mode": "health"}        → 健康检查(含监听端口 + 网关诊断)
+    {"mode": "genomes"}       → 已配置基因组列表
+    {"mode": "chromosomes"}   → 指定基因组的染色体列表(需带 genome)
+    {"mode": "predict"}       → ATAC→RNA-seq 表达预测(默认)
+    未指定 mode 时自动推断:空 body → health;其余 → predict
+
+坐标约定:与网页版一致,start 为 1-based inclusive;内部经
+``adjust_window`` 归一化后送入模型。
+
+ATAC 输入(二选一,``uploaded_atac`` 优先):
+    atac_source:    内置源 ID,如 "SAM2_MH63_1" → 查 .env 的 ATAC_PATH_SAM2_MH63_1
+    uploaded_atac:  服务器上已上传的 ATAC bigWig 文件路径
 
 返回结构遵循 dcs.md 规范:
 
@@ -23,33 +34,21 @@
     prompt_tokens      = 输入窗口碱基数 × DCS_PROMPT_TOKEN_MULTIPLIER      (默认 1)
     completion_tokens  = 输出数组元素总数 × DCS_COMPLETION_TOKEN_MULTIPLIER (默认 1)
 
-鉴权(可选):在 rice_mut/.env 配置 DCS_API_KEY 后,POST 路由需要请求头
+鉴权(可选):在 rice_reg/.env 配置 DCS_API_KEY 后,POST 路由需要请求头
     Authorization: Bearer <DCS_API_KEY>  (或 X-API-Key: <DCS_API_KEY>)
-    留空则不启用鉴权;GET /health 始终免鉴权。
+    留空则不启用鉴权;health 始终免鉴权。
 
-请求体示例(参考预测):
+请求体示例(预测):
 
     {
-      "model": "rice_mut",
-      "genome": "osa1_r7",
+      "model": "rice_reg",
+      "genome": "MH63RS3",
       "chromosome": "chr01",
       "start": 20716774,          # 1-based inclusive
-      "end": 20749541,            # 1-based inclusive(可省略,默认 32768 窗口)
-      "biosample_names": null,    # 可选,缺省全部
+      "end": 20749541,            # 1-based inclusive(可省略,默认 TARGET_LEN 窗口)
+      "atac_source": "SAM2_MH63_1",   # 内置 ATAC 源(或改传 uploaded_atac)
       "output_format": "full",    # full | mean | downsample
       "max_points": 1024          # downsample 时的目标点数(默认 1024)
-    }
-
-请求体示例(SNV 预测,额外两个字段):
-
-    {
-      "model": "rice_mut",
-      "genome": "osa1_r7",
-      "chromosome": "chr01",
-      "start": 20716774,
-      "end": 20749541,
-      "snv_index": 20731844,      # 1-based
-      "snv_base": "T"             # A/C/G/T/N
     }
 
 用法:
@@ -81,22 +80,25 @@ def _load_env_file(path: Path):
         os.environ.setdefault(key.strip(), val.strip())
 
 
-ROOT_DIR = Path(__file__).resolve().parents[1]   # rice_mut/
-BACKEND_DIR = Path(__file__).resolve().parent     # rice_mut/backend/
+ROOT_DIR = Path(__file__).resolve().parents[1]   # rice_reg/
+BACKEND_DIR = Path(__file__).resolve().parent     # rice_reg/backend/
 _load_env_file(ROOT_DIR / ".env")
 
-# backend/ 下含 src/ 包 (from src.util import ...),加入 sys.path
+# rice_reg 包位于 backend/rice_reg/,把 backend/ 加入 sys.path
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from rice_mutation.prediction_service import (  # noqa: E402
-    _adjust_window,
+from rice_reg.prediction_service import (  # noqa: E402
+    _PREDICTOR,
+    _validate_atac_bw,
+    adjust_window,
+    get_genome_chromosomes,
     init_predictor,
     list_genomes,
+    normalize_chromosome,
     require_predictor,
+    resolve_atac_path,
     resolve_genome_config,
-    run_prediction_core,
-    run_snv_core,
 )
 
 # ---------------------------------------------------------------------------
@@ -116,71 +118,61 @@ DCS_API_KEY = os.getenv("DCS_API_KEY", "").strip()
 # 监听地址/端口:__main__ 与 diagnostics / health 共用同一份,避免两份代码漂移。
 # 端口优先级:平台注入的 PORT > BACKEND_PORT(本地/网页版)。
 _LISTEN_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
-_LISTEN_PORT = int(os.getenv("PORT", os.getenv("BACKEND_PORT", "8001")))
+_LISTEN_PORT = int(os.getenv("PORT", os.getenv("BACKEND_PORT", "7001")))
 
 
-def _count_elements(values: dict) -> int:
+def _format_array(arr, fmt: str, max_points: int):
+    """把单个 numpy 数组按 output_format 转为 JSON 可序列化结构(full/mean/downsample)。"""
+    arr = np.asarray(arr, dtype=np.float64)
+    if fmt == "mean":
+        return round(float(arr.mean()), 6)
+    if fmt == "downsample":
+        n = len(arr)
+        if n > max_points:
+            idx = np.linspace(0, n - 1, max_points).astype(int)
+            arr = arr[idx]
+        return [round(float(x), 6) for x in arr]
+    return [round(float(x), 6) for x in arr]
+
+
+def _count_elements(*arrays) -> int:
     """统计输出数组元素总数(用于 completion_tokens)。"""
     total = 0
-    for bios_map in values.values():
-        for arr in bios_map.values():
+    for arr in arrays:
+        if arr is not None:
             total += int(np.asarray(arr).size)
     return total
 
 
-def _format_values(values: dict, fmt: str, max_points: int) -> dict:
-    """按 output_format 把 {assay: {biosample: np.ndarray}} 转为 JSON 可序列化结构。
-
-    full       — 完整数组(round 到 6 位)
-    mean       — 每轨道窗口均值(标量)
-    downsample — 每轨道均匀降采样到 max_points 点
-    """
-    out: dict = {}
-    for assay, bios_map in values.items():
-        out[assay] = {}
-        for bios, arr in bios_map.items():
-            arr = np.asarray(arr, dtype=np.float64)
-            if fmt == "mean":
-                out[assay][bios] = round(float(arr.mean()), 6)
-            elif fmt == "downsample":
-                n = len(arr)
-                if n > max_points:
-                    idx = np.linspace(0, n - 1, max_points).astype(int)
-                    arr = arr[idx]
-                out[assay][bios] = [round(float(x), 6) for x in arr]
-            else:  # full
-                out[assay][bios] = [round(float(x), 6) for x in arr]
-    return out
-
-
 def _parse_common(body: dict):
-    """解析公共参数:genome / chromosome / start / end / biosample_names。
+    """解析公共参数:genome / chromosome / start / end / atac / 输出格式。
 
-    返回 (genome, chromosome, start_0, end_0, biosample_names, output_format,
-    max_points)。坐标为 0-based half-open(内部约定)。
+    返回 (genome, chromosome, start_1, end_1, atac_source, uploaded_atac,
+    output_format, max_points)。坐标 1-based inclusive(与网页版一致)。
     """
     genome = str(body.get("genome", "") or "")
     if not genome:
         genomes = list_genomes()
-        genome = genomes[0] if genomes else "osa1_r7"
+        genome = genomes[0] if genomes else ""
+    if not genome:
+        raise RequestError("缺少必填参数 'genome',并且没有可用的默认基因组")
     chromosome = str(body.get("chromosome", "") or "chr01")
     if "start" not in body:
         raise RequestError("缺少必填参数 'start'(1-based)")
     start_1 = int(body["start"])
     end_1 = body.get("end")
-    end_0 = int(end_1) if end_1 is not None else None
-    biosample_names = body.get("biosample_names")
-    if isinstance(biosample_names, str) and biosample_names.strip():
-        biosample_names = [s.strip() for s in biosample_names.split(",") if s.strip()]
-    if not isinstance(biosample_names, list):
-        biosample_names = None
+    end_1 = int(end_1) if end_1 is not None else None
+    atac_source = str(body.get("atac_source", "") or "").strip() or None
+    uploaded_atac = str(body.get("uploaded_atac", "") or "").strip() or None
+    if not atac_source and not uploaded_atac:
+        raise RequestError("缺少 ATAC 输入:需提供 'atac_source'(内置)或 'uploaded_atac'(文件路径)")
     output_format = str(body.get("output_format", "full")).lower()
     if output_format not in ("full", "mean", "downsample"):
         raise RequestError(
             f"output_format 必须是 full/mean/downsample,收到 '{output_format}'"
         )
     max_points = int(body.get("max_points", 1024))
-    return genome, chromosome, start_1, end_0, biosample_names, output_format, max_points
+    return genome, chromosome, start_1, end_1, atac_source, uploaded_atac, output_format, max_points
 
 
 def _usage(prompt_tokens: int, completion_tokens: int) -> dict:
@@ -215,7 +207,7 @@ def _summarize_body(body: dict) -> dict:
     """请求体摘要:只保留定位/复现所需的字段,用于出错时的 detail。"""
     keys = (
         "model", "genome", "chromosome", "start", "end",
-        "snv_index", "snv_base", "output_format", "max_points",
+        "atac_source", "uploaded_atac", "output_format", "max_points",
     )
     return {k: body[k] for k in keys if k in body}
 
@@ -252,8 +244,27 @@ def _unauthorized(message: str = "无效或缺失的 API Key"):
 _INIT_ERROR: dict | None = None      # init_predictor() 失败时保存的错误信息
 
 
+def _env_entries(prefix: str, suffix: str) -> dict:
+    """收集 .env 中形如 <prefix><ID><suffix> 的配置项(ID → 值是否存在)。
+
+    注意:suffix 为空(如 ATAC_PATH_<ID>)时切片不能用 `-len(suffix)`(= 0),
+    Python 的 -0 == 0 会导致 `key[len(prefix):0]` 返回空串。
+    """
+    out: dict = {}
+    key_len = len(prefix)
+    for key, val in sorted(os.environ.items()):
+        if (
+            key.startswith(prefix)
+            and key.endswith(suffix)
+            and len(key) > key_len + len(suffix)
+        ):
+            gid = key[key_len:] if not suffix else key[key_len:-len(suffix)]
+            out[gid] = bool(val and Path(val).exists())
+    return out
+
+
 def _collect_diagnostics() -> dict:
-    """收集部署机环境诊断:python/依赖/GPU/模型文件/关键配置。"""
+    """收集部署机环境诊断:python/依赖/GPU/模型文件/基因组/ATAC 源/关键配置。"""
     import importlib.util
 
     def _ver(mod: str):
@@ -277,23 +288,20 @@ def _collect_diagnostics() -> dict:
             "flash_attn": _ver("flash_attn"),
             "fastapi": _ver("fastapi"),
             "transformers": _ver("transformers"),
+            "pyBigWig": _ver("pyBigWig"),
         },
         "gpu": {"cuda_available": False, "device_count": 0, "device_name": ""},
         "files": {
             "BASE_MODEL_PATH": os.getenv("BASE_MODEL_PATH", ""),
             "CHECKPOINT_PATH": os.getenv("CHECKPOINT_PATH", ""),
-            "INDEX_STAT_PATH": os.getenv("INDEX_STAT_PATH", ""),
-            "GENOME_FASTA": os.getenv("GENOME_osa1_r7_FASTA", ""),
-            "GENOME_FAI": os.getenv("GENOME_osa1_r7_FAI", ""),
             "base_model_exists": _exists(os.getenv("BASE_MODEL_PATH")),
             "checkpoint_exists": _exists(os.getenv("CHECKPOINT_PATH")),
-            "index_stat_exists": _exists(os.getenv("INDEX_STAT_PATH")),
-            "genome_fasta_exists": _exists(os.getenv("GENOME_osa1_r7_FASTA")),
-            "genome_fai_exists": _exists(os.getenv("GENOME_osa1_r7_FAI")),
         },
+        "genomes": _env_entries("GENOME_", "_FASTA"),
+        "atac_sources": _env_entries("ATAC_PATH_", ""),
         "listen": {
             "BACKEND_HOST": os.getenv("BACKEND_HOST", "0.0.0.0"),
-            "BACKEND_PORT": os.getenv("BACKEND_PORT", "8001"),
+            "BACKEND_PORT": os.getenv("BACKEND_PORT", "7001"),
             "PORT": os.getenv("PORT", ""),
             "actual_host": _LISTEN_HOST,   # 实际监听地址
             "actual_port": _LISTEN_PORT,   # 实际监听端口(与 uvicorn.run 同一变量)
@@ -337,7 +345,7 @@ class _NewlineJSONResponse(FastAPIJSONResponse):
 
 
 app = FastAPI(
-    title="DCS Adapter (rice_mut)",
+    title="DCS Adapter (rice_reg)",
     version="0.1.0",
     default_response_class=_NewlineJSONResponse,
 )
@@ -365,10 +373,8 @@ async def _health_response(request: Request) -> dict:
 
     供两条路径复用:
       1) GET/POST /health、/api/aigress/openai/health(平台探活);
-      2) 单入口 POST /rice_mut + body {"mode":"health"}(DCS 单地址转发)。
+      2) 单入口 POST /rice_reg + body {"mode":"health"}(DCS 单地址转发)。
     """
-    from rice_mutation.prediction_service import _PREDICTOR
-
     initialized = _PREDICTOR.get("instance") is not None
     # scope["server"] = 请求实际到达的 socket 地址(uvicorn 注入),即平台转发目标端口
     served = request.scope.get("server") or [None, None]
@@ -378,7 +384,11 @@ async def _health_response(request: Request) -> dict:
         # 模型是否就绪看 predictor_initialized,失败原因看 diagnostics.init_error
         "status": "ok",
         "predictor_initialized": initialized,
-        "genomes": list_genomes() if initialized else [],
+        # genomes / atac_sources 来自 env 配置,不依赖模型初始化,始终返回(便于排查)
+        "genomes": list_genomes(),
+        "atac_sources": sorted(
+            k for k in os.environ if k.startswith("ATAC_PATH_") and os.environ[k]
+        ),
         "diagnostics": _collect_diagnostics(),
         "gateway": {
             # 平台实际转发进来的路径(排查 404 用)
@@ -402,53 +412,49 @@ async def _health_response(request: Request) -> dict:
 
 
 HEALTH_MODES = ("", "health")
-SNV_MODES = ("snv",)
 PREDICT_MODES = ("predict",)
+GENOMES_MODES = ("genomes", "genome_list")
+CHROMOSOMES_MODES = ("chromosomes", "chromosome_list")
 
 
 def _mode_from_body(body: dict) -> str:
-    """从请求体推断调用模式(单入口 /rice_mut 下按 body 分发)。
+    """从请求体推断调用模式(单入口 /rice_reg 下按 body 分发)。
 
-    DCS 平台只允许一个转发地址,无法使用 /health、/snv 等子路径,
+    DCS 平台只允许一个转发地址,无法使用 /health、/genomes 等子路径,
     因此通过请求体字段区分调用模式:
-      mode == "health" → health(健康检查)
-      mode == "snv"   → snv(变异预测)
-      mode == "predict"→ predict(参考预测)
+      mode == "health"      → health(健康检查)
+      mode == "genomes"     → genomes(基因组列表)
+      mode == "chromosomes" → chromosomes(指定基因组的染色体列表)
+      mode == "predict"     → predict(ATAC→RNA-seq 表达预测)
       未指定 mode 时按字段自动推断:
         body 为空        → health
-        带 snv_index    → snv(现有 SNV 调用零改动)
-        其余(有 start)  → predict
+        其余             → predict
     """
     mode = str(body.get("mode", "") or "").strip().lower()
-    # 显式 mode 优先级最高
     if mode:
-        if mode in PREDICT_MODES:
-            return "predict"
-        if mode in SNV_MODES:
-            return "snv"
         if mode in HEALTH_MODES:
             return "health"
+        if mode in GENOMES_MODES:
+            return "genomes"
+        if mode in CHROMOSOMES_MODES:
+            return "chromosomes"
+        if mode in PREDICT_MODES:
+            return "predict"
         return mode  # 未知 mode,交由调用方报错
-    # 未指定 mode → 自动推断(向后兼容)
+    # 未指定 mode → 自动推断
     if not body:
         return "health"
-    if "snv_index" in body:
-        return "snv"
     return "predict"
 
 
-@app.post("/api/aigress/openai/rice_mut")
-@app.post("/rice_mut")
-async def predict_ref(
+@app.post("/api/aigress/openai/rice_reg")
+@app.post("/rice_reg")
+async def single_entry(
     req: Request,
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None),
 ):
-    """单入口统一分发:根据请求体 mode 区分 health / snv / predict。
-
-    DCS 平台只提供一个转发地址,无法使用 /health、/rice_mut/snv 等子路径,
-    因此通过 body 字段区分模式(见 _mode_from_body)。
-    """
+    """单入口统一分发:根据请求体 mode 区分 health / genomes / chromosomes / predict。"""
     try:
         body = await req.json()
     except Exception:
@@ -457,104 +463,86 @@ async def predict_ref(
     mode = _mode_from_body(body)
     if mode == "health":
         return await _health_response(req)
-    if mode == "snv":
-        return await _predict_snv_inner(req, body, authorization, x_api_key)
+    if mode == "genomes":
+        return await _genomes_inner(req, authorization, x_api_key)
+    if mode == "chromosomes":
+        return await _chromosomes_inner(req, body, authorization, x_api_key)
     if mode not in PREDICT_MODES:
-        return _err(f"未知 mode '{mode}',必须是 health/snv/predict", 400)
+        return _err(
+            f"未知 mode '{mode}',必须是 health/genomes/chromosomes/predict", 400
+        )
+    return await _predict_inner(req, body, authorization, x_api_key)
 
-    return await _predict_ref_inner(req, body, authorization, x_api_key)
 
-
-async def _predict_ref_inner(
+async def _genomes_inner(
     req: Request,
-    body: dict,
     authorization: str | None = None,
     x_api_key: str | None = None,
 ):
-    """参考序列表达预测。"""
+    """已配置基因组列表(env GENOME_*_FASTA + 上传的自定义基因组)。"""
     try:
         _check_api_key(authorization, x_api_key)
     except RequestError as e:
         return _unauthorized(str(e))
-
-    if _INIT_ERROR:
-        return _err(
-            f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503,
-            detail={"init_error": _INIT_ERROR, "request": _summarize_body(body)},
-        )
-
     try:
-        genome, chromosome, start_1, end_0, biosample_names, fmt, max_points = (
-            _parse_common(body)
-        )
-        # 1-based inclusive [start_1, end_1] → 0-based half-open [start_1-1, end_1)
-        start_0 = max(0, start_1 - 1)
-
-        genome_config = resolve_genome_config(genome)
-        result = run_prediction_core(
-            genome=genome,
-            chromosome=chromosome,
-            start=start_0,
-            end=end_0,
-            biosample_names=biosample_names,
-            genome_config=genome_config,
-        )
-    except RequestError as e:
-        return _err(
-            f"参考预测失败: {e}", 400,
-            detail={"request": _summarize_body(body)},
-        )
-    except Exception as e:
+        genomes = list_genomes()
+    except Exception:
         traceback.print_exc()
-        return _err(
-            f"参考预测失败: {e}", 500,
-            detail={
-                "error_type": e.__class__.__name__,
-                "traceback": traceback.format_exc()[-2000:],
-                "request": _summarize_body(body),
-            },
-        )
-
-    pos_chrom, pos_start, pos_end = result["position"]
-    prompt_tokens = pos_end - pos_start
-    completion_tokens = _count_elements(result["values"])
+        genomes = []
     return _ok(
-        usage=_usage(prompt_tokens, completion_tokens),
-        message="参考序列表达预测成功",
-        result={
-            "model": "rice_mut",
-            "genome": result["genome"],
-            "chromosome": pos_chrom,
-            "position_1based": {"start": pos_start + 1, "end": pos_end},
-            "window_len": pos_end - pos_start,
-            "output_format": fmt,
-            "values": _format_values(result["values"], fmt, max_points),
-        },
+        usage=_usage(0, 0),
+        message="基因组列表",
+        result={"model": "rice_reg", "genomes": genomes},
     )
 
 
-@app.post("/api/aigress/openai/rice_mut/snv")
-@app.post("/rice_mut/snv")
-async def predict_snv(
-    req: Request,
-    authorization: str | None = Header(default=None),
-    x_api_key: str | None = Header(default=None),
-):
-    """单碱基变异预测路由(子路径方式)。单入口 body mode=snv 复用同一内层函数。"""
-    try:
-        body = await req.json()
-    except Exception:
-        return _err("请求体不是合法 JSON", 400)
-    return await _predict_snv_inner(req, body, authorization, x_api_key)
-
-
-async def _predict_snv_inner(
+async def _chromosomes_inner(
     req: Request,
     body: dict,
     authorization: str | None = None,
     x_api_key: str | None = None,
 ):
-    """单碱基变异预测:result1 = 参考, result2 = 突变。"""
+    """指定基因组的染色体列表(chrNN 风格,需要 genome 参数)。"""
+    try:
+        _check_api_key(authorization, x_api_key)
+    except RequestError as e:
+        return _unauthorized(str(e))
+    try:
+        genome = str(body.get("genome", "") or "")
+        if not genome:
+            raise RequestError("缺少必填参数 'genome'")
+        genome_config = resolve_genome_config(genome)
+        chroms = get_genome_chromosomes(genome, genome_config)
+    except RequestError as e:
+        return _err(f"查询染色体失败: {e}", 400, detail={"request": _summarize_body(body)})
+    except Exception as e:
+        traceback.print_exc()
+        return _err(
+            f"查询染色体失败: {e}", 500,
+            detail={
+                "error_type": e.__class__.__name__,
+                "traceback": traceback.format_exc()[-2000:],
+                "request": _summarize_body(body),
+            },
+        )
+    return _ok(
+        usage=_usage(0, 0),
+        message="染色体列表",
+        result={"model": "rice_reg", "genome": genome, "chromosomes": chroms},
+    )
+
+
+async def _predict_inner(
+    req: Request,
+    body: dict,
+    authorization: str | None = None,
+    x_api_key: str | None = None,
+):
+    """ATAC→RNA-seq 表达预测(默认模式)。
+
+    直接调用预测器取数值数组(不写预测 bigWig / 不生成 IGV payload——
+    后者依赖本地静态文件服务,对 DCS 调用方无意义)。
+    """
     try:
         _check_api_key(authorization, x_api_key)
     except RequestError as e:
@@ -567,39 +555,68 @@ async def _predict_snv_inner(
         )
 
     try:
-        genome, chromosome, start_1, end_0, biosample_names, fmt, max_points = (
+        genome, chromosome, start_1, end_1, atac_source, uploaded_atac, fmt, max_points = (
             _parse_common(body)
         )
-        if "snv_index" not in body:
-            raise RequestError("缺少必填参数 'snv_index'(1-based)")
-        snv_1 = int(body["snv_index"])
-        snv_base = str(body.get("snv_base", "") or "").strip().upper()
-        if snv_base not in ("A", "C", "G", "T", "N"):
-            raise RequestError(f"snv_base 必须是 A/C/G/T/N,收到 '{snv_base}'")
-
-        start_0 = max(0, start_1 - 1)
-        snv_0 = max(0, snv_1 - 1)
-
         genome_config = resolve_genome_config(genome)
-        result = run_snv_core(
-            genome=genome,
-            chromosome=chromosome,
-            start=start_0,
-            end=end_0,
-            snv_index=snv_0,
-            snv_base=snv_base,
-            biosample_names=biosample_names,
-            genome_config=genome_config,
+        # 解析 ATAC 输入路径(uploaded_atac 优先,否则 atac_source 查 ATAC_PATH_<ID>)
+        atac_path = resolve_atac_path(atac_source, uploaded_atac)
+
+        predictor = require_predictor()
+
+        # 窗口归一化(center-align 到 target_len,与网页版 /predict/rice-reg 一致)
+        norm_start, norm_end = adjust_window(start_1, end_1, predictor.target_len)
+        # 染色体别名归一化 + ATAC bigWig 兼容性校验(与 run_prediction_core 一致)
+        chrom = normalize_chromosome(genome, chromosome, genome_config)
+        _validate_atac_bw(atac_path, chrom)
+
+        result = predictor.predict(
+            chrom=chrom,
+            start=norm_start,
+            end=norm_end,
+            atac_path=atac_path,
+            fasta_path=genome_config["fasta"],
+            cell_type="sample",
         )
+
+        pos_chrom, pos_start, pos_end = result["position"]
+        # pandas 行取出的坐标可能是 numpy int64,JSON 无法序列化
+        # (FastAPI 在 handler 返回后的序列化阶段抛错 → 纯文本 Internal Server Error),
+        # 因此显式转成 Python int。
+        pos_start = int(pos_start)
+        pos_end = int(pos_end)
+        plus = result["values"].get("RNA-seq_+")
+        minus = result["values"].get("RNA-seq_-")
+        if plus is None or minus is None:
+            raise RuntimeError("预测器未返回 RNA-seq +/- 数值(可能窗口内无有效区域)")
     except RequestError as e:
         return _err(
-            f"SNV 预测失败: {e}", 400,
+            f"预测失败: {e}", 400,
             detail={"request": _summarize_body(body)},
+        )
+    except FileNotFoundError as e:
+        return _err(
+            f"预测失败: {e}", 404,
+            detail={"request": _summarize_body(body)},
+        )
+    except ValueError as e:
+        return _err(
+            f"预测失败: {e}", 400,
+            detail={"request": _summarize_body(body)},
+        )
+    except RuntimeError as e:
+        return _err(
+            f"预测失败: {e}", 500,
+            detail={
+                "error_type": e.__class__.__name__,
+                "traceback": traceback.format_exc()[-2000:],
+                "request": _summarize_body(body),
+            },
         )
     except Exception as e:
         traceback.print_exc()
         return _err(
-            f"SNV 预测失败: {e}", 500,
+            f"预测失败: {e}", 500,
             detail={
                 "error_type": e.__class__.__name__,
                 "traceback": traceback.format_exc()[-2000:],
@@ -607,26 +624,24 @@ async def _predict_snv_inner(
             },
         )
 
-    pos_chrom, pos_start, pos_end = result["position"]
-    ref_values = result["ref_values"]
-    mut_values = result["mut_values"]
-    prompt_tokens = pos_end - pos_start
-    completion_tokens = _count_elements(ref_values) + _count_elements(mut_values)
+    prompt_tokens = pos_end - pos_start       # 窗口碱基数
+    completion_tokens = _count_elements(plus, minus)
     return _ok(
         usage=_usage(prompt_tokens, completion_tokens),
-        message=f"SNV 预测成功 (ref {result['ref_base']} → {result['snv_base']})",
+        message="ATAC→RNA-seq 表达预测成功",
         result={
-            "model": "rice_mut",
-            "genome": result["genome"],
+            "model": "rice_reg",
+            "genome": genome,
             "chromosome": pos_chrom,
             "position_1based": {"start": pos_start + 1, "end": pos_end},
             "window_len": pos_end - pos_start,
-            "snv_index_1based": result["snv_index"] + 1,
-            "ref_base": result["ref_base"],
-            "snv_base": result["snv_base"],
+            "atac_source": atac_source,
+            "atac_path": atac_path,
             "output_format": fmt,
-            "ref_values": _format_values(ref_values, fmt, max_points),
-            "mut_values": _format_values(mut_values, fmt, max_points),
+            "values": {
+                "RNA-seq_+": _format_array(plus, fmt, max_points),
+                "RNA-seq_-": _format_array(minus, fmt, max_points),
+            },
         },
     )
 

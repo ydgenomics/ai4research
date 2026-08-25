@@ -1,80 +1,90 @@
 # Rice-Server — 项目总览与部署指南
 
-> 本文档面向**部署/交付人员**，介绍本目录下两个水稻组学预测服务（`rice-mut`、`rice-reg`）的文件结构、设计思路与部署方法。代码相关的开发细节见各子项目 README 与 `docs/`。
+> 本文档面向**部署/交付人员**，介绍本目录下三个水稻组学服务（`rice_mut`、`rice_reg`、`rice_OGR`）的文件结构、设计思路与部署方法。代码相关的开发细节见各子项目 README 与 `docs/`。
+> 面向**外部 API 调用方**的一页速查见 [quick_start.md](quick_start.md)。
 
 ---
 
 ## 1. 目录总览
 
 ```
-rice-server/
-├── AGENTS.md              # 本文档
-├── README-yd.md           # rice-mut 的需求变更记录（历史）
-├── rice-mut/              # ★ 项目一：水稻 DNA → 多组学表达预测（变异对比）
+rice_server/
+├── README.md              # 索引导航(三服务定位/端口/快速开始)
+├── AGENTS.md              # 本文档(部署/维护指南)
+├── dcs.md                 # ★ DCS 平台调用规范(三服务速查)
+│
+├── rice_mut/              # ★ 项目一：水稻 DNA → 多组学表达预测(变异对比)
 │   ├── .env / .env.example    # 环境配置（部署时必改）
 │   ├── requirements.txt       # 统一依赖（前后端共用）
-│   ├── README.md              # 完整使用文档
+│   ├── README.md / DCS_API.md / DCS_API_quick_start.md
 │   ├── backend/               # FastAPI 后端（端口 8001）
-│   │   ├── run_backend.sh / stop_backend.sh
+│   │   ├── dcs_adapter.py     #   DCS 适配层(单入口 + mode 分发)
 │   │   ├── rice_mutation/     # 应用代码（main.py 入口 / api.py 路由 / prediction_service.py / igv_payload.py / cache_service.py）
-│   │   ├── core/predictor.py  # ★ RiceMutationPredictor 核心推理类
 │   │   ├── src/               # ★ 模型定义（GenOmics UNet 等，直接复用）
 │   │   └── inference.ipynb / TAC1_inference.ipynb  # 原始推理原型（保留参考）
 │   ├── frontend/              # Gradio 前端（端口 8000）
-│   │   ├── app.py / config.py / igv_payload.py
 │   │   └── static/igv.min.js  # IGV.js 静态资源（本地化，无需外网）
 │   ├── tools/startup_self_check.sh   # 启动自检
-│   └── test/test_api.sh              # API 冒烟测试
+│   └── test/                  # test_api.sh / test_dcs_api.sh
 │
-├── rice-reg/               # ★ 项目二：水稻 ATAC-seq → RNA-seq 表达预测
+├── rice_reg/              # ★ 项目二：水稻 ATAC-seq → RNA-seq 表达预测
 │   ├── .env / .env.example     # 环境配置（部署时必改）
 │   ├── requirements.txt        # 统一依赖（前后端共用）
-│   ├── README.md               # 使用文档（含配置说明）
-│   ├── WORK-yd.md              # 需求变更记录（历史）
+│   ├── README.md / DCS_API.md  # 使用文档 + DCS 调用文档
 │   ├── backend/                # FastAPI 后端（端口 7001）
-│   │   ├── requirements.txt    # 后端依赖
-│   │   ├── run_backend.sh / stop_backend.sh
+│   │   ├── dcs_adapter.py      #   DCS 适配层(单入口 + mode 分发)
 │   │   └── rice_reg/           # 应用代码（main.py / api.py / prediction_service.py / igv_payload.py / cache_service.py）
 │   │       └── core/           # rice_reg.py（★ RiceRegPredictor）/ scaling.py / model/（pipeline、encoder、predictor）
 │   ├── frontend/               # Gradio 前端（端口 7000）
-│   │   ├── requirements.txt
-│   │   ├── app.py / config.py / igv_payload.py
-│   │   └── static/igv.min.js
 │   ├── tools/startup_self_check.sh
 │   ├── docs/                   # IMPLEMENTATION_PLAN.md（设计决策）/ DEBUG_LOG.md
 │   └── test/test_api.sh
 │
-└── source/                 # ★ 模型与基因组数据（约 17G，交付必带）
-    ├── rice-mut/
+├── rice_OGR/             # ★ 项目三：DNA embedding 提取 / 下游碱基预测(纯 API)
+│   ├── .env / .env.example    # 模型注册表(MODEL_<NAME>_*) + DCS 配置
+│   ├── dna_embedding.py       #   Sanic 原服务(本地 :8000)
+│   ├── dcs_adapter.py         #   FastAPI DCS 适配层(:8001, 单入口 + mode 分发)
+│   ├── README.md / ref_genos.md
+│   └── requirements.txt
+│
+├── docker/              # 交付镜像
+│   ├── org_web/               # DCS 平台镜像(含依赖)
+│   ├── org_web-jupyter/       # Jupyter 变体
+│   └── push_org_web.sh        # 推送 ydgenomics/org_web
+│
+└── source/             # ★ 模型与基因组数据（约 17G，交付必带）
+    ├── rice_mut/
     │   ├── rice_1B_stage2_8k_hf/     # 基础模型（HuggingFace 格式，4.7G）
     │   ├── csq-5_model.safetensors   # 微调 checkpoint（2.6G）
     │   ├── index_stat.json           # assay/biosample 输出头索引
     │   ├── osa1_r7.asm.ch.fa(.fai)   # 参考基因组（osa1_r7）
     │   └── osa1_r7.all_models.gff3   # 注释
-    └── rice-reg/
+    └── rice_reg/
         ├── rice_1B_32k_hf/           # 基础模型（HuggingFace 格式，4.7G）
-        ├── model.safetensors         # 微调 checkpoint（2.6G）
+        ├── three_sam2.model.safetensors  # 微调 checkpoint
         ├── genome/                   # MH63.fa / NIP.fa + .fai + GFF（1.1G）
         └── ATAC/                     # 内置 ATAC bigWig（SAM2_MH63_1 / SAM2_NIP_1）
 ```
 
 ---
 
-## 2. 两个项目的区别与设计
+## 2. 三个项目的区别与设计
 
-| 维度 | rice-mut（变异预测） | rice-reg（ATAC 条件预测） |
-|---|---|---|
-| 模型输入 | **仅 DNA 序列** | DNA + **ATAC bigWig 信号** |
-| 基础模型 | `rice_1B_stage2_8k_hf` | `rice_1B_32k_hf` |
-| 输出头 | `GenOmics`（UNet，assay × biosample 多维） | fusion predictor（RNA-seq ± 两通道） |
-| 反归一化 | 模型内部完成 | 服务端 `scaling.py` |
-| 核心场景 | **参考 vs 单碱基突变（SNV）双轨对比** | 不同 ATAC 条件下的表达预测 |
-| 序列长度 | 32768（超出截断） | 32678（固定窗口） |
-| 端口（前端/后端） | **8000 / 8001** | **7000 / 7001** |
+| 维度 | rice_mut（变异预测） | rice_reg（ATAC 条件预测） | rice_OGR（embedding/碱基预测） |
+|---|---|---|---|
+| 模型输入 | **仅 DNA 序列** | DNA + **ATAC bigWig 信号** | **仅 DNA 序列** |
+| 基础模型 | `rice_1B_stage2_8k_hf` | `rice_1B_32k_hf` | 两者均可（注册表 `MODEL_<NAME>_*`） |
+| 输出头 | `GenOmics`（UNet，assay × biosample 多维） | fusion predictor（RNA-seq ± 两通道） | **1024 维向量 / 预测碱基** |
+| 反归一化 | 模型内部完成 | 服务端 `scaling.py` | — |
+| 核心场景 | **参考 vs 单碱基突变（SNV）双轨对比** | 不同 ATAC 条件下的表达预测 | **基模能力直接开放（embedding / 碱基预测）** |
+| 序列长度 | 32768（超出截断） | 32678（固定窗口） | 注册表 `MAX_LEN` 控制（默认 32768） |
+| 架构 | FastAPI 后端 + Gradio 前端 | FastAPI 后端 + Gradio 前端 | **纯 API**：Sanic 原服务 + FastAPI DCS 适配层 |
+| 端口（前端/后端） | **8000 / 8001** | **7000 / 7001** | **8000(Sanic) / 8001(DCS)** |
 
-> ⚠️ 两项目可部署在同一台机器，端口互不冲突；`rice-mut` 用 8000/8001，`rice-reg` 用 7000/7001。
+> ⚠️ 三项目端口规划：rice_mut 用 8000/8001，rice_reg 用 7000/7001；**rice_OGR 默认 8000/8001 与 rice_mut 冲突，同机部署需错开**（见 §6）。
+> DCS 适配层（三个项目的 `dcs_adapter.py`）统一采用 OpenAI 风格单入口 `POST /api/aigress/openai/<service>` + body `mode` 分发，详见 [dcs.md](dcs.md)。
 
-### 架构设计（两项目一致）
+### 架构设计（rice_mut / rice_reg 一致）
 
 ```
 浏览器 (Gradio 前端 :8000/:7000)
@@ -257,3 +267,27 @@ bash test/test_api.sh               # 完整 API 冒烟测试（需后端已启�
 - **`flash-attn` 安装失败**：`USE_FLASH_ATTN=false` 可跳过（rice-mut），或按官方文档先装好 CUDA 工具链。
 - **上传文件很快被清理**：`UPLOADED_GENOMES_TTL_HOURS` 默认 0.5 小时，闲置上传基因组会被自动删除，属正常行为。
 - **前端染色体命名对不上**：前端统一 `chr01`–`chr12`，后端会自动通配实际 FASTA 命名，无需改前端。
+
+---
+
+## 6. 端口分配总表 与 rice_OGR 部署注意
+
+### 6.1 端口总览
+
+| 服务 | 网页前端 | 本地 API（Sanic/FastAPI 网页版） | DCS 适配层（推荐用） |
+|---|---|---|---|
+| rice_mut | 8000 | 8001（网页后端） | 8001（与网页后端同端口，部署时二选一） |
+| rice_reg | 7000 | 7001（网页后端） | 7001（与网页后端同端口，部署时二选一） |
+| rice_OGR | 无 | 8000（Sanic `dna_embedding.py`） | **8001**（`dcs_adapter.py`） |
+
+> ⚠️ **rice_mut 与 rice_OGR 都以 8000/8001 为默认** —— 同机部署二者必须错开！
+> 建议 rice_OGR 使用 `PORT=8002`（Sanic）/ `BACKEND_PORT=8003`（DCS 适配），或在容器内用平台注入的 `PORT`（适配层已支持 `PORT` 优先级最高）。
+
+### 6.2 rice_OGR 部署提醒
+
+- **无网页版**：纯 API。本地直连用 Sanic（`python dna_embedding.py` :8000），DCS 网关转发用适配层（`python dcs_adapter.py` :8001）。
+- **模型注册表**：通过 `.env` 的 `MODEL_<NAME>_PATH / TYPE / MAX_LEN / SPECIAL` 声明任意数量模型，`<NAME>` 即 API 的 `model_name`（如 `1B_8k` / `1B_32k`）。
+- **DCS 单入口**：`POST /api/aigress/openai/rice_ogr`，body `mode` = `dna_embedding`（默认）/ `predict`。
+- **容器内路径**：DCS 容器内模型路径由环境变量覆盖，如
+  `MODEL_1B_8k_PATH=/AI_models/rice_mut/rice_1B_stage2_8k_hf` 等（见 rice_OGR/README 5.7）。
+- **返回末尾换行**：三个 dcs_adapter 均已在响应末尾追加 `\n`，curl 查看不粘连提示符。

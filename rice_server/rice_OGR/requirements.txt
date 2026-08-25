@@ -1,0 +1,21 @@
+# ============================================================
+# rice_OGR — DNA Embedding 提取服务依赖
+# (Sanic 服务, 兼容水稻基模 1B_8k / 1B_32k + Genos 1.2B/10B)
+#
+# 安装:
+#   pip install -r requirements.txt
+#
+# 注: 若使用 org_web Docker 环境, 无需重复安装,
+#     该镜像已覆盖全部依赖(含 sanic)。
+# ============================================================
+
+# ===== Web 服务 (Sanic) =====
+sanic>=23.6.0               # 宿主机验证版本 25.12.1
+
+# ===== 深度学习推理 =====
+torch>=2.1.0
+safetensors>=0.4.0
+transformers>=4.52.0,<5.0   # 水稻模型 config 为 transformers 4.52.4 (Mixtral + flash_attention_2)
+
+# ===== 可选加速 (GPU/NPU) =====
+# flash-attn>=2.5.0         # 若 config/加载逻辑用了 attn_implementation="flash_attention_2"

@@ -8,6 +8,7 @@ Embedding提取API服务
 
 import torch
 import os
+from pathlib import Path
 from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM
 import logging
 
@@ -19,6 +20,72 @@ logger = logging.getLogger(__name__)
 os.environ['OMP_NUM_THREADS'] = '24'
 os.environ['OPENBLAS_NUM_THREADS'] = '24'
 os.environ['NUMEXPR_NUM_THREADS'] = '24'
+
+
+# ---------------------------------------------------------------------------
+#  .env 配置加载(模型注册表 + 服务/设备配置)
+# ---------------------------------------------------------------------------
+def _load_dotenv(path: str = None):
+    """加载 .env 文件到 os.environ(不覆盖已存在的变量)。"""
+    env_path = Path(path or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+    if not env_path.exists():
+        logger.info("未找到 .env 文件(%s), 使用默认配置", env_path)
+        return
+    for raw in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        os.environ.setdefault(key.strip(), val.strip())
+
+
+def _parse_bool(value):
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def load_env_config(env_path: str = None) -> dict:
+    """从 .env 解析配置。
+
+    Returns:
+        dict: {
+            "host", "port", "device", "device_map", "memory_ratio", "force_cpu",
+            "model_configs": {model_name: {"path", "type", "max_len", "special"}}
+        }
+    """
+    _load_dotenv(env_path)
+
+    # 服务/设备配置
+    cfg = {
+        "host": os.getenv("HOST", "0.0.0.0"),
+        "port": int(os.getenv("PORT", "8000")),
+        "device": os.getenv("DEVICE", "") or None,
+        "device_map": os.getenv("DEVICE_MAP", "") or None,
+        "memory_ratio": float(os.getenv("MEMORY_RATIO", "0.9")),
+        "force_cpu": _parse_bool(os.getenv("FORCE_CPU", "false")),
+    }
+
+    # 模型注册表: 扫描 MODEL_<NAME>_PATH 形式的变量
+    model_configs = {}
+    for key, value in os.environ.items():
+        if not key.startswith("MODEL_") or not key.endswith("_PATH"):
+            continue
+        name = key[len("MODEL_"):-len("_PATH")]
+        if not name:
+            continue
+        model_configs[name] = {
+            "path": value,
+            "type": os.getenv(f"MODEL_{name}_TYPE", "flash"),
+            "max_len": os.getenv(f"MODEL_{name}_MAX_LEN", "") or None,
+            "special": os.getenv(f"MODEL_{name}_SPECIAL", "") or None,
+        }
+        if model_configs[name]["max_len"] is not None:
+            model_configs[name]["max_len"] = int(model_configs[name]["max_len"])
+        if model_configs[name]["special"] is not None:
+            model_configs[name]["special"] = _parse_bool(model_configs[name]["special"])
+
+    if model_configs:
+        logger.info("从 .env 加载模型注册表: %s", list(model_configs.keys()))
+    return {"config": cfg, "model_configs": model_configs}
 
 # 确定运行设备和数据类型
 def get_device_and_dtype(force_cpu=False):
@@ -74,7 +141,7 @@ lock = asyncio.Lock()
 class EmbeddingExtractor:
     """Embedding提取器类，封装序列embedding提取逻辑"""
     
-    def __init__(self, model_path, model_type="flash", device=None, torch_dtype=None, model_name="1.2B", force_cpu=False, device_map=None, memory_ratio=0.9):
+    def __init__(self, model_path, model_type="flash", device=None, torch_dtype=None, model_name="1.2B", force_cpu=False, device_map=None, memory_ratio=0.9, max_len=None, add_special_tokens=None):
         """
         初始化Embedding提取器
         
@@ -92,6 +159,8 @@ class EmbeddingExtractor:
                 - dict: 手动指定每层的设备映射
                 - None: 使用单设备模式（device参数指定的设备）
             memory_ratio (float): 内存分配比例，默认0.9（使用90%的内存）
+            max_len (int, optional): 最大序列长度，超长截断。None=不截断
+            add_special_tokens (bool, optional): 是否添加特殊token。None=由tokenizer默认决定
         """
         # 如果未指定设备，则自动选择
         if device is None or torch_dtype is None:
@@ -121,6 +190,8 @@ class EmbeddingExtractor:
         self.model_type = model_type
         self.model_path = model_path
         self.model_name = model_name
+        self.max_len = max_len
+        self.add_special_tokens = add_special_tokens
         self.device_map = device_map
         self.memory_ratio = memory_ratio
         self._npu_manual_device_map = False  # 标记是否需要手动分配NPU设备
@@ -769,7 +840,15 @@ class EmbeddingExtractor:
             import time
             start = time.time()
             # Tokenize输入序列
-            inputs = self.tokenizer(sequence, return_tensors="pt")
+            # - max_len: 模型注册表配置的最大序列长度(超长截断, 防止OOM)
+            # - add_special_tokens: 水稻基模建议 False(rice_mut 逻辑), 由注册表 SPECIAL 控制
+            tokenizer_kwargs = dict(return_tensors="pt")
+            if self.max_len is not None:
+                tokenizer_kwargs["max_length"] = self.max_len
+                tokenizer_kwargs["truncation"] = True
+            if self.add_special_tokens is not None:
+                tokenizer_kwargs["add_special_tokens"] = self.add_special_tokens
+            inputs = self.tokenizer(sequence, **tokenizer_kwargs)
             
             # 移到指定设备
             # 在多设备模式下，inputs需要移动到主设备（第一个设备）
@@ -1059,6 +1138,25 @@ class EmbeddingExtractor:
 # 全局变量：存储不同配置的提取器
 extractors = {}
 
+# .env 模型注册表(启动时加载; 可用 get_env_registry() 强制刷新)
+_ENV_REGISTRY = None
+
+
+def get_env_registry(env_path: str = None, force_reload: bool = False) -> dict:
+    """读取 rice_OGR/.env 中的模型注册表与全局配置。
+
+    Returns:
+        dict: {
+            "config": {host, port, device, device_map, memory_ratio, force_cpu},
+            "model_configs": {model_name: {path, type, max_len, special}}
+        }
+        若 .env 不存在或没有 MODEL_*_PATH, model_configs 为空 dict。
+    """
+    global _ENV_REGISTRY
+    if _ENV_REGISTRY is None or force_reload:
+        _ENV_REGISTRY = load_env_config(env_path)
+    return _ENV_REGISTRY
+
 
 def get_or_create_extractor(model_name, force_cpu=False, device=None, torch_dtype=None, device_map=None, memory_ratio=0.9, model_path_prefix=None):
     """
@@ -1079,15 +1177,16 @@ def get_or_create_extractor(model_name, force_cpu=False, device=None, torch_dtyp
             - None: 使用单设备模式
         memory_ratio (float): 内存分配比例，默认0.9（使用90%的内存）
         model_path_prefix (str, optional): 模型路径前缀，如果为None则使用默认路径
+            (仅对 .env 中未显式配置 MODEL_<NAME>_PATH 的模型生效)
         
     Returns:
         EmbeddingExtractor: 提取器实例
     """
-    # 默认模型路径前缀
+    # 默认模型路径前缀(Genos 旧逻辑)
     default_prefix = '/storeData/AI_models/modelscope/hub/models/BGI-HangzhouAI/'
     
-    # 模型配置（与embedding_extraction.py保持一致）
-    model_configs = {
+    # 旧版硬编码模型配置(与embedding_extraction.py保持一致, 用于 .env 未配置时的回退)
+    legacy_model_configs = {
         "1.2B": {
             "type": "flash",
         },
@@ -1096,9 +1195,21 @@ def get_or_create_extractor(model_name, force_cpu=False, device=None, torch_dtyp
         }
     }
     
-    # 根据前缀构建完整路径
+    # 从 .env 加载模型注册表; .env 配置优先于硬编码
+    env = get_env_registry()
+    env_configs = env.get("model_configs", {}) or {}
+    env_global = env.get("config", {}) or {}
+    
+    # 合并: env 注册表 + 硬编码回退(env 未配置 PATH 的模型才走旧逻辑)
+    model_configs = {}
+    for name, cfg in env_configs.items():
+        model_configs[name] = dict(cfg) if isinstance(cfg, dict) else {"path": str(cfg)}
+    for name, cfg in legacy_model_configs.items():
+        if name not in model_configs:
+            model_configs[name] = dict(cfg)
+    
+    # 根据前缀构建完整路径(仅用于未配置显式 PATH 的模型)
     path_prefix = model_path_prefix or default_prefix
-    # 确保路径前缀以斜杠结尾
     if not path_prefix.endswith('/'):
         path_prefix += '/'
     
@@ -1109,17 +1220,34 @@ def get_or_create_extractor(model_name, force_cpu=False, device=None, torch_dtyp
     if model_name in extractors:
         return extractors[model_name]
     
-    # 创建新的提取器
+    # 创建新的提取器: 优先使用 .env 显式配置的 PATH, 否则回退 Genos-<NAME> 旧逻辑
     config = model_configs[model_name]
+    model_path = config.get("path") or f"{path_prefix}Genos-{model_name}"
+    model_type = config.get("type", "flash")
+    max_len = config.get("max_len")
+    special = config.get("special")
+    
+    # 未显式指定的全局参数回退到 .env 全局配置
+    if device is None:
+        device = env_global.get("device")
+    if device_map is None:
+        device_map = env_global.get("device_map")
+    if memory_ratio is None or memory_ratio == 0.9:
+        memory_ratio = env_global.get("memory_ratio", 0.9)
+    if force_cpu is False:
+        force_cpu = bool(env_global.get("force_cpu", False))
+    
     extractor = EmbeddingExtractor(
-        model_path=f"{path_prefix}Genos-{model_name}",
-        model_type=config["type"],
+        model_path=model_path,
+        model_type=model_type,
         device=device,
         torch_dtype=torch_dtype,
         model_name=model_name,
         force_cpu=force_cpu,
         device_map=device_map,
-        memory_ratio=memory_ratio
+        memory_ratio=memory_ratio,
+        max_len=max_len,
+        add_special_tokens=special
     )
     extractors[model_name] = extractor
     
@@ -1131,6 +1259,49 @@ from sanic.response import json
 
 # Create an instance of the Sanic app
 app = Sanic("sanic-server")
+
+
+@app.middleware("response")
+async def _append_newline(request, response):
+    """所有 JSON 响应末尾统一追加换行(方便 curl 查看,避免与 shell 提示符粘连)。"""
+    if response is None:
+        return
+    body = getattr(response, "body", None)
+    if isinstance(body, bytes) and body and not body.endswith(b"\n"):
+        response.body = body + b"\n"
+        # Sanic 若已显式设置 Content-Length,需同步更新,避免长度不一致
+        if "Content-Length" in response.headers:
+            response.headers["Content-Length"] = str(len(response.body))
+
+@app.route('/health', methods=['GET'])
+async def health_check(request):
+    """健康检查: 返回已加载/可用的模型与设备信息"""
+    env = get_env_registry()
+    env_configs = env.get("model_configs", {}) or {}
+    cfg = env.get("config", {}) or {}
+    return json({
+        "success": True,
+        "status": "ok",
+        "device": str(default_device),
+        "torch_dtype": str(default_dtype),
+        "loaded_models": list(extractors.keys()),
+        "registered_models": list(env_configs.keys()),
+        "config": {k: v for k, v in cfg.items() if k != "model_configs"},
+    })
+
+
+@app.route('/models', methods=['GET'])
+async def list_models(request):
+    """列出所有可用的模型名称(注册表 + 已加载)"""
+    env = get_env_registry()
+    env_configs = env.get("model_configs", {}) or {}
+    names = list(dict.fromkeys(list(env_configs.keys()) + list(extractors.keys())))
+    return json({
+        "success": True,
+        "models": names,
+        "loaded": list(extractors.keys()),
+    })
+
 
 @app.route('/extract', methods=['POST'])
 async def extract_embedding(request):
@@ -1208,6 +1379,51 @@ async def predict_bases(request):
         "result": result
     })
    
+def init_models(args):
+    """按 --model 参数或 .env 注册表预加载模型。
+
+    优先级: --model 显式指定 > .env MODEL_*_PATH 注册表 > 旧硬编码(1.2B, 10B)。
+    返回 model_names 列表, 供 /models 接口展示。
+    """
+    env = get_env_registry()
+    env_configs = env.get("model_configs", {}) or {}
+    cfg = env.get("config", {}) or {}
+
+    force_cpu = args.force_cpu
+    device = args.device if args.device else cfg.get("device")
+    device_map = args.device_map if args.device_map else cfg.get("device_map")
+    memory_ratio = args.memory_ratio if hasattr(args, 'memory_ratio') else cfg.get("memory_ratio", 0.9)
+    model_path_prefix = args.model_path_prefix if hasattr(args, 'model_path_prefix') else None
+    torch_dtype = None
+
+    # 处理设备参数：如果device包含逗号，则转换为列表（多设备模式）
+    if device and ',' in str(device):
+        device = [d.strip() for d in str(device).split(',')]
+        logger.info(f"检测到多设备模式: {device}")
+        if device_map is None:
+            device_map = "auto"
+            logger.info(f"多设备模式下，自动使用 device_map='auto'")
+
+    # 决定要加载哪些模型
+    cli_models = getattr(args, 'model', None)
+    if cli_models:
+        model_names = [m.strip() for m in cli_models.split(',') if m.strip()]
+    elif env_configs:
+        model_names = list(env_configs.keys())
+    else:
+        model_names = ["1.2B", "10B"]
+
+    # 逐个初始化
+    for name in model_names:
+        logger.info(f"正在初始化模型提取器: {name}, 强制CPU: {force_cpu}, 指定设备: {device}, device_map: {device_map}, 内存分配比例: {memory_ratio}, 模型路径前缀: {model_path_prefix}")
+        get_or_create_extractor(
+            name, force_cpu=force_cpu, device=device, torch_dtype=torch_dtype,
+            device_map=device_map, memory_ratio=memory_ratio, model_path_prefix=model_path_prefix,
+        )
+
+    return model_names
+
+
 def run_server(args):
     """
     运行embedding服务
@@ -1215,31 +1431,19 @@ def run_server(args):
     Args:
         args: 命令行参数
     """
-    # 根据命令行参数确定设备设置
-    force_cpu = args.force_cpu
-    device = args.device if args.device else None
-    device_map = args.device_map if args.device_map else None
-    memory_ratio = args.memory_ratio if hasattr(args, 'memory_ratio') else 0.9
-    model_path_prefix = args.model_path_prefix if hasattr(args, 'model_path_prefix') else None
-    torch_dtype = None
-    
-    # 处理设备参数：如果device包含逗号，则转换为列表（多设备模式）
-    if device and ',' in device:
-        device = [d.strip() for d in device.split(',')]
-        logger.info(f"检测到多设备模式: {device}")
-        # 如果指定了多设备但没有指定device_map，默认使用auto
-        if device_map is None:
-            device_map = "auto"
-            logger.info(f"多设备模式下，自动使用 device_map='auto'")
-    
-    # 初始化模型提取器
-    logger.info(f"正在初始化模型提取器，强制CPU: {force_cpu}, 指定设备: {device}, device_map: {device_map}, 内存分配比例: {memory_ratio}, 模型路径前缀: {model_path_prefix}")
-    extractor = get_or_create_extractor("1.2B", force_cpu=force_cpu, device=device, torch_dtype=torch_dtype, device_map=device_map, memory_ratio=memory_ratio, model_path_prefix=model_path_prefix)
-    extractor = get_or_create_extractor("10B", force_cpu=force_cpu, device=device, torch_dtype=torch_dtype, device_map=device_map, memory_ratio=memory_ratio, model_path_prefix=model_path_prefix)
-    
+    # .env 优先配置 host/port(命令行参数若未显式给出则回退 .env)
+    env = get_env_registry()
+    cfg = env.get("config", {}) or {}
+    host = args.host if args.host else cfg.get("host", "0.0.0.0")
+    port = args.port if args.port else cfg.get("port", 8000)
+
+    # 初始化模型提取器(按 --model / .env 注册表 / 默认 1.2B,10B)
+    model_names = init_models(args)
+
     # 启动服务器
-    logger.info(f"正在启动服务器，监听地址: {args.host}:{args.port}")
-    app.run(host=args.host, port=args.port, single_process=True)
+    logger.info(f"已加载模型: {model_names}")
+    logger.info(f"正在启动服务器，监听地址: {host}:{port}")
+    app.run(host=host, port=port, single_process=True)
 
 
 def parse_arguments():
@@ -1253,12 +1457,14 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='DNA序列Embedding提取服务')
     
     # 服务器配置
-    parser.add_argument('--host', type=str, default='0.0.0.0', help='服务器监听地址')
-    parser.add_argument('--port', type=int, default=8000, help='服务器监听端口')
+    parser.add_argument('--host', type=str, default='', help='服务器监听地址(默认读.env HOST)')
+    parser.add_argument('--port', type=int, default=0, help='服务器监听端口(默认读.env PORT)')
     
     # 模型配置
+    parser.add_argument('--model', type=str, default=None,
+                        help='要加载的模型名称,逗号分隔,如 "1B_8k,1B_32k"。不指定则按 .env 注册表全部加载')
     parser.add_argument('--model_path_prefix', type=str, default='/AI_models/BGI-HangzhouAI/', 
-                        help='模型存储路径前缀，默认: /AI_models/BGI-HangzhouAI/')
+                        help='模型存储路径前缀，默认: /AI_models/BGI-HangzhouAI/（仅对未配置 MODEL_<NAME>_PATH 的模型生效）')
     
     # 设备配置
     parser.add_argument('--force_cpu', action='store_true', help='强制使用CPU进行推理')

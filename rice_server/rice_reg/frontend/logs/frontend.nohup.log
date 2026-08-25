@@ -262,3 +262,5 @@ Traceback (most recent call last):
   File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py", line 372, in _igv_html
     ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
 NameError: name '_STATIC_URL_RE' is not defined
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/app.py:813: UserWarning: The parameters have been moved from the Blocks constructor to the launch() method in Gradio 6.0: theme, css. Please pass these parameters to launch() instead.
+  with gr.Blocks(

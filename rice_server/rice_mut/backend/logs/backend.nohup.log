@@ -1344,3 +1344,443 @@ INFO:     Waiting for application shutdown.
 2026-08-24 13:47:19,174 - INFO - Predictor released.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [4136026]
+INFO:     Started server process [305671]
+INFO:     Waiting for application startup.
+2026-08-24 22:46:51,341 - INFO - Initializing RiceMutationPredictor ...
+2026-08-24 22:46:51,341 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-24 22:46:51,341 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-24 22:46:51,341 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-24 22:46:51,341 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-24 22:46:51,341 - INFO -   device          = cuda:0
+2026-08-24 22:46:51,341 - INFO -   inference_batch_size = 4
+2026-08-24 22:46:51,345 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-24 22:46:51,353 - INFO - Loading GenOmics model ...
+2026-08-24 22:46:52.864617: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-08-24 22:46:52.940701: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+ERROR:    Traceback (most recent call last):
+  File "/root/miniconda3/lib/python3.13/site-packages/starlette/routing.py", line 638, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 241, in __aenter__
+    await self._router._startup()
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 4886, in _startup
+    handler()
+    ~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/api.py", line 155, in on_startup
+    init_predictor()
+    ~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/prediction_service.py", line 566, in init_predictor
+    predictor.initialize()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/core/predictor.py", line 174, in initialize
+    model = load_finetuned_model(
+        model_class=GenOmics,
+    ...<8 lines>...
+        },
+    )
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/src/model.py", line 98, in load_finetuned_model
+    base_model = AutoModel.from_config(config, trust_remote_code=trust_remote_code)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/auto/auto_factory.py", line 456, in from_config
+    return model_class._from_config(config, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2315, in _from_config
+    model = cls(config, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 403, in __init__
+    super().__init__(config)
+    ~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2080, in __init__
+    self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.config._attn_implementation, is_init_check=True
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2690, in _check_and_adjust_attn_implementation
+    applicable_attn_implementation = self.get_correct_attn_implementation(
+        applicable_attn_implementation, is_init_check
+    )
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2718, in get_correct_attn_implementation
+    self._flash_attn_2_can_dispatch(is_init_check)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2426, in _flash_attn_2_can_dispatch
+    raise ImportError(f"{preface} the package flash_attn seems to be not installed. {install_message}")
+ImportError: FlashAttention2 has been toggled on, but it cannot be used due to the following error: the package flash_attn seems to be not installed. Please refer to the documentation of https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2.
+
+ERROR:    Application startup failed. Exiting.
+INFO:     Started server process [306398]
+INFO:     Waiting for application startup.
+2026-08-24 22:47:51,048 - INFO - Initializing RiceMutationPredictor ...
+2026-08-24 22:47:51,048 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-24 22:47:51,048 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-24 22:47:51,048 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-24 22:47:51,048 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-24 22:47:51,048 - INFO -   device          = cuda:0
+2026-08-24 22:47:51,048 - INFO -   inference_batch_size = 4
+2026-08-24 22:47:51,049 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-24 22:47:51,057 - INFO - Loading GenOmics model ...
+2026-08-24 22:47:52.508353: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-08-24 22:47:52.572371: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+ERROR:    Traceback (most recent call last):
+  File "/root/miniconda3/lib/python3.13/site-packages/starlette/routing.py", line 638, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 241, in __aenter__
+    await self._router._startup()
+  File "/root/miniconda3/lib/python3.13/site-packages/fastapi/routing.py", line 4886, in _startup
+    handler()
+    ~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/api.py", line 155, in on_startup
+    init_predictor()
+    ~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/prediction_service.py", line 566, in init_predictor
+    predictor.initialize()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/rice_mutation/core/predictor.py", line 174, in initialize
+    model = load_finetuned_model(
+        model_class=GenOmics,
+    ...<8 lines>...
+        },
+    )
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/backend/src/model.py", line 98, in load_finetuned_model
+    base_model = AutoModel.from_config(config, trust_remote_code=trust_remote_code)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/auto/auto_factory.py", line 456, in from_config
+    return model_class._from_config(config, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2315, in _from_config
+    model = cls(config, **kwargs)
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 403, in __init__
+    super().__init__(config)
+    ~~~~~~~~~~~~~~~~^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2080, in __init__
+    self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.config._attn_implementation, is_init_check=True
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2690, in _check_and_adjust_attn_implementation
+    applicable_attn_implementation = self.get_correct_attn_implementation(
+        applicable_attn_implementation, is_init_check
+    )
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2718, in get_correct_attn_implementation
+    self._flash_attn_2_can_dispatch(is_init_check)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_utils.py", line 2426, in _flash_attn_2_can_dispatch
+    raise ImportError(f"{preface} the package flash_attn seems to be not installed. {install_message}")
+ImportError: FlashAttention2 has been toggled on, but it cannot be used due to the following error: the package flash_attn seems to be not installed. Please refer to the documentation of https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2.
+
+ERROR:    Application startup failed. Exiting.
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes
+INFO:     Started server process [312676]
+INFO:     Waiting for application startup.
+2026-08-24 22:59:05,420 - INFO - Initializing RiceMutationPredictor ...
+2026-08-24 22:59:05,420 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-24 22:59:05,420 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-24 22:59:05,420 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-24 22:59:05,420 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-24 22:59:05,420 - INFO -   device          = cuda:0
+2026-08-24 22:59:05,421 - INFO -   inference_batch_size = 4
+2026-08-24 22:59:05,424 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-24 22:59:05,430 - INFO - Loading GenOmics model ...
+Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`
+2026-08-24 22:59:20,510 - INFO - RiceMutationPredictor initialized successfully.
+2026-08-24 22:59:20,510 - INFO - RiceMutationPredictor initialised and ready.
+2026-08-24 22:59:20,511 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-08-24 22:59:35,789 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 1.36 s
+2026-08-24 22:59:36,546 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 0.73 s
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes
+INFO:     127.0.0.1:48492 - "POST /predict/snv HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48506 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/igv.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:48516 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa.fai HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48520 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48536 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48538 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48542 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48554 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48556 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48570 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48586 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48588 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787583576.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48044 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+2026-08-24 23:06:11,278 - INFO - Inference on Chr8:0-32768 (seq_len=32768) done in 0.73 s
+INFO:     127.0.0.1:48050 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48058 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48070 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48082 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48098 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48106 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49750 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59830 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59844 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59850 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59858 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59866 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59876 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59890 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr8_0_32768_RNA-seq_Leaf_ref_1787583971.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59898 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41196 - "HEAD /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-08-24 23:15:08,886 - INFO - RiceMutationPredictor released.
+2026-08-24 23:15:09,111 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [312676]
+INFO:     Started server process [321412]
+INFO:     Waiting for application startup.
+2026-08-24 23:15:12,315 - INFO - Initializing RiceMutationPredictor ...
+2026-08-24 23:15:12,315 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-24 23:15:12,315 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-24 23:15:12,315 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-24 23:15:12,315 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-24 23:15:12,315 - INFO -   device          = cuda:0
+2026-08-24 23:15:12,315 - INFO -   inference_batch_size = 4
+2026-08-24 23:15:12,320 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-24 23:15:12,325 - INFO - Loading GenOmics model ...
+Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`
+2026-08-24 23:15:27,643 - INFO - RiceMutationPredictor initialized successfully.
+2026-08-24 23:15:27,643 - INFO - RiceMutationPredictor initialised and ready.
+2026-08-24 23:15:27,644 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes
+INFO:     127.0.0.1:48866 - "HEAD /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46938 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-08-24 23:17:53,322 - INFO - RiceMutationPredictor released.
+2026-08-24 23:17:53,510 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [321412]
+INFO:     Started server process [322989]
+INFO:     Waiting for application startup.
+2026-08-24 23:18:01,277 - INFO - Initializing RiceMutationPredictor ...
+2026-08-24 23:18:01,277 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-24 23:18:01,277 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-24 23:18:01,277 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-24 23:18:01,277 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-24 23:18:01,277 - INFO -   device          = cuda:0
+2026-08-24 23:18:01,277 - INFO -   inference_batch_size = 4
+2026-08-24 23:18:01,280 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-24 23:18:01,286 - INFO - Loading GenOmics model ...
+Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`
+2026-08-24 23:18:16,326 - INFO - RiceMutationPredictor initialized successfully.
+2026-08-24 23:18:16,326 - INFO - RiceMutationPredictor initialised and ready.
+2026-08-24 23:18:16,327 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-08-24 23:18:31,538 - INFO - Inference on Chr2:0-32768 (seq_len=32768) done in 1.35 s
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes
+INFO:     127.0.0.1:54292 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50694 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50686 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:50702 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:50716 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:50718 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49000 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49004 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60532 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40826 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40834 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40846 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40854 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40864 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40868 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr2_0_32768_RNA-seq_Leaf_ref_1787584711.bw HTTP/1.1" 206 Partial Content
+2026-08-24 23:19:46,941 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 0.73 s
+2026-08-24 23:19:47,697 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 0.73 s
+INFO:     127.0.0.1:53052 - "POST /predict/snv HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53058 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35722 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:35726 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:55870 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:55864 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:55876 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:55882 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:55898 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55912 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:55926 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787584787.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:57194 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57204 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57218 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53028 - "POST /predict/bar HTTP/1.1" 200 OK
+2026-08-24 23:23:54,152 - INFO - Registered uploaded genome 'custom_1787585034' (12 chromosomes): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes/1787585030673615824_osa1_r7.asm.chrs.fa
+INFO:     127.0.0.1:47846 - "POST /uploadFasta HTTP/1.1" 200 OK
+2026-08-24 23:24:06,902 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 0.73 s
+2026-08-24 23:24:07,660 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 0.73 s
+INFO:     127.0.0.1:51772 - "POST /predict/snv HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51778 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes/1787585030673615824_osa1_r7.asm.chrs.fa.fai HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51782 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787585047.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:51784 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787585047.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:51794 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787585047.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:51808 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787585047.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:51814 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787585047.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:51830 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787585047.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:51840 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51848 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787585047.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:51858 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787585047.bw HTTP/1.1" 206 Partial Content
+2026-08-24 23:26:46,119 - INFO - Registered uploaded genome 'custom_1787585206' (12 chromosomes): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes/1787585202278988318_osa1_r7.asm.chrs.fa
+INFO:     127.0.0.1:46090 - "POST /uploadFasta HTTP/1.1" 200 OK
+2026-08-24 23:26:47,066 - INFO - Attached GFF to uploaded genome 'custom_1787585206': /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes/1787585206861960340_osa1_r7.all_models.gff3
+INFO:     127.0.0.1:55420 - "POST /uploadGff HTTP/1.1" 200 OK
+2026-08-24 23:27:39,925 - INFO - Inference on Chr10:0-32768 (seq_len=32768) done in 0.73 s
+INFO:     127.0.0.1:33958 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33962 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes/1787585202278988318_osa1_r7.asm.chrs.fa.fai HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33974 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes/1787585206861960340_osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33990 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_ref_1787585259.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:34000 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_ref_1787585259.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:34012 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_ref_1787585259.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:34020 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_ref_1787585259.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:50744 - "POST /predict/bar HTTP/1.1" 200 OK
+2026-08-24 23:28:13,671 - INFO - Inference on Chr10:0-32768 (seq_len=32768) done in 0.73 s
+2026-08-24 23:28:14,428 - INFO - Inference on Chr10:0-32768 (seq_len=32768) done in 0.73 s
+INFO:     127.0.0.1:54452 - "POST /predict/snv HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48338 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes/1787585206861960340_osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48348 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result2_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48352 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result1_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48372 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result2_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48364 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result1_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48390 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result1_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48376 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result2_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48408 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result2_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48394 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr10_0_32768_RNA-seq_Leaf_result1_1787585294.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:48422 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-08-24 23:31:14,165 - INFO - RiceMutationPredictor released.
+2026-08-24 23:31:14,364 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [322989]
+INFO:     Started server process [763452]
+INFO:     Waiting for application startup.
+2026-08-25 13:13:04,085 - INFO - Initializing RiceMutationPredictor ...
+2026-08-25 13:13:04,085 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-25 13:13:04,085 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-25 13:13:04,085 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-25 13:13:04,085 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-25 13:13:04,085 - INFO -   device          = cuda:0
+2026-08-25 13:13:04,085 - INFO -   inference_batch_size = 4
+2026-08-25 13:13:04,085 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-25 13:13:04,092 - INFO - Loading GenOmics model ...
+Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`
+2026-08-25 13:13:19,694 - INFO - RiceMutationPredictor initialized successfully.
+2026-08-25 13:13:19,694 - INFO - RiceMutationPredictor initialised and ready.
+2026-08-25 13:13:19,697 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-08-25 13:13:23,074 - INFO - Inference on Chr1:0-32768 (seq_len=32768) done in 1.33 s
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_fasta
+INFO:     127.0.0.1:50534 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50542 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/igv.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:53686 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr1_0_32768_RNA-seq_Leaf_ref_1787634803.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53684 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53702 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr1_0_32768_RNA-seq_Leaf_ref_1787634803.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53712 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr1_0_32768_RNA-seq_Leaf_ref_1787634803.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53718 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr1_0_32768_RNA-seq_Leaf_ref_1787634803.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:33880 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33884 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+2026-08-25 13:14:19,793 - INFO - Inference on Chr9:0-32768 (seq_len=32768) done in 0.74 s
+INFO:     127.0.0.1:37092 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37094 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/frontend/static/igv.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:40500 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40510 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40520 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40536 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40540 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40556 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-08-25 13:14:53,195 - INFO - RiceMutationPredictor released.
+2026-08-25 13:14:53,370 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [763452]
+INFO:     Started server process [764766]
+INFO:     Waiting for application startup.
+2026-08-25 13:15:00,980 - INFO - Initializing RiceMutationPredictor ...
+2026-08-25 13:15:00,980 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-25 13:15:00,980 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-25 13:15:00,980 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-25 13:15:00,980 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-25 13:15:00,980 - INFO -   device          = cuda:0
+2026-08-25 13:15:00,980 - INFO -   inference_batch_size = 4
+2026-08-25 13:15:00,981 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-25 13:15:00,988 - INFO - Loading GenOmics model ...
+Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`
+2026-08-25 13:15:16,618 - INFO - RiceMutationPredictor initialized successfully.
+2026-08-25 13:15:16,618 - INFO - RiceMutationPredictor initialised and ready.
+2026-08-25 13:15:16,618 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-08-25 13:15:20,565 - INFO - Inference on Chr9:0-32768 (seq_len=32768) done in 1.79 s
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes
+INFO:     127.0.0.1:57208 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58850 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58858 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634920.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58862 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634920.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58868 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634920.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58884 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_0_32768_RNA-seq_Leaf_ref_1787634920.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58892 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-08-25 13:15:55,735 - INFO - RiceMutationPredictor released.
+2026-08-25 13:15:55,928 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [764766]
+INFO:     Started server process [770659]
+INFO:     Waiting for application startup.
+2026-08-25 13:24:45,135 - INFO - Initializing RiceMutationPredictor ...
+2026-08-25 13:24:45,135 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+2026-08-25 13:24:45,135 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/csq-5_model.safetensors
+2026-08-25 13:24:45,135 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/index_stat.json
+2026-08-25 13:24:45,135 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+2026-08-25 13:24:45,135 - INFO -   device          = cuda:0
+2026-08-25 13:24:45,135 - INFO -   inference_batch_size = 4
+2026-08-25 13:24:45,149 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-08-25 13:24:45,154 - INFO - Loading GenOmics model ...
+Flash Attention 2 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", dtype=torch.float16)`
+2026-08-25 13:25:01,039 - INFO - RiceMutationPredictor initialized successfully.
+2026-08-25 13:25:01,040 - INFO - RiceMutationPredictor initialised and ready.
+2026-08-25 13:25:01,040 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-08-25 13:25:26,290 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 1.79 s
+2026-08-25 13:25:27,052 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 0.73 s
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/uploaded_genomes
+INFO:     127.0.0.1:36938 - "POST /predict/snv HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49342 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49340 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49330 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49354 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49352 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49356 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49360 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49374 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49376 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut/cache/predictions/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1787635527.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:49388 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53248 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53264 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-08-25 13:27:48,993 - INFO - RiceMutationPredictor released.
+2026-08-25 13:27:49,199 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [770659]

@@ -79,8 +79,7 @@ bash frontend/run_frontend.sh
 ### 4. 停止服务
 
 ```bash
-bash backend/stop_backend.sh
-bash frontend/stop_frontend.sh
+bash backend/stop_backend.sh && bash frontend/stop_frontend.sh
 ```
 
 ### 5. 查看日志

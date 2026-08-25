@@ -467,3 +467,223 @@ INFO:     Waiting for application shutdown.
 08/24/2026 08:59:22 - INFO - rice_reg.prediction_service - Predictor released.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [2821837]
+2026-08-24 23:26:27.068438: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-08-24 23:26:27.130405: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+⚙️  Running in WANDB offline mode
+Traceback (most recent call last):
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/activations_tf.py", line 22, in <module>
+    import tf_keras as keras
+ModuleNotFoundError: No module named 'tf_keras'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/backend/rice_reg/main.py", line 33, in <module>
+    from rice_reg.api import app  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/backend/rice_reg/api.py", line 29, in <module>
+    from rice_reg.prediction_service import (
+    ...<12 lines>...
+    )
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/backend/rice_reg/prediction_service.py", line 22, in <module>
+    from rice_reg.core import RiceRegPredictor
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/backend/rice_reg/core/__init__.py", line 12, in <module>
+    from .rice_reg import RiceRegPredictor
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/backend/rice_reg/core/rice_reg.py", line 23, in <module>
+    from model.pipeline import (
+    ...<4 lines>...
+    )
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/backend/rice_reg/core/model/pipeline.py", line 30, in <module>
+    from model.trainer import (
+    ...<7 lines>...
+    )
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/backend/rice_reg/core/model/trainer.py", line 12, in <module>
+    from transformers import Trainer
+  File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2317, in __getattr__
+    module = self._get_module(self._class_to_module[name])
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2347, in _get_module
+    raise e
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2345, in _get_module
+    return importlib.import_module("." + module_name, self.__name__)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/trainer.py", line 42, in <module>
+    from .integrations import (
+        get_reporting_integration_callbacks,
+    )
+  File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2317, in __getattr__
+    module = self._get_module(self._class_to_module[name])
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2347, in _get_module
+    raise e
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2345, in _get_module
+    return importlib.import_module("." + module_name, self.__name__)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/integrations/integration_utils.py", line 60, in <module>
+    from .. import TFPreTrainedModel
+  File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2317, in __getattr__
+    module = self._get_module(self._class_to_module[name])
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2347, in _get_module
+    raise e
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/utils/import_utils.py", line 2345, in _get_module
+    return importlib.import_module("." + module_name, self.__name__)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/modeling_tf_utils.py", line 38, in <module>
+    from .activations_tf import get_tf_activation
+  File "/root/miniconda3/lib/python3.13/site-packages/transformers/activations_tf.py", line 27, in <module>
+    raise ValueError(
+    ...<3 lines>...
+    )
+ValueError: Your currently installed version of Keras is Keras 3, but this is not yet supported in Transformers. Please install the backwards-compatible tf-keras package with `pip install tf-keras`.
+INFO:     Started server process [328561]
+INFO:     Waiting for application startup.
+08/24/2026 23:27:28 - INFO - rice_reg.core.rice_reg - Initializing RiceRegPredictor ...
+08/24/2026 23:27:28 - INFO - rice_reg.core.rice_reg -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/rice_1B_32k_hf
+08/24/2026 23:27:28 - INFO - rice_reg.core.rice_reg -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+08/24/2026 23:27:28 - INFO - rice_reg.core.rice_reg -   predictor_type  = fusion
+08/24/2026 23:27:28 - INFO - rice_reg.core.rice_reg -   device          = cuda:0
+08/24/2026 23:27:28 - INFO - rice_reg.core.rice_reg - Loading base model and tokenizer ...
+08/24/2026 23:27:28 - INFO - root - >>> Loading pretrained model and tokenizer...
+`torch_dtype` is deprecated! Use `dtype` instead!
+08/24/2026 23:27:29 - INFO - rice_reg.core.rice_reg - Building multimodal predictor (fusion) ...
+08/24/2026 23:27:29 - INFO - root - Identified 12 transformer layers (fusion predictor; base frozen)
+08/24/2026 23:27:30 - INFO - rice_reg.core.rice_reg - Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+08/24/2026 23:27:30 - INFO - rice_reg.core.rice_reg - Checkpoint loaded (non-strict mode).
+08/24/2026 23:27:30 - INFO - rice_reg.core.rice_reg - RiceRegPredictor initialized successfully.
+08/24/2026 23:27:31 - INFO - rice_reg.prediction_service - RiceRegPredictor initialised and ready.
+08/24/2026 23:27:31 - INFO - rice_reg.cache_service - Started bigWig cleanup thread (dir=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions, interval=600s, ttl=1800s)
+08/24/2026 23:27:31 - INFO - rice_reg.prediction_service - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:7001 (Press CTRL+C to quit)
+08/24/2026 23:30:28 - INFO - rice_reg.prediction_service - Registered uploaded genome 'custom_1787585428' (12 chromosomes): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/uploaded_genomes/1787585409285203717_osa1_r7.asm.chrs.fa
+⚙️  Running in WANDB offline mode
+[startup] Cleaned prediction cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions
+[startup] Cleaned upload cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/uploaded_atac
+[startup] Cleaned uploaded genomes: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/uploaded_genomes
+INFO:     127.0.0.1:50962 - "POST /uploadFasta HTTP/1.1" 200 OK
+08/24/2026 23:30:29 - INFO - rice_reg.prediction_service - Attached GFF to uploaded genome 'custom_1787585428': /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/uploaded_genomes/1787585429123223118_osa1_r7.all_models.gff3
+INFO:     127.0.0.1:47722 - "POST /uploadGff HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+08/24/2026 23:31:18 - INFO - rice_reg.core.rice_reg - RiceRegPredictor released.
+08/24/2026 23:31:18 - INFO - rice_reg.prediction_service - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [328561]
+INFO:     Started server process [765648]
+INFO:     Waiting for application startup.
+08/25/2026 13:16:12 - INFO - rice_reg.core.rice_reg - Initializing RiceRegPredictor ...
+08/25/2026 13:16:12 - INFO - rice_reg.core.rice_reg -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/rice_1B_32k_hf
+08/25/2026 13:16:12 - INFO - rice_reg.core.rice_reg -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+08/25/2026 13:16:12 - INFO - rice_reg.core.rice_reg -   predictor_type  = fusion
+08/25/2026 13:16:12 - INFO - rice_reg.core.rice_reg -   device          = cuda:0
+08/25/2026 13:16:12 - INFO - rice_reg.core.rice_reg - Loading base model and tokenizer ...
+08/25/2026 13:16:12 - INFO - root - >>> Loading pretrained model and tokenizer...
+`torch_dtype` is deprecated! Use `dtype` instead!
+08/25/2026 13:16:13 - INFO - rice_reg.core.rice_reg - Building multimodal predictor (fusion) ...
+08/25/2026 13:16:13 - INFO - root - Identified 12 transformer layers (fusion predictor; base frozen)
+08/25/2026 13:16:15 - INFO - rice_reg.core.rice_reg - Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+08/25/2026 13:16:15 - INFO - rice_reg.core.rice_reg - Checkpoint loaded (non-strict mode).
+08/25/2026 13:16:15 - INFO - rice_reg.core.rice_reg - RiceRegPredictor initialized successfully.
+08/25/2026 13:16:15 - INFO - rice_reg.prediction_service - RiceRegPredictor initialised and ready.
+08/25/2026 13:16:15 - INFO - rice_reg.cache_service - Started bigWig cleanup thread (dir=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions, interval=600s, ttl=1800s)
+08/25/2026 13:16:15 - INFO - rice_reg.prediction_service - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:7001 (Press CTRL+C to quit)
+08/25/2026 13:16:25 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+08/25/2026 13:16:29 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+⚙️  Running in WANDB offline mode
+INFO:     127.0.0.1:45594 - "POST /predict/rice-reg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45608 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/static/igv.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45622 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.fa.fai HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45626 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45638 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45644 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45646 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45662 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45664 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45678 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45680 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45684 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45692 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45708 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45720 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45732 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:45736 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+08/25/2026 13:16:47 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+08/25/2026 13:16:49 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+INFO:     127.0.0.1:59568 - "POST /predict/rice-reg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59570 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59586 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_plus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59594 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59604 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_minus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59630 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_plus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59620 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_minus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59646 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59650 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_plus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59654 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_minus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59670 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_plus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:59668 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_0_32678_minus_1787635009455671307.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60088 - "POST /predict/rice-reg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60094 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60102 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60120 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60108 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60130 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60150 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60146 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39794 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39796 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39802 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39812 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39814 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39820 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39834 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_plus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39838 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:39852 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr9_0_32678_minus_1787634989116768335.bw HTTP/1.1" 206 Partial Content
+08/25/2026 13:17:12 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+08/25/2026 13:17:14 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+INFO:     127.0.0.1:39866 - "POST /predict/rice-reg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60552 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60554 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_plus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60564 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60580 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_minus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60590 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_minus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60600 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_plus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60612 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60622 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_minus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60626 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60638 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_plus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60644 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_plus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:60658 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr12_0_32678_minus_1787635034640607180.bw HTTP/1.1" 206 Partial Content
+08/25/2026 13:20:22 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+08/25/2026 13:20:24 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+INFO:     127.0.0.1:39276 - "POST /predict/rice-reg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40780 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40782 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_minus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40794 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_plus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40798 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40822 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_minus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40806 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_plus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40830 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40844 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_minus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40868 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_plus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40854 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40884 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_minus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40874 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr1_9999_42677_plus_1787635224643809789.bw HTTP/1.1" 206 Partial Content
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+08/25/2026 13:24:26 - INFO - rice_reg.core.rice_reg - RiceRegPredictor released.
+08/25/2026 13:24:26 - INFO - rice_reg.prediction_service - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [765648]

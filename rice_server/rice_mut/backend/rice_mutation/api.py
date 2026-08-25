@@ -27,6 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from rice_mutation.cache_service import prediction_cache, start_bigwig_cleanup
 from rice_mutation.igv_payload import set_static_base_url
@@ -87,6 +88,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------------------
+#  Static-file caching
+# ---------------------------------------------------------------------------
+# plotly.min.js (~3.5 MB) and igv.min.js (多 MB) are served through
+# /static-files; without Cache-Control the browser re-validates (304
+# round-trip) on every page load / iframe rebuild, which makes the bar-plot
+# iframe show its "Plotly chart library is loading" placeholder.  Everything
+# under /static-files is content-addressed (prediction_id) or a fixed filename
+# (plotly.min.js / igv.min.js), so a one-year immutable cache is safe: the
+# browser loads it once, then never re-requests it for the same container
+# run.  New predictions get new prediction_id URLs, so a stale URL can never
+# hit an old cached body.
+@app.middleware("http")
+async def add_static_cache_headers(request, call_next):
+    response = await call_next(request)
+    if response.status_code < 400 and request.url.path.startswith("/static-files/"):
+        if not response.headers.get("Cache-Control"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
 
 
 # ---------------------------------------------------------------------------

@@ -1,14 +1,24 @@
 # ============================================================================
 # org_web — 纯依赖环境镜像
 #
-# 仅安装 requirements.txt 中的 Python 包（rice-mut 与 rice-reg 共用依赖），
-# 不包含任何项目代码 / 模型 / 数据 / 配置文件。
+# 仅安装 requirements.txt 中的 Python 包，不包含任何项目代码 / 模型 / 数据 / 配置文件。
+# 覆盖三个服务:
+#   - rice-mut / rice-reg     (FastAPI 后端 + Gradio 前端)
+#   - rice_OGR                (Sanic DNA embedding 服务, dna_embedding.py)
 #
 # 构建:
 #   cd docker/org_web && docker build -t org_web:latest .
 #
 # 运行 (交互式进入环境):
 #   docker run --gpus all -it org_web:latest
+#
+# 运行 rice_OGR sanic embedding 服务(模型挂载到 /AI_models):
+#   docker run --gpus all -d -p 8000:8000 \
+#       -v /host/path/rice_OGR:/code \
+#       -v /host/path/models:/AI_models \
+#       org_web:latest \
+#       bash -c "cd /code && MODEL_1B_8k_PATH=/AI_models/rice_1B_stage2_8k_hf \
+#                  MODEL_1B_32k_PATH=/AI_models/rice_1B_32k_hf python dna_embedding.py"
 # ============================================================================
 
 # 基础镜像: PyTorch 2.5.1 + CUDA 12.4 + cuDNN 9 (devel 含 nvcc, 用于编译 flash-attn)
@@ -39,7 +49,9 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip uninstall -y ninja \
     && rm -rf /tmp/requirements.txt /tmp/pip*
 
-# 构建时验证所有关键包可导入
-RUN python -c "import torch, transformers, flash_attn, safetensors, gradio, fastapi, uvicorn, multipart, yaml, matplotlib, numpy, pandas, pyBigWig, pyfaidx, dotenv; print('ALL KEY PACKAGES IMPORT OK')"
+# 构建时验证所有关键包可导入(含 sanic, 供 rice_OGR/dna_embedding.py 使用)
+RUN python -c "import torch, transformers, flash_attn, safetensors, gradio, fastapi, uvicorn, multipart, yaml, matplotlib, numpy, pandas, pyBigWig, pyfaidx, dotenv, sanic; print('ALL KEY PACKAGES IMPORT OK')"
 
+# 常用端口(可选, 不影响实际映射): 8000 rice_OGR sanic / rice-mut 前端; 8001 rice-mut 后端; 7000/7001 rice-reg
+EXPOSE 8000 8001 7000 7001
 CMD ["bash"]

@@ -64,18 +64,13 @@ pip install -r requirements.txt
 # 自检(推荐)
 bash tools/startup_self_check.sh
 
-# 后端(8001)
-bash backend/run_backend.sh
-
-# 前端(8000)
-bash frontend/run_frontend.sh
+bash backend/run_backend.sh && bash frontend/run_frontend.sh
 ```
 
 ### 4. 停止 / 日志
 
 ```bash
-bash backend/stop_backend.sh
-bash frontend/stop_frontend.sh
+bash backend/stop_backend.sh && bash frontend/stop_frontend.sh
 
 tail -f backend/logs/backend.nohup.log
 tail -f frontend/logs/frontend.nohup.log
