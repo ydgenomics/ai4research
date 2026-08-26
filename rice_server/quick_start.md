@@ -134,6 +134,28 @@ curl -X POST ${host}:7001/api/aigress/openai/rice_reg \
     "output_format": "mean"
   }'
 
+curl -X POST https://www.dcs.cloud/api/aigress/openai/rice_reg \
+  -H "Authorization: Bearer ${api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "rice_reg",
+    "mode": "health"
+  }'
+
+curl -X POST https://www.dcs.cloud/api/aigress/openai/rice_reg \
+  -H "Authorization: Bearer ${api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "rice_reg",
+    "mode": "predict",
+    "genome": "MH63RS3",
+    "chromosome": "chr01",
+    "start": 1,
+    "end": 32678,
+    "atac_source": "SAM2_MH63_1",
+    "output_format": "mean"
+  }'
+
 # ── 方式二：统一网关入口（DCS 平台，body 加 model_sub）──
 curl -X POST ${dcs_host}${dcs_entry} \
   -H "Authorization: Bearer ${dcs_api_key}" \
@@ -178,11 +200,33 @@ curl -X POST ${host}:8001/api/aigress/openai/rice_ogr \
     "pooling_method": "mean"
   }'
 
+curl -X POST https://www.dcs.cloud/api/aigress/openai/rice_ogr \
+  -H "Authorization: Bearer ${api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "rice_ogr",
+    "mode": "dna_embedding",
+    "model_name": "1B_8k",
+    "sequence": "ACGTTGCATGCAACGTACGTTGCATGCAACGT",
+    "pooling_method": "mean"
+  }'
+
 # mode=predict：基于前 16 bp 预测后续 8 个碱基
 curl -X POST ${host}:8001/api/aigress/openai/rice_ogr \
   -H "Authorization: Bearer ${api_key}" \
   -H "Content-Type: application/json" \
   -d '{
+    "mode": "predict",
+    "model_name": "1B_8k",
+    "sequence": "ACGTTGCATGCAACGT",
+    "predict_length": 8
+  }'
+
+curl -X POST https://www.dcs.cloud/api/aigress/openai/rice_ogr \
+  -H "Authorization: Bearer ${api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "rice_ogr",
     "mode": "predict",
     "model_name": "1B_8k",
     "sequence": "ACGTTGCATGCAACGT",

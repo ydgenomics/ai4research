@@ -217,8 +217,8 @@ curl -s http://127.0.0.1:9000/health
 api_key="${api_key}"
 GW="http://127.0.0.1:9000/api/aigress/openai/OGR"
 
-api_key="sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx"
-GW="https://www.dcs.cloud/api/aigress/openai/OGR"
+api_key=""
+GW=""
 
 # rice_mut（predict）
 curl -X POST ${GW} -H "Authorization: Bearer ${api_key}" -H "Content-Type: application/json" \
@@ -234,6 +234,35 @@ curl -X POST ${GW} -H "Authorization: Bearer ${api_key}" -H "Content-Type: appli
 curl -X POST ${GW} -H "Authorization: Bearer ${api_key}" -H "Content-Type: application/json" \
   -d '{"model":"OGR", "model_sub":"rice_ogr", "mode":"dna_embedding","model_name":"1B_8k","sequence":"ACGTTGCATGCAACGTACGTTGCATGCAACGT",
        "pooling_method":"mean"}'
+
+
+# 10KP api
+# rice_mut（predict）
+curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR \
+  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"OGR", "model_sub":"rice_mut","mode":"predict","genome":"osa1_r7","chromosome":"chr09",
+       "start":20716774,"end":20749541,"output_format":"mean"}'
+
+curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR \
+  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"OGR", "model_sub":"rice_mut","mode":"health"}'
+
+# rice_reg（predict）
+curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR \
+  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"OGR", "model_sub":"rice_reg","mode":"predict","genome":"MH63RS3","chromosome":"chr01",
+       "start":1,"end":32678,"atac_source":"SAM2_MH63_1","output_format":"mean"}'
+
+# rice_OGR（embedding；model_sub 缺省即 rice_ogr，可省略）
+curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR \
+  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"OGR", "model_sub":"rice_ogr", "mode":"dna_embedding","model_name":"1B_8k","sequence":"ACGTTGCATGCAACGTACGTTGCATGCAACGT",
+       "pooling_method":"mean"}'
+
 ```
 
 ### 4.3 错误语义
