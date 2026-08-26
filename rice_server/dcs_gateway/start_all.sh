@@ -11,7 +11,10 @@
 #   2) shell 环境变量（RICE_*_PORT / GATEWAY_PORT / RICE_*_PYTHON）
 #   3) 各服务 .env 的 BACKEND_PYTHON_BIN（仅解释器回退）
 #   4) 内置默认值（rice_mut=8001  rice_reg=7001  rice_OGR=6001  网关=9000）
-set -euo pipefail
+# 兼容 /bin/sh=dash（云平台 org_web:sanic 镜像 /bin/sh 为 dash，无 pipefail）:
+#   - 去掉 -o pipefail，用 set -e 等价保护（本脚本无管道语义依赖）
+#   - 关联数组 declare -A 改 POSIX 函数/小写变量写法（见下方 wait_health）
+set -eu
 cd "$(dirname "$0")/.."              # rice_server/
 ROOT="$PWD"
 
@@ -21,7 +24,7 @@ ROOT="$PWD"
 #    因此 .env 的值总是压过命令行/启动环境传入的同名变量（符合“.env 最高”约定）
 if [ -f "$ROOT/dcs_gateway/.env" ]; then
     set -a
-    source "$ROOT/dcs_gateway/.env"
+    . "$ROOT/dcs_gateway/.env"
     set +a
 fi
 
@@ -71,16 +74,22 @@ start_backend "rice_reg" "rice_reg/backend" "$RICE_REG_PORT" "$RICE_REG_PYTHON"
 start_backend "rice_ogr" "rice_OGR"         "$RICE_OGR_PORT" "$RICE_OGR_PYTHON"
 
 # 等待三个后端 /health 就绪（模型加载较慢，各最多 180s）
+# POSIX 兼容：不用关联数组，改用 case 查端口
+backend_port() {
+    case "$1" in
+        rice_mut) echo "$RICE_MUT_PORT" ;;
+        rice_reg) echo "$RICE_REG_PORT" ;;
+        rice_ogr) echo "$RICE_OGR_PORT" ;;
+    esac
+}
+
 echo "==> 等待后端就绪（最多 180s）..."
-declare -A URLS=(
-    [rice_mut]="http://127.0.0.1:${RICE_MUT_PORT}/health"
-    [rice_reg]="http://127.0.0.1:${RICE_REG_PORT}/health"
-    [rice_ogr]="http://127.0.0.1:${RICE_OGR_PORT}/health"
-)
 for name in rice_mut rice_reg rice_ogr; do
+    port="$(backend_port "$name")"
+    url="http://127.0.0.1:${port}/health"
     ok=0
     for _ in $(seq 1 180); do
-        if curl -sf "${URLS[$name]}" >/dev/null 2>&1; then ok=1; break; fi
+        if curl -sf "$url" >/dev/null 2>&1; then ok=1; break; fi
         sleep 1
     done
     if [ "$ok" = 1 ]; then
