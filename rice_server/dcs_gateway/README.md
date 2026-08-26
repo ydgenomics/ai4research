@@ -217,6 +217,9 @@ curl -s http://127.0.0.1:9000/health
 api_key="${api_key}"
 GW="http://127.0.0.1:9000/api/aigress/openai/OGR"
 
+api_key="sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx"
+GW="https://www.dcs.cloud/api/aigress/openai/OGR"
+
 # rice_mut（predict）
 curl -X POST ${GW} -H "Authorization: Bearer ${api_key}" -H "Content-Type: application/json" \
   -d '{"model":"OGR", "model_sub":"rice_mut","mode":"predict","genome":"osa1_r7","chromosome":"chr09",
