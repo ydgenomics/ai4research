@@ -121,12 +121,12 @@ async def _run_extract(extractor, body: dict, request_id: str | None = None):
     """
     sequence = body.get("sequence")
     if not isinstance(sequence, str) or not sequence.strip():
-        raise RequestError("sequence 必须是非空字符串")
+        raise RequestError("sequence must be a non-empty string")
 
     pooling_method = str(body.get("pooling_method", "mean")).lower()
     if pooling_method not in ("mean", "max", "last", "none"):
         raise RequestError(
-            f"pooling_method 必须是 mean/max/last/none,收到 '{pooling_method}'"
+            f"pooling_method must be mean/max/last/none, got '{pooling_method}'"
         )
 
     t0 = time.time()
@@ -159,16 +159,16 @@ async def _run_predict(extractor, body: dict, request_id: str | None = None):
     """执行 predict 模式:自回归预测下游碱基。"""
     sequence = body.get("sequence")
     if not isinstance(sequence, str) or not sequence.strip():
-        raise RequestError("sequence 必须是非空字符串")
+        raise RequestError("sequence must be a non-empty string")
 
     try:
         predict_length = int(body.get("predict_length", 10))
     except (TypeError, ValueError):
-        raise RequestError("predict_length 必须是正整数")
+        raise RequestError("predict_length must be a positive integer")
     if predict_length <= 0:
-        raise RequestError("predict_length 必须是正整数")
+        raise RequestError("predict_length must be a positive integer")
     if predict_length > 1000:
-        raise RequestError("predict_length 不能超过 1000")
+        raise RequestError("predict_length must not exceed 1000")
 
     t0 = time.time()
     result = await extractor.predict_next_bases(sequence, predict_length)
@@ -211,7 +211,7 @@ def _parse_model(body: dict) -> str:
     env = get_env_registry()
     configs = env.get("model_configs", {}) or {}
     if not configs:
-        raise RequestError("model_name 必填(未配置任何注册表模型)")
+        raise RequestError("model_name is required (no registry models configured)")
     return next(iter(configs.keys()))
 
 
@@ -271,10 +271,10 @@ def _check_api_key(authorization: str | None = None, x_api_key: str | None = Non
     if not key and x_api_key:
         key = x_api_key.strip()
     if key != DCS_API_KEY:
-        raise RequestError("无效或缺失的 API Key")
+        raise RequestError("Invalid or missing API Key")
 
 
-def _unauthorized(message: str = "无效或缺失的 API Key"):
+def _unauthorized(message: str = "Invalid or missing API Key"):
     return {
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         "status": 401,
@@ -357,15 +357,15 @@ def init_extractors_safe():
     env = get_env_registry()
     configs = env.get("model_configs", {}) or {}
     if not configs:
-        logger.info("[dcs_adapter] .env 未配置任何 MODEL_*_PATH,跳过预加载")
+        logger.info("[dcs_adapter] no MODEL_*_PATH configured, skip preloading")
         return
     for name in configs:
         try:
-            logger.info("[dcs_adapter] 预加载模型 %s ...", name)
+            logger.info("[dcs_adapter] preloading model %s ...", name)
             get_or_create_extractor(name)
             _INIT_MODELS.append(name)
         except Exception as e:
-            logger.error("[dcs_adapter] 预加载模型 %s 失败: %s", name, e)
+            logger.error("[dcs_adapter] preload model %s failed: %s", name, e)
             _INIT_ERROR = {
                 "model": name,
                 "error": f"{e.__class__.__name__}: {e}",
@@ -477,22 +477,22 @@ async def _dispatch(req: Request, body: dict, authorization, x_api_key):
 
     if _INIT_ERROR:
         return _err(
-            f"模型预加载失败,可能无法推理: {_INIT_ERROR['error']}", 503,
+            f"Model preload failed, may be unable to inference: {_INIT_ERROR['error']}", 503,
             detail={"init_error": _INIT_ERROR, "request": _summarize_body(body)},
         )
 
     mode = _mode_from_body(body)
     if mode not in MODES:
-        return _err(f"未知 mode '{mode}',必须是 {MODES}", 400)
+        return _err(f"Unknown mode '{mode}', must be one of {MODES}", 400)
 
     try:
         model_name = _parse_model(body)
         extractor = _get_extractor(model_name)
     except RequestError as e:
-        return _err(f"参数错误: {e}", 400, detail={"request": _summarize_body(body)})
+        return _err(f"Parameter error: {e}", 400, detail={"request": _summarize_body(body)})
     except Exception as e:
         return _err(
-            f"模型加载失败: {e}", 500,
+            f"Model loading failed: {e}", 500,
             detail={
                 "error_type": e.__class__.__name__,
                 "traceback": traceback.format_exc()[-2000:],
@@ -503,17 +503,17 @@ async def _dispatch(req: Request, body: dict, authorization, x_api_key):
     try:
         if mode == "predict":
             usage, payload = await _run_predict(extractor, body)
-            message = "下游碱基预测成功"
+            message = "Base prediction succeeded"
         else:
             usage, payload = await _run_extract(extractor, body)
-            message = "DNA sequence embedding 提取成功"
+            message = "DNA sequence embedding extraction succeeded"
         return _ok(usage=usage, message=message, result=payload)
     except RequestError as e:
-        return _err(f"{mode} 失败: {e}", 400, detail={"request": _summarize_body(body)})
+        return _err(f"{mode} failed: {e}", 400, detail={"request": _summarize_body(body)})
     except Exception as e:
-        logger.exception("[dcs_adapter] %s 推理失败", mode)
+        logger.exception("[dcs_adapter] %s inference failed", mode)
         return _err(
-            f"{mode} 失败: {e}", 500,
+            f"{mode} failed: {e}", 500,
             detail={
                 "error_type": e.__class__.__name__,
                 "traceback": traceback.format_exc()[-2000:],
@@ -533,9 +533,9 @@ async def rice_ogr(
     try:
         body = await req.json()
     except Exception:
-        return _err("请求体不是合法 JSON", 400)
+        return _err("Request body is not valid JSON", 400)
     if not isinstance(body, dict):
-        return _err("请求体必须是 JSON 对象", 400)
+        return _err("Request body must be a JSON object", 400)
     return await _dispatch(req, body, authorization, x_api_key)
 
 
@@ -550,7 +550,7 @@ async def rice_ogr_dna_embedding(
     try:
         body = await req.json()
     except Exception:
-        return _err("请求体不是合法 JSON", 400)
+        return _err("Request body is not valid JSON", 400)
     body.setdefault("mode", "dna_embedding")
     return await _dispatch(req, body, authorization, x_api_key)
 
@@ -565,7 +565,7 @@ async def rice_ogr_predict(
     try:
         body = await req.json()
     except Exception:
-        return _err("请求体不是合法 JSON", 400)
+        return _err("Request body is not valid JSON", 400)
     body.setdefault("mode", "predict")
     return await _dispatch(req, body, authorization, x_api_key)
 
@@ -578,7 +578,7 @@ async def _debug_echo_path(request: Request, full_path: str):
     return {
         "debug_received_path": f"/{full_path}",
         "method": request.method,
-        "note": "请求已到达 dcs_adapter(网关确实把请求转了过来)",
+        "note": "request reached dcs_adapter (gateway forwarded correctly)",
     }
 
 

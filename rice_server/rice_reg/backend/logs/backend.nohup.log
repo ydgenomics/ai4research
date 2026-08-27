@@ -687,3 +687,49 @@ INFO:     Waiting for application shutdown.
 08/25/2026 13:24:26 - INFO - rice_reg.prediction_service - Predictor released.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [765648]
+INFO:     Started server process [2283013]
+INFO:     Waiting for application startup.
+08/28/2026 01:28:50 - INFO - rice_reg.core.rice_reg - Initializing RiceRegPredictor ...
+08/28/2026 01:28:50 - INFO - rice_reg.core.rice_reg -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/rice_1B_32k_hf
+08/28/2026 01:28:50 - INFO - rice_reg.core.rice_reg -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+08/28/2026 01:28:50 - INFO - rice_reg.core.rice_reg -   predictor_type  = fusion
+08/28/2026 01:28:50 - INFO - rice_reg.core.rice_reg -   device          = cuda:0
+08/28/2026 01:28:50 - INFO - rice_reg.core.rice_reg - Loading base model and tokenizer ...
+08/28/2026 01:28:50 - INFO - root - >>> Loading pretrained model and tokenizer...
+`torch_dtype` is deprecated! Use `dtype` instead!
+08/28/2026 01:28:51 - INFO - rice_reg.core.rice_reg - Building multimodal predictor (fusion) ...
+08/28/2026 01:28:51 - INFO - root - Identified 12 transformer layers (fusion predictor; base frozen)
+08/28/2026 01:28:52 - INFO - rice_reg.core.rice_reg - Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+08/28/2026 01:28:53 - INFO - rice_reg.core.rice_reg - Checkpoint loaded (non-strict mode).
+08/28/2026 01:28:53 - INFO - rice_reg.core.rice_reg - RiceRegPredictor initialized successfully.
+08/28/2026 01:28:53 - INFO - rice_reg.prediction_service - RiceRegPredictor initialised and ready.
+08/28/2026 01:28:53 - INFO - rice_reg.cache_service - Started bigWig cleanup thread (dir=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions, interval=600s, ttl=1800s)
+08/28/2026 01:28:53 - INFO - rice_reg.prediction_service - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:7001 (Press CTRL+C to quit)
+08/28/2026 01:29:10 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+08/28/2026 01:29:13 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+⚙️  Running in WANDB offline mode
+INFO:     127.0.0.1:43798 - "POST /predict/rice-reg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43812 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/frontend/static/igv.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58346 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.fa.fai HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58362 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58370 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/genome/MH63.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58378 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_plus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58394 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_minus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58404 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58410 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_plus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58420 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_plus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58424 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_plus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58440 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58450 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_minus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58462 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_minus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58476 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/predictions/chr7_0_32678_minus_1787851753221484273.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58478 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58494 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+08/28/2026 01:29:32 - INFO - rice_reg.core.rice_reg - RiceRegPredictor released.
+08/28/2026 01:29:32 - INFO - rice_reg.prediction_service - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2283013]

@@ -9,7 +9,7 @@
 |---|---|---|---|
 | rice_mut（变异预测/SNV） | `rice_mut` | `http://localhost:8001` | `cd rice_mut/backend && python dcs_adapter.py` |
 | rice_reg（ATAC 条件预测） | `rice_reg` | `http://localhost:7001` | `cd rice_reg/backend && python dcs_adapter.py` |
-| rice_OGR（embedding/碱基预测） | `rice_ogr`（**缺省**） | `http://localhost:8003` | `cd rice_OGR && python dcs_adapter.py` |
+| rice_OGR（embedding/碱基预测） | `rice_ogr`（**缺省**） | `http://localhost:6001` | `cd rice_OGR && python dcs_adapter.py` |
 
 ---
 
@@ -195,7 +195,7 @@ curl -s https://<dcs-host>/api/aigress/openai/OGR \
 ### 5.3 免鉴权辅助接口
 
 ```bash
-curl -s http://localhost:8003/models    # 本地直连后端:列出已注册/已加载模型
+curl -s http://localhost:6001/models    # 本地直连后端:列出已注册/已加载模型
 curl -s https://<dcs-host>/api/aigress/openai/OGR/models  # 经网关(默认路由 rice_ogr)
 ```
 
@@ -216,7 +216,7 @@ curl -s https://<dcs-host>/api/aigress/openai/OGR/models  # 经网关(默认路�
 ## 7. 部署注意
 
 - **统一网关（推荐）**：只需对外暴露一个端口（`dcs_gateway/`，默认 9000；DCS 平台注入 `PORT` 时自动覆盖）。外部统一入口 `POST /api/aigress/openai/OGR` + body `model_sub` 路由；网关不加载模型。
-- **后端端口（网关模式下）**：rice_mut 8001、rice_reg 7001、**rice_OGR 必须用 8003**（`BACKEND_PORT=8003`，与 rice_mut 错开）。
+- **后端端口（网关模式下）**：rice_mut 8001、rice_reg 7001、**rice_OGR 必须用 6001**（`BACKEND_PORT=6001`，与 rice_mut 错开）。
 - **鉴权开关**：`.env` 中 `DCS_API_KEY` 留空 = 不鉴权（仅限内网联调），上 DCS 必须配置。
 - **容器内模型路径**：DCS 容器中通过环境变量注入，如 `MODEL_1B_8k_PATH=/AI_models/rice_mut/rice_1B_stage2_8k_hf`（rice_OGR）；rice_mut/rice_reg 同理覆盖 checkpoint 路径。
 - **多卡**：rice_OGR 支持 `--device cuda:0,cuda:1 --device_map auto`；rice_mut/rice_reg 用 `CUDA_VISIBLE_DEVICES` 控制。

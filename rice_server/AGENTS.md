@@ -11,12 +11,12 @@
 rice_server/
 ├── README.md              # 索引导航(三服务定位/端口/快速开始)
 ├── AGENTS.md              # 本文档(部署/维护指南)
-├── dcs.md                 # ★ DCS 平台调用规范(三服务速查)
+├── dcs.md                 # ★ DCS 平台部署要求
 │
 ├── rice_mut/              # ★ 项目一：水稻 DNA → 多组学表达预测(变异对比)
 │   ├── .env / .env.example    # 环境配置（部署时必改）
 │   ├── requirements.txt       # 统一依赖（前后端共用）
-│   ├── README.md / DCS_API.md / DCS_API_quick_start.md
+│   ├── README.md / API.md            # 服务介绍 / API 调用文档（本机 + DCS）
 │   ├── backend/               # FastAPI 后端（端口 8001）
 │   │   ├── dcs_adapter.py     #   DCS 适配层(单入口 + mode 分发)
 │   │   ├── rice_mutation/     # 应用代码（main.py 入口 / api.py 路由 / prediction_service.py / igv_payload.py / cache_service.py）
@@ -30,7 +30,7 @@ rice_server/
 ├── rice_reg/              # ★ 项目二：水稻 ATAC-seq → RNA-seq 表达预测
 │   ├── .env / .env.example     # 环境配置（部署时必改）
 │   ├── requirements.txt        # 统一依赖（前后端共用）
-│   ├── README.md / DCS_API.md  # 使用文档 + DCS 调用文档
+│   ├── README.md / API.md            # 服务介绍 / API 调用文档（本机 + DCS）
 │   ├── backend/                # FastAPI 后端（端口 7001）
 │   │   ├── dcs_adapter.py      #   DCS 适配层(单入口 + mode 分发)
 │   │   └── rice_reg/           # 应用代码（main.py / api.py / prediction_service.py / igv_payload.py / cache_service.py）
@@ -43,8 +43,8 @@ rice_server/
 ├── rice_OGR/             # ★ 项目三：DNA embedding 提取 / 下游碱基预测(纯 API)
 │   ├── .env / .env.example    # 模型注册表(MODEL_<NAME>_*) + DCS 配置
 │   ├── dna_embedding.py       #   Sanic 原服务(本地 :8000)
-│   ├── dcs_adapter.py         #   FastAPI DCS 适配层(:8001, 单入口 + mode 分发)
-│   ├── README.md / ref_genos.md
+│   ├── dcs_adapter.py         #   FastAPI DCS 适配层(:6001, 单入口 + mode 分发)
+│   ├── README.md / API.md / ref_genos.md
 │   └── requirements.txt
 │
 ├── dcs_gateway/         # ★ 统一网关（单端口收口三个服务的 DCS API）
@@ -84,9 +84,9 @@ rice_server/
 | 核心场景 | **参考 vs 单碱基突变（SNV）双轨对比** | 不同 ATAC 条件下的表达预测 | **基模能力直接开放（embedding / 碱基预测）** |
 | 序列长度 | 32768（超出截断） | 32678（固定窗口） | 注册表 `MAX_LEN` 控制（默认 32768） |
 | 架构 | FastAPI 后端 + Gradio 前端 | FastAPI 后端 + Gradio 前端 | **纯 API**：Sanic 原服务 + FastAPI DCS 适配层 |
-| 端口（前端/后端） | **8000 / 8001** | **7000 / 7001** | **8000(Sanic) / 8001(DCS)** |
+| 端口（前端/后端） | **8000 / 8001** | **7000 / 7001** | **8000(Sanic) / 6001(DCS)** |
 
-> ⚠️ 三项目端口规划：rice_mut 用 8000/8001，rice_reg 用 7000/7001；**rice_OGR 默认 8000/8001 与 rice_mut 冲突，同机部署需错开**（见 §6）。
+> ⚠️ 三项目端口规划：rice_mut 用 8000/8001，rice_reg 用 7000/7001；**rice_OGR 的 DCS 适配层用 6001 与 rice_mut 错开**（见 §6）。
 > 三个项目的 `dcs_adapter.py` 统一采用 OpenAI 风格单入口 + body `mode` 分发；
 > **对外统一入口由 `dcs_gateway/` 收口**：外部只需 `POST /api/aigress/openai/OGR`，请求体 `model_sub` 字段路由到对应服务（详见 [dcs.md](dcs.md) §0）。
 
@@ -284,22 +284,22 @@ bash test/test_api.sh               # 完整 API 冒烟测试（需后端已启�
 |---|---|---|---|
 | rice_mut | 8000 | 8001（网页后端） | 8001（与网页后端同端口，部署时二选一） |
 | rice_reg | 7000 | 7001（网页后端） | 7001（与网页后端同端口，部署时二选一） |
-| rice_OGR | 无 | 8000（Sanic `dna_embedding.py`） | **8003**（`dcs_adapter.py`，需与 rice_mut 错开） |
+| rice_OGR | 无 | 8000（Sanic `dna_embedding.py`） | **6001**（`dcs_adapter.py`，与 rice_mut 错开） |
 | **dcs_gateway** | — | — | **9000**（单端口对外；`PORT` 注入优先） |
 
 > **统一对外入口**：DCS 平台只配置 `/api/aigress/openai/OGR` 一个转发地址 → 网关 9000；
-> 网关按请求体 `model_sub` 路由：`rice_mut`→8001、`rice_reg`→7001、`rice_ogr`（缺省）→8003。
+> 网关按请求体 `model_sub` 路由：`rice_mut`→8001、`rice_reg`→7001、`rice_ogr`（缺省）→6001。
 
-> ⚠️ **rice_mut 与 rice_OGR 都以 8000/8001 为默认** —— 同机部署二者必须错开！
-> 建议 rice_OGR 使用 `PORT=8002`（Sanic）/ **`BACKEND_PORT=8003`（DCS 适配）**，或在容器内用平台注入的 `PORT`（适配层已支持 `PORT` 优先级最高）。
+> ⚠️ **rice_mut 与 rice_OGR 的 Sanic 都以 8000 为默认** —— 但 DCS 适配层端口已错开（rice_OGR 用 6001），可直接同机部署！
+> 建议 rice_OGR 使用 `PORT=8000`（Sanic）/ **`BACKEND_PORT=6001`（DCS 适配）**，或在容器内用平台注入的 `PORT`（适配层已支持 `PORT` 优先级最高）。
 >
 > **统一网关部署（推荐）**：`dcs_gateway/` 单端口（默认 9000）收口三个后端，
 > 外部统一入口 `POST /api/aigress/openai/OGR` + body `model_sub` 分发；网关不加载模型，
-> 后端仍各自独立进程（rice_OGR 必须用 8003 与 rice_mut 错开）。
+> 后端仍各自独立进程（rice_OGR 用 6001 与 rice_mut 错开）。
 
 ### 6.2 rice_OGR 部署提醒
 
-- **无网页版**：纯 API。本地直连用 Sanic（`python dna_embedding.py` :8000），DCS 网关转发用适配层（`python dcs_adapter.py` :8001）。
+- **无网页版**：纯 API。本地直连用 Sanic（`python dna_embedding.py` :8000），DCS 网关转发用适配层（`python dcs_adapter.py` :6001）。
 - **模型注册表**：通过 `.env` 的 `MODEL_<NAME>_PATH / TYPE / MAX_LEN / SPECIAL` 声明任意数量模型，`<NAME>` 即 API 的 `model_name`（如 `1B_8k` / `1B_32k`）。
 - **DCS 单入口**：`POST /api/aigress/openai/rice_ogr`，body `mode` = `dna_embedding`（默认）/ `predict`。
 - **容器内路径**：DCS 容器内模型路径由环境变量覆盖，如

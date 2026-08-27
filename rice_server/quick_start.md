@@ -176,7 +176,7 @@ curl -X POST ${dcs_host}${dcs_entry} \
 
 ## 4. rice_OGR — embedding 提取 / 碱基预测
 
-**独立入口**：`POST ${host}:8001/api/aigress/openai/rice_ogr`（本地后端端口 8001）
+**独立入口**：`POST ${host}:6001/api/aigress/openai/rice_ogr`（本地后端端口 6001）
 **统一入口**：`POST ${dcs_host}${dcs_entry}`（`model_sub` 缺省即 `rice_ogr`，可省略）
 
 | mode | 功能 | 必填参数 | 说明 |
@@ -188,9 +188,9 @@ curl -X POST ${dcs_host}${dcs_entry} \
 > **实际模型名**用 `model_name` 指定，取平台提供的模型注册名（如 `1B_8k` / `1B_32k`）。
 
 ```bash
-# ── 方式一：独立入口（本地直连后端 :8001）──
+# ── 方式一：独立入口（本地直连后端 :6001）──
 # mode=dna_embedding：提取整条序列的 1024 维向量
-curl -X POST ${host}:8001/api/aigress/openai/rice_ogr \
+curl -X POST ${host}:6001/api/aigress/openai/rice_ogr \
   -H "Authorization: Bearer ${api_key}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -212,7 +212,7 @@ curl -X POST https://www.dcs.cloud/api/aigress/openai/rice_ogr \
   }'
 
 # mode=predict：基于前 16 bp 预测后续 8 个碱基
-curl -X POST ${host}:8001/api/aigress/openai/rice_ogr \
+curl -X POST ${host}:6001/api/aigress/openai/rice_ogr \
   -H "Authorization: Bearer ${api_key}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -266,7 +266,7 @@ curl -X POST ${dcs_host}${dcs_entry} \
 # ── 独立入口（每服务一个，本地联调 / 单独部署）────────────────
 POST ${host}:8001/api/aigress/openai/rice_mut   # rice_mut（端口 8001）
 POST ${host}:7001/api/aigress/openai/rice_reg   # rice_reg（端口 7001）
-POST ${host}:8001/api/aigress/openai/rice_ogr   # rice_OGR（端口 8001）
+POST ${host}:6001/api/aigress/openai/rice_ogr   # rice_OGR（端口 6001）
   HEADER: Authorization: Bearer ${api_key}
 
 # ── 统一网关入口（DCS 平台唯一地址）──────────────────────────
@@ -282,4 +282,5 @@ GET  ${host}/api/aigress/openai/<service>/health   # 独立入口免鉴权探活
 GET  ${dcs_host}/api/aigress/openai/OGR/health     # 统一网关聚合探活
 ```
 
-> 完整调用规范（计费/字段说明/返回结构）见 [dcs.md](dcs.md)；部署与维护见 [AGENTS.md](AGENTS.md)。
+> 三合一完整调用规范（本机 + DCS 测试代码）见 [dcs_gateway/API.md](dcs_gateway/API.md)；
+> 服务级细节见 [rice_mut/API.md](rice_mut/API.md)、[rice_reg/API.md](rice_reg/API.md)、[rice_OGR/API.md](rice_OGR/API.md)；部署与维护见 [AGENTS.md](AGENTS.md)。

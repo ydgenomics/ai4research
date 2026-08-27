@@ -1,10 +1,11 @@
 """DCS 统一网关 — 单端口收口 rice_mut / rice_reg / rice_OGR（model_sub 路由版）
 
-外部只有**唯一入口**：
+外部**统一入口**，两种路由方式（推荐 URL 路径路由）：
 
-    POST https://www.dcs.cloud/api/aigress/openai/OGR
+    POST .../api/aigress/openai/OGR/{model_sub}[/{mode}]   # URL 路径路由
+    POST .../api/aigress/openai/OGR                          # body model_sub 路由
 
-网关**不按 URL 前缀**区分服务（路径恒为 .../OGR），而是读取请求体 JSON 中
+网关优先解析 URL 路径段（model_sub / mode，可选），否则读取请求体 JSON 中
 的 `model_sub` 字段路由到三个后端 dcs_adapter 进程，并把路径重写为后端
 期望的入口（/api/aigress/openai/rice_mut 等）。
 
@@ -12,7 +13,7 @@
 
     model_sub=rice_mut  → 127.0.0.1:8001  /api/aigress/openai/rice_mut
     model_sub=rice_reg  → 127.0.0.1:7001  /api/aigress/openai/rice_reg
-    model_sub=rice_ogr  → 127.0.0.1:8003  /api/aigress/openai/rice_ogr   (缺省)
+    model_sub=rice_ogr  → 127.0.0.1:6001  /api/aigress/openai/rice_ogr   (缺省)
 
 说明：
 - 网关为轻量反向代理：**不加载任何模型、不持有 GPU**。
@@ -28,7 +29,7 @@ import asyncio
 import http.client
 import json
 import os
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -50,7 +51,7 @@ BACKENDS: Dict[str, dict] = {
     },
     "rice_ogr": {
         "host": os.getenv("RICE_OGR_HOST", "127.0.0.1"),
-        "port": int(os.getenv("RICE_OGR_PORT", "8003")),  # 与 rice_mut 错开
+        "port": int(os.getenv("RICE_OGR_PORT", "6001")),  # 与 rice_mut 错开
         "path": "/api/aigress/openai/rice_ogr",
     },
 }
@@ -76,12 +77,35 @@ app = FastAPI(
 )
 
 
-def _route(body: dict) -> Tuple[Optional[str], Optional[dict]]:
-    """按请求体 model_sub 选择后端；返回 (sub, cfg) 或 (sub, None)。"""
-    sub = str((body or {}).get("model_sub", "") or "").strip().lower()
-    if not sub:
-        sub = DEFAULT_SUB
-    return sub, BACKENDS.get(sub)
+# URL 路径路由已知 mode 集合（用于校验路径第二段是否为合法 mode）
+_KNOWN_MODES = {"predict", "snv", "genomes", "chromosomes", "dna_embedding"}
+
+
+def _parse_path(full_path: str) -> Tuple[str, str]:
+    """从 URL 路径提取路由段 (model_sub, mode)；非入口路径返回 ("", "")。
+
+    支持形式（大小写不敏感）：
+      .../api/aigress/openai/OGR/rice_mut/predict → ("rice_mut", "predict")
+      .../OGR/rice_ogr/dna_embedding             → ("rice_ogr", "dna_embedding")
+      .../OGR/health 或 .../OGR/{sub}/health       → ("", "health")（聚合健康）
+      .../OGR                                      → ("", "")（纯 body 路由）
+    未找到入口段 OGR / 无后续段时返回 ("", "")，退化为 body model_sub 路由。
+    """
+    segs = [s for s in str(full_path or "").split("/") if s]
+    try:
+        idx = next(i for i, s in enumerate(segs) if s.lower() == "ogr")
+    except StopIteration:
+        return "", ""
+    rest = segs[idx + 1:]
+    if not rest:
+        return "", ""
+    if rest[-1].lower() == "health":
+        return "", "health"
+    sub = rest[0].lower()
+    mode = rest[1].lower() if len(rest) > 1 else ""
+    if mode not in _KNOWN_MODES:
+        mode = ""  # 非合法 mode（多余路径残余）→ 不当作 mode
+    return sub, mode
 
 
 def _forward_sync(method: str, path: str, query: str,
@@ -97,8 +121,13 @@ def _forward_sync(method: str, path: str, query: str,
     return resp.status, resp.getheader("content-type", "application/json"), data
 
 
-async def _forward(request: Request) -> Response:
-    """统一转发：读 body → model_sub 路由 → 路径重写 → 透传。"""
+async def _forward(request: Request, full_path: str = "") -> Response:
+    """统一转发：URL 路径路由（推荐）+ body model_sub 路由（兼容）→ 后端。"""
+    # .../OGR/health 或 .../OGR/{sub}/health → 网关聚合健康检查
+    path_sub, path_mode = _parse_path(full_path)
+    if path_mode == "health":
+        return await aggregated_health(request)
+
     raw = await request.body()
     try:
         body: dict = json.loads(raw) if raw else {}
@@ -109,7 +138,10 @@ async def _forward(request: Request) -> Response:
             {"status": 400, "message": "请求体不是合法 JSON 对象"}, status_code=400
         )
 
-    sub, cfg = _route(body)
+    # 路由优先级：URL 路径段 > body model_sub > 缺省 rice_ogr
+    body_sub = str((body or {}).get("model_sub", "") or "").strip().lower()
+    sub = path_sub or body_sub or DEFAULT_SUB
+    cfg = BACKENDS.get(sub)
     if cfg is None:
         return JSONResponse(
             {
@@ -118,6 +150,11 @@ async def _forward(request: Request) -> Response:
             },
             status_code=400,
         )
+
+    # 路径段 mode 优先注入 body（后端单入口按 body.mode 分发）
+    if path_mode:
+        body = dict(body or {})
+        body["mode"] = path_mode
 
     # 剥离仅供路由使用的 model_sub，其余字段原样透传
     if body:
@@ -205,11 +242,11 @@ async def aggregated_health(request: Request):
     }
 
 
-# 唯一外部入口 + 其他任何路径：统一交给 model_sub 路由
+# 唯一外部入口 + 其他任何路径：URL 路径路由 / body model_sub 路由
 @app.api_route("/{full_path:path}",
                methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def gateway(request: Request, full_path: str):
-    return await _forward(request)
+    return await _forward(request, full_path)
 
 
 if __name__ == "__main__":

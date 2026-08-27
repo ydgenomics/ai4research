@@ -2,6 +2,8 @@
 
 水稻 DNA 序列 → 多组学表达预测服务。基于深度学习模型(GenOmics: rice_1B_stage2_8k_hf 基础模型 + UNet 输出头),输入 DNA 序列预测 RNA-seq 表达谱,支持**参考 vs 突变**双轨道对比,通过 IGV.js 可视化展示。
 
+> **API 调用（本机 + DCS）见 [API.md](API.md)**。
+
 ## 与 rice-reg-server2 的区别
 
 | 维度 | rice-reg-server2 | rice-mutation-server(本项目) |
@@ -122,6 +124,10 @@ tail -f frontend/logs/frontend.nohup.log
 
 ## API 文档
 
+完整 API 调用说明（本机 + DCS 两套测试代码）见 **[API.md](API.md)**。
+
+简要接口一览（网页版后端 `:8001`，DCS 适配层 `backend/dcs_adapter.py` 亦兼容）：
+
 | 接口 | 方法 | 说明 |
 |---|---|---|
 | `/health` | GET | 健康检查 + 模型元信息 |
@@ -136,86 +142,4 @@ tail -f frontend/logs/frontend.nohup.log
 | `/predict/snv/stat` | POST | 按 `snv_id` 对窗口内区域计算 (result1−result2)/result1 差异统计 |
 | `/predict/bar` | POST | 按 `prediction_id` 计算当前区域各轨道平均表达量(前端柱状图数据) |
 
-### 请求示例
-
-```bash
-# 参考预测
-curl -X POST http://127.0.0.1:8001/predict \
-  -H "Content-Type: application/json" \
-  -d '{"genome":"osa1_r7","chromosome":"chr01","start":0,"end":32000,
-       "biosample_names":["NIP_CSQ"]}'
-
-# 上传自定义基因组(自动建 .fai 并注册,返回 genome id + 染色体列表)
-curl -X POST -F "file=@/path/to/custom_genome.fa" http://127.0.0.1:8001/uploadFasta
-# → {"success":true, "genome":"custom_<ts>", "chromosomes":["chr01", ...], ...}
-
-# 上传注释 GFF(附加到上面注册的自定义基因组,IGV 将显示 Genes 轨道)
-curl -X POST -F "genome=custom_<ts>" -F "file=@/path/to/annotation.gff3" http://127.0.0.1:8001/uploadGff
-# → {"success":true, "genome":"custom_<ts>", "gff_path":"...", ...}
-
-# 用自定义基因组预测(优先级高于内嵌)
-curl -X POST http://127.0.0.1:8001/predict \
-  -H "Content-Type: application/json" \
-  -d '{"genome":"custom_<ts>","chromosome":"chr01","start":0,"end":32000,
-       "biosample_names":["NIP_CSQ"]}'
-
-# 单碱基突变对比(窗口内第 16000 个碱基 C→A)
-curl -X POST http://127.0.0.1:8001/predict/snv \
-  -H "Content-Type: application/json" \
-  -d '{"genome":"osa1_r7","chromosome":"chr01","start":0,"end":32000,
-       "biosample_names":["NIP_CSQ"],"snv_index":16000,"snv_base":"A"}'
-# → {"success":true, "metadata":{"snv_id":"snv_...", "ref_base":"C", "snv_base":"A",
-#     "snv_index":16000, "window_len":32768, "window_start":0}, "igv_payload":{...}}
-
-# 区域差异统计(窗口内 5000–20000)
-curl -X POST http://127.0.0.1:8001/predict/snv/stat \
-  -H "Content-Type: application/json" \
-  -d '{"snv_id":"snv_...","region_start":5000,"region_end":20000}'
-# → {"success":true, "region":[5000,20000],
-#     "stats":{"total_diff_pct":-0.56, "mean_diff_pct":-0.56,
-#               "max_diff_index":16159, "max_abs_diff":-0.2344,
-#               "max_diff_pct":-8.47, "region_len":15000}, ...}
-```
-
-### 响应结构
-
-```json
-{
-  "success": true,
-  "message": "Prediction completed in 1.6s",
-  "elapsed_seconds": 1.59,
-  "igv_payload": {
-    "reference": {"id": "osa1_r7", "fastaURL": "http://.../static-files/...", "tracks": [...]},
-    "locus": "Chr1:0-32,768",
-    "tracks": [
-      {"name": "NIP_CSQ total_RNA-seq_+", "url": "http://.../xxx_ref_xxx.bw", ...}
-    ]
-  }
-}
-```
-
-## 测试
-
-```bash
-bash test/test_api.sh
-```
-
-## 关键配置(`.env`)
-
-- `BASE_MODEL_PATH` / `CHECKPOINT_PATH` / `INDEX_STAT_PATH`:基础模型(HF)、权重、index_stat
-- `USE_FLASH_ATTN=true`、`MODEL_TORCH_DTYPE=bfloat16`、`DEVICE=cuda:0`
-- `PROJ_DIM=1024`、`NUM_DOWNSAMPLES=4`、`BOTTLENECK_DIM=1536`(GenOmics 参数,须与 checkpoint 训练一致)
-- `MAX_SEQ_LEN=32768`
-- `GENOME_<ID>_FASTA/FAI/GFF`:参考基因组
-- `MAX_UPLOAD_MB`:自定义基因组 FASTA/GFF 上传大小上限(单位 MB,默认 640)
-- 缓存路径**必须用绝对路径**
-
-## 已知限制
-
-- 整段突变序列对比(MVP 旧接口)已移除;现在仅支持**单碱基突变**(`/predict/snv`),原始 mut 序列仅用于内部计算,不直接作为模型输入
-- 预测结果缓存:内容寻址 LRU(128 条)+ TTL 30 分钟;命中直接返回(`message="cached"`),不重复推理;过期条目及其 bigWig 由后台线程自动清理
-- SNV/参考数组保存在后端内存缓存(`_SNV_CACHE`/`_REF_CACHE`,最多 256 条,最旧淘汰);服务重启后 `prediction_id` 失效,需重新预测
-- 上传的自定义基因组仅本次服务运行有效(内存注册表,重启后需重新上传;`cache/uploaded_genomes/` 启动时清理)
-- 预测窗口中心对齐到 `MAX_SEQ_LEN`(32768),参考序列超出截断;SNV position 为窗口内绝对坐标(1-based)
-- 模型输出由 `GenOmics.forward` 内部完成反归一化,服务端直接写 bigWig
-- GPU 推理为单实例 + 全局锁串行化(并发安全);动态批处理等吞吐优化为后续迭代项
+> 网页版请求/响应示例见 `test/test_api.sh`；DCS 适配层（单入口 + mode 分发）的调用方式见 [API.md](API.md)。

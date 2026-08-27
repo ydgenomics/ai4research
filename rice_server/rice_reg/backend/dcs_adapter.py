@@ -155,21 +155,21 @@ def _parse_common(body: dict):
         genomes = list_genomes()
         genome = genomes[0] if genomes else ""
     if not genome:
-        raise RequestError("缺少必填参数 'genome',并且没有可用的默认基因组")
+        raise RequestError("Missing required parameter 'genome' and no default genome available")
     chromosome = str(body.get("chromosome", "") or "chr01")
     if "start" not in body:
-        raise RequestError("缺少必填参数 'start'(1-based)")
+        raise RequestError("Missing required parameter 'start' (1-based)")
     start_1 = int(body["start"])
     end_1 = body.get("end")
     end_1 = int(end_1) if end_1 is not None else None
     atac_source = str(body.get("atac_source", "") or "").strip() or None
     uploaded_atac = str(body.get("uploaded_atac", "") or "").strip() or None
     if not atac_source and not uploaded_atac:
-        raise RequestError("缺少 ATAC 输入:需提供 'atac_source'(内置)或 'uploaded_atac'(文件路径)")
+        raise RequestError("Missing ATAC input: provide 'atac_source' (built-in) or 'uploaded_atac' (file path)")
     output_format = str(body.get("output_format", "full")).lower()
     if output_format not in ("full", "mean", "downsample"):
         raise RequestError(
-            f"output_format 必须是 full/mean/downsample,收到 '{output_format}'"
+            f"output_format must be full/mean/downsample, got '{output_format}'"
         )
     max_points = int(body.get("max_points", 1024))
     return genome, chromosome, start_1, end_1, atac_source, uploaded_atac, output_format, max_points
@@ -224,10 +224,10 @@ def _check_api_key(authorization: str | None = None, x_api_key: str | None = Non
     if not key and x_api_key:
         key = x_api_key.strip()
     if key != DCS_API_KEY:
-        raise RequestError("无效或缺失的 API Key")
+        raise RequestError("Invalid or missing API Key")
 
 
-def _unauthorized(message: str = "无效或缺失的 API Key"):
+def _unauthorized(message: str = "Invalid or missing API Key"):
     return {
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         "status": 401,
@@ -423,7 +423,7 @@ def _mode_from_body(body: dict) -> str:
     DCS 平台只允许一个转发地址,无法使用 /health、/genomes 等子路径,
     因此通过请求体字段区分调用模式:
       mode == "health"      → health(健康检查)
-      mode == "genomes"     → genomes(基因组列表)
+      mode == "genomes"     → genomes(Genome list)
       mode == "chromosomes" → chromosomes(指定基因组的染色体列表)
       mode == "predict"     → predict(ATAC→RNA-seq 表达预测)
       未指定 mode 时按字段自动推断:
@@ -458,7 +458,7 @@ async def single_entry(
     try:
         body = await req.json()
     except Exception:
-        return _err("请求体不是合法 JSON", 400)
+        return _err("Request body is not valid JSON", 400)
 
     mode = _mode_from_body(body)
     if mode == "health":
@@ -469,7 +469,7 @@ async def single_entry(
         return await _chromosomes_inner(req, body, authorization, x_api_key)
     if mode not in PREDICT_MODES:
         return _err(
-            f"未知 mode '{mode}',必须是 health/genomes/chromosomes/predict", 400
+            f"Unknown mode '{mode}', must be health/genomes/chromosomes/predict", 400
         )
     return await _predict_inner(req, body, authorization, x_api_key)
 
@@ -491,7 +491,7 @@ async def _genomes_inner(
         genomes = []
     return _ok(
         usage=_usage(0, 0),
-        message="基因组列表",
+        message="Genome list",
         result={"model": "rice_reg", "genomes": genomes},
     )
 
@@ -510,15 +510,15 @@ async def _chromosomes_inner(
     try:
         genome = str(body.get("genome", "") or "")
         if not genome:
-            raise RequestError("缺少必填参数 'genome'")
+            raise RequestError("Missing required parameter 'genome'")
         genome_config = resolve_genome_config(genome)
         chroms = get_genome_chromosomes(genome, genome_config)
     except RequestError as e:
-        return _err(f"查询染色体失败: {e}", 400, detail={"request": _summarize_body(body)})
+        return _err(f"Chromosome query failed: {e}", 400, detail={"request": _summarize_body(body)})
     except Exception as e:
         traceback.print_exc()
         return _err(
-            f"查询染色体失败: {e}", 500,
+            f"Chromosome query failed: {e}", 500,
             detail={
                 "error_type": e.__class__.__name__,
                 "traceback": traceback.format_exc()[-2000:],
@@ -527,7 +527,7 @@ async def _chromosomes_inner(
         )
     return _ok(
         usage=_usage(0, 0),
-        message="染色体列表",
+        message="Chromosome list",
         result={"model": "rice_reg", "genome": genome, "chromosomes": chroms},
     )
 
@@ -550,7 +550,7 @@ async def _predict_inner(
 
     if _INIT_ERROR:
         return _err(
-            f"预测器初始化失败,无法推理: {_INIT_ERROR['error']}", 503,
+            f"Predictor initialization failed, cannot inference: {_INIT_ERROR['error']}", 503,
             detail={"init_error": _INIT_ERROR, "request": _summarize_body(body)},
         )
 
@@ -588,25 +588,25 @@ async def _predict_inner(
         plus = result["values"].get("RNA-seq_+")
         minus = result["values"].get("RNA-seq_-")
         if plus is None or minus is None:
-            raise RuntimeError("预测器未返回 RNA-seq +/- 数值(可能窗口内无有效区域)")
+            raise RuntimeError("Predictor did not return RNA-seq +/- values (no valid region in window)")
     except RequestError as e:
         return _err(
-            f"预测失败: {e}", 400,
+            f"Prediction failed: {e}", 400,
             detail={"request": _summarize_body(body)},
         )
     except FileNotFoundError as e:
         return _err(
-            f"预测失败: {e}", 404,
+            f"Prediction failed: {e}", 404,
             detail={"request": _summarize_body(body)},
         )
     except ValueError as e:
         return _err(
-            f"预测失败: {e}", 400,
+            f"Prediction failed: {e}", 400,
             detail={"request": _summarize_body(body)},
         )
     except RuntimeError as e:
         return _err(
-            f"预测失败: {e}", 500,
+            f"Prediction failed: {e}", 500,
             detail={
                 "error_type": e.__class__.__name__,
                 "traceback": traceback.format_exc()[-2000:],
@@ -616,7 +616,7 @@ async def _predict_inner(
     except Exception as e:
         traceback.print_exc()
         return _err(
-            f"预测失败: {e}", 500,
+            f"Prediction failed: {e}", 500,
             detail={
                 "error_type": e.__class__.__name__,
                 "traceback": traceback.format_exc()[-2000:],
@@ -628,7 +628,7 @@ async def _predict_inner(
     completion_tokens = _count_elements(plus, minus)
     return _ok(
         usage=_usage(prompt_tokens, completion_tokens),
-        message="ATAC→RNA-seq 表达预测成功",
+        message="ATAC→RNA-seq expression prediction succeeded",
         result={
             "model": "rice_reg",
             "genome": genome,
@@ -655,7 +655,7 @@ async def _debug_echo_path(request: Request, full_path: str):
     return {
         "debug_received_path": f"/{full_path}",
         "method": request.method,
-        "note": "请求已到达 dcs_adapter(网关确实把请求转了过来)",
+        "note": "request reached dcs_adapter (gateway forwarded correctly)",
     }
 
 
