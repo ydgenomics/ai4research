@@ -120,4 +120,13 @@ curl -X POST https://cloud.stomics.tech/api/aigress/openai/predict/log \
        "task_id": "20260901-074844-76345793",
        "lines": 100
      }'
+
+curl -X POST https://cloud.stomics.tech/api/aigress/openai/predict/log \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer sk-qe1sUERFblU2KU0RahyZ2qtxzuz7hPUCQfI4ssm28YRm11ev" \
+     -d '{
+       "model": "Oriongeno",
+       "task_id": "20260820-073602-4ccb2b57",
+       "lines": 100
+     }'
 ```
