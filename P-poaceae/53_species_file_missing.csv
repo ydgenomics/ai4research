@@ -1,0 +1,34 @@
+group,No.Genome,No.species,Species,Filename,annotation_file,annotation_file_0813,Genome links,Annotation links,0828_Huada_update_Genome,0828_Huada_update_Annotation,remark
+原始-缺注释,31,18,Agrostis castellana,GCA_050573615.1_ASM5057361v1_genomic.fna.gz,NA,,/mnt/rice/data/Poaceae_Fan_longjiang/genome/GCA_050573615.1_ASM5057361v1_genomic.fna.gz,NA,,,缺失注释文件
+原始-缺注释,32,19,Agrostis congestiflora,GCA_050573515.1_ASM5057351v1_genomic.fna.gz,NA,,/mnt/rice/data/Poaceae_Fan_longjiang/genome/GCA_050573515.1_ASM5057351v1_genomic.fna.gz,NA,,,缺失注释文件
+原始-缺注释,213,106,Festuca petraea,GCA_051419415.1_ASM5141941v1_genomic.fna.gz,NA,,/mnt/rice/data/Poaceae_Fan_longjiang/genome/GCA_051419415.1_ASM5141941v1_genomic.fna.gz,NA,,,缺失注释文件
+原文件不匹配-HUADA更新,1,1,Achnatherum splendens,GWHBHQB00000000.genome.fasta.gz,GWHBHQB00000000.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,44,29,Arundinella anomala,GCA_055504895.1_ASM5550489v1_genomic.fna.gz,Arundinella_anomala_all_chr_evm.out.HC.TE-filter.gff3,,/mnt/rice/data/Poaceae_Fan_longjiang/huada_update/Arundinella_anomala/GCA_055504895.1_ASM5550489v1_genomic.fna.gz,NA,Yes,No,缺注释
+原文件不匹配-HUADA更新,170,71,Chasmanthium latifolium,GWHFGPT00000000.1.genome.fasta.gz,GWHFGPT00000000.1.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,173,74,Cleistogenes songorica,GWHANUQ00000000.genome.fasta.gz,GWHANUQ00000000.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,186,84,Dichanthelium oligosanthes,GCA_001633215.2_ASM163321v2_genomic.fna.gz,GCA_001633215.2_ASM163321v2_genomic.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,189,86,Digitaria milanjiana,GWHGGEZ00000000.1.genome.fasta.gz,GWHGGEZ00000000.1.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,193,89,Echinochloa colona,GWHBDNQ00000000.genome.fasta.gz,GWHBDNQ00000000.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,196,91,Echinochloa haploclada,EH.fasta.gz,EH.gff3.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,198,92,Echinochloa oryzicola,GWHBDNS00000000.genome.fasta.gz,GWHBDNS00000000.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,200,94,Eleusine coracana,GCA_032690845.1_Eleusine_coracana_v1.0_genomic.fna.gz,GCA_032690845.1_Eleusine_coracana_v1.0_genomic.gff.gz,,NA,NA,No,No,"FTP目录未下载; 异名可匹配Eleusine_coracana_subsp._coracana(同一组装GCA_032690845.1,高置信,待补下载)"
+原文件不匹配-HUADA更新,210,103,Eriochloa villosa,GWHITIV00000000.1.genome.fasta.gz,GWHITIV00000000.1.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,212,105,Festuca glaucescens,GCA_052817425.1_IPG_FesGla_1_genomic.fna.gz,Festuca_glaucescens_GCA_052817425.1_IPG_FesGla_1_genomic.gtf,Festuca_glaucescens\Festuca_glaucescens_GCA_052817425.1_IPG_FesGla_1_genomic.gtf,NA,/mnt/rice/data/Poaceae_Fan_longjiang/huada_update/Festuca_glaucescens/Festuca_glaucescens_GCA_052817425.1_IPG_FesGla_1_genomic.gtf,No,Yes,缺基因组
+原文件不匹配-HUADA更新,237,116,Hordeum spontaneum,Chromosome_EC_S1.fasta.gz,EC-S1_pseudomolecules_V1.high_confidence.gff,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,313,119,Hygroryza aristata,GWHFGLW00000000.1.genome.fasta.gz,GWHFGLW00000000.1.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,320,124,Leymus chinensis,Lc6_hap_resolved_genome.fa.gz,Lc6.combined.gff3.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,325,127,Lolium multiflorum cv. 'Rabiosa',GCA_030979885.1_Rabiosa_unphased_assembly_genomic.fna.gz,GCA_030979885.1_Rabiosa_unphased_assembly_genomic.gff.gz,,NA,NA,No,No,"FTP目录未下载; 异名可匹配Lolium_multiflorum(同accession GCA_030979885.1,但FTP基因组为0字节且无注释,暂不可用)"
+原文件不匹配-HUADA更新,327,128,Lolium perenne,GCA_019359855.2_Kyuss_2.0_genomic.fna.gz,GCA_019359855.2_Kyuss_2.0_genomic.gff.gz,,/mnt/rice/data/Poaceae_Fan_longjiang/huada_update/Lolium_perenne/GCA_019359855.2_Kyuss_2.0_genomic.fna.gz,NA,Yes,No,缺注释
+原文件不匹配-HUADA更新,330,129,Lolium rigidum,GCA_022539505.1_APGP_CSIRO_Lrig_0.1_genomic.fna.gz,GCF_022539505.1_APGP_CSIRO_Lrig_0.1_genomic.gff.gz,,/mnt/rice/data/Poaceae_Fan_longjiang/huada_update/Lolium_rigidum/GCA_022539505.1_APGP_CSIRO_Lrig_0.1_genomic.fna.gz,NA,Yes,No,缺注释
+原文件不匹配-HUADA更新,333,132,Miscanthus floridulus,GCA_019320115.1_ASM1932011v1_genomic.fna.gz,GCF_019320115.1_ASM1932011v1_genomic.gff.gz,,/mnt/rice/data/Poaceae_Fan_longjiang/huada_update/Miscanthus_floridulus/GCA_019320115.1_ASM1932011v1_genomic.fna.gz,NA,Yes,No,缺注释
+原文件不匹配-HUADA更新,334,133,Miscanthus lutarioriparius,GCA_904845875.1_Mlu_assembly_genomic.fna.gz,GCA_904845875.1_Mlu_assembly_genomic.gff.gz,,/mnt/rice/data/Poaceae_Fan_longjiang/huada_update/Miscanthus_lutarioriparius/GCA_904845875.1_Mlu_assembly_genomic.fna.gz,NA,Yes,No,缺注释
+原文件不匹配-HUADA更新,345,139,Orinus kokonorica,GWHFAJP00000000.1.genome.fasta.gz,GWHFAJP00000000.1.gff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,390,153,Oryza granulata,GWHAAKB00000000.genome.fasta.gz,1.gene_structure.gff3,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,404,159,Oryza meyeriana,GCA_047899645.1_ASM4789964v1_genomic.fna.gz,GCA_047899645.1_ASM4789964v1_genomic.gbff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,1005,177,Pennisetum giganteum,Pgi_genome.fasta.gz,Pgi_gene.gff3.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,1020,179,Pennisetum purpureum,elepant_grass_genome.fasta,elephant_grass_genome.gff,,NA,NA,No,No,"FTP目录未下载; 异名可匹配Cenchrus_purpureus(同种不同组装,CSV中Cenchrus purpureus行已下载GCA_022644695.1,与本行figshare组装不同,暂不对接)"
+原文件不匹配-HUADA更新,1043,194,Puccinellia tenuiflora,GCA_012064385.1_Puccinellia tenuiflora refer 1.0_genomic.fna.gz,Ptenuiflora_genome_V1.gff3.gz,,NA,NA,No,No,基因组文件为空; 缺注释
+原文件不匹配-HUADA更新,1257,219,Sporobolus pyramidalis,Sporobolus_pyramidalis.fa,Sporobolus_pyramidalis_annos1-cds0-id_typename-nu1-upa1-add_chr0.gid54807.gff,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,1258,220,Sporobolus stapfianus,Sporobolus_stapfianus_Resurrection_Grass.fa,Sporobolus_stapfianus_Resurrection_Grass_annos1-cds0-id_typename-nu1-upa1-add_chr0.gid54805.gff,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,1262,224,Streptochaeta angustifolia,GCA_020804685.1_ISU_Sangustifolia_v1_genomic.fna.gz,GCA_020804685.1_ISU_Sangustifolia_v1_genomic.gbff.gz,,NA,NA,No,No,FTP目录未下载
+原文件不匹配-HUADA更新,1270,230,Thysanolaena latifolia,GWHFHFW00000000.1.genome.fasta.gz,GWHFHFW00000000.1.gff.gz,,NA,NA,No,No,FTP目录未下载

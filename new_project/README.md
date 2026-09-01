@@ -18,6 +18,9 @@ https://alidocs.dingtalk.com/i/nodes/MNDoBb60VLrdNBAoFm4evgz28lemrZQ3?iframeQuer
 - 方案二：基模（微调后冻住）+下游头
 - 方案三：基模（微调后不冻）+下游头
 
+
+不同类别的序列提取embedding后umap，评价其模型的能力
+
 参考文献
 - Liu, T., Zhang, X., Lin, J., Pinello, L., Ying, R., & Zhao, H. (2025). Pre-training Genomic Language Model with Variants for Better Modeling Functional Genomics. bioRxiv : the preprint server for biology, 2025.02.26.640468. https://doi.org/10.1101/2025.02.26.640468
 - Lin, J. et al. EPInformer: scalable and integrative prediction of gene expression from promoter-enhancer sequences with multimodal epigenomic profiles. Nat. Commun. https://doi.org/10.1038/s41467026-70535-8 (2026).
