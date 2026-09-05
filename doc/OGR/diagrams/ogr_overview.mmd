@@ -1,0 +1,16 @@
+flowchart TD
+    subgraph STAGE1["阶段一：预训练（Megatron-LM, 128 GPU）"]
+        A["422 个水稻基因组<br/>栽培稻 + 野生稻泛基因组<br/>QC 过滤（BUSCO/N50 等）"] --> B["核苷酸级 Tokenizer<br/>A / T / C / G / N + 特殊 token"]
+        B --> C["Next-Token Prediction (NTP)<br/>上下文渐进扩展：8K → 32K → 128K → 1M<br/>Global Batch 1024 · AdamW · lr 1e-4 · BF16"]
+    end
+    C --> D["OGR-1.25B 基础模型<br/>MoE 8 experts × top-2 · 12 层<br/>GQA 16 heads / 8 KV · RoPE base 50M<br/>总参数 1.25B / 激活 0.33B"]
+
+    subgraph STAGE2["阶段二：下游微调与评测"]
+        E["微调（HF Transformers + DDP）"]
+        D --> E
+        E --> F1["应用 1：籼粳渗入鉴定<br/>8kb 嵌入 + 随机森林<br/>ACC 0.804 / AUC 0.794"]
+        E --> F2["应用 2：性状关联位点<br/>双向注意力信号 + 组间检验"]
+        E --> F3["应用 3：DNA → RNA-seq<br/>GenOmics = 冻结编码器 + U-Net 回归头<br/>Pearson（minus 链）：训练 0.93–0.98<br/>跨品种 0.45–0.88"]
+        E --> F4["应用 4：DNA + ATAC → RNA-seq<br/>交叉注意力融合预测器<br/>单碱基 PCC 平均 0.94"]
+        D --> G["RiceBenchmark 基准评测<br/>26 类任务中 16 类排前 2<br/>强项：染色质可及性 / 组蛋白修饰 / smallRNA<br/>弱项：单核苷酸级 / poly(A) / 基因表达"]
+    end

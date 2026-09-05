@@ -1,8 +1,8 @@
-# dcs_gateway API 调用文档（三合一统一入口）
+# dcs_gateway API 调用文档（四合一统一入口）
 
-> 本文件是 rice_server 三个服务（rice_mut / rice_reg / rice_OGR）**经统一网关调用的唯一完整 API 文档**，
+> 本文件是 rice_server 四个服务（rice_mut / rice_reg / rice_intro / rice_OGR）**经统一网关调用的唯一完整 API 文档**，
 > 含 **本机（localhost）测试** 与 **DCS 平台测试** 两套可直接复制的 curl 代码。
-> 三合一内容（URL 路径路由 + body 字段路由）只出现在本文件；各服务 README 不介绍 API，
+> 四合一内容（URL 路径路由 + body 字段路由）只出现在本文件；各服务 README 不介绍 API，
 > 服务级细节（参数表/返回结构/计费）见各服务 `API.md`。
 
 ---
@@ -20,15 +20,15 @@
 POST {host}/api/aigress/openai/OGR/{model_sub}[/{mode}]
 ```
 
-- **`model_sub` 路径段**选服务：`rice_mut` / `rice_reg` / `rice_ogr`
+- **`model_sub` 路径段**选服务：`rice_mut` / `rice_reg` / `rice_intro` / `rice_ogr`
   （缺省默认 `rice_ogr`，即主服务 embedding/碱基预测）。
 - **`mode` 路径段**选服务内功能（可省略，缺省由后端自动推断）：
   `/OGR/rice_ogr/{dna_embedding,predict}`、`/OGR/rice_mut/{predict,snv}`、
-  `/OGR/rice_reg/{predict,genomes,chromosomes}`，`/OGR/{sub}/health` 返回网关聚合健康状态。
+  `/OGR/rice_reg/{predict,genomes,chromosomes}`、`/OGR/rice_intro/{predict}`，`/OGR/{sub}/health` 返回网关聚合健康状态。
 - 路径段只用于路由，**不传给后端**；其余字段（`sequence`/`start`/`genome`/…）与
   请求头（`Authorization`/`X-API-Key`）原样透传，后端计费/错误语义不变。
-- 网关为轻量反代（`dcs_gateway/app.py`），**不加载模型**：三个模型仍由各自后端进程加载。
-- 网关探活：`GET/POST /OGR/health`（或 `/health`、`/api/aigress/openai/health`）返回三个后端的聚合状态。
+- 网关为轻量反代（`dcs_gateway/app.py`），**不加载模型**：四个模型仍由各自后端进程加载。
+- 网关探活：`GET/POST /OGR/health`（或 `/health`、`/api/aigress/openai/health`）返回四个后端的聚合状态。
 
 > **`model` 字段说明**：rice_OGR 后端仍以 `model_name` 指定实际模型名（如 `1B_8k`）；
 > `model_sub` 是**网关专用**的二级路由字段，不要与后端 `model`/`model_name` 混淆。
@@ -41,9 +41,10 @@ POST {host}/api/aigress/openai/OGR/{model_sub}[/{mode}]
 |---|---|---|---|
 | `rice_mut` | rice_mut（变异对比表达预测） | `127.0.0.1:8001` | `predict` / `snv` |
 | `rice_reg` | rice_reg（ATAC 条件表达预测） | `127.0.0.1:7001` | `predict` / `genomes` / `chromosomes` |
+| `rice_intro` | rice_intro（粳/籼血缘渗入分析） | `127.0.0.1:5001` | `predict` |
 | `rice_ogr`（**缺省**） | rice_OGR（embedding / 碱基预测） | `127.0.0.1:6001`（`.env` 可改） | `predict` / `dna_embedding` |
 
-> 端口以 `dcs_gateway/.env` 的 `RICE_*_PORT` 为准；默认 rice_mut=8001、rice_reg=7001、rice_OGR=6001。
+> 端口以 `dcs_gateway/.env` 的 `RICE_*_PORT` 为准；默认 rice_mut=8001、rice_reg=7001、rice_intro=5001、rice_OGR=6001。
 > 网关自身监听：`GATEWAY_PORT`（默认 9000）；DCS 平台注入 `PORT` 时自动覆盖。
 
 ---
@@ -52,7 +53,7 @@ POST {host}/api/aigress/openai/OGR/{model_sub}[/{mode}]
 
 ### 3.1 返回结构
 
-三个服务返回结构一致：
+四个服务返回结构一致：
 
 ```json
 {
@@ -80,8 +81,8 @@ POST {host}/api/aigress/openai/OGR/{model_sub}[/{mode}]
 | HTTP | 场景 | 排查 |
 |---|---|---|
 | 400 | 参数缺漏/格式错 | 检查 `mode`、必填参数（如 rice_mut 的 `start`）、序列命名 `chr01-12` 与长度上限 |
-| 400 | mode 不在白名单 | 见各服务 MODES 常量：rice_mut=`predict,snv`；rice_reg=`health,genomes,chromosomes,predict`；rice_OGR=`dna_embedding,predict` |
-| 400 | 未知 `model_sub` | `model_sub` 只能是 `rice_mut` / `rice_reg` / `rice_ogr` |
+| 400 | mode 不在白名单 | 见各服务 MODES 常量：rice_mut=`predict,snv`；rice_reg=`health,genomes,chromosomes,predict`；rice_intro=`health,predict`；rice_OGR=`dna_embedding,predict` |
+| 400 | 未知 `model_sub` | `model_sub` 只能是 `rice_mut` / `rice_reg` / `rice_intro` / `rice_ogr` |
 | 401 | 鉴权失败 | 带 `Authorization: Bearer <key>` 或 `X-API-Key: <key>`；检查 `.env` 的 `DCS_API_KEY` |
 | 500 | 推理异常 | 看 `result`/日志 traceback；模型路径、dtype/device 是否可用 |
 | 502 | 后端不可达 / 超时 | `message: gateway: backend … unreachable`；检查后端进程/端口 |
@@ -94,21 +95,21 @@ POST {host}/api/aigress/openai/OGR/{model_sub}[/{mode}]
 ```bash
 # ── 本机 ──
 curl -s http://127.0.0.1:9000/health | python3 -m json.tool
-# → {"status":"ok|degraded","services":{"rice_mut":{...},"rice_reg":{...},"rice_ogr":{...}}}
+# → {"status":"ok|degraded","services":{"rice_mut":{...},"rice_reg":{...},"rice_intro":{...},"rice_ogr":{...}}}
 
 # ── DCS ──
 curl -s https://www.dcs.cloud/api/aigress/openai/OGR/health | python3 -m json.tool
 ```
 
-返回 `status`（`ok`/`degraded`）+ 三个后端的 `reachable`/`predictor_initialized`/`init_error`。
+返回 `status`（`ok`/`degraded`）+ 四个后端的 `reachable`/`predictor_initialized`/`init_error`。
 各后端 `/health` 的 `init_error` **必须为 `null`**（非 null 表示模型加载失败）。
 
 ---
 
 ## 5. 本机（localhost）测试
 
-前提：`bash dcs_gateway/start_all.sh`（或手动启动三个后端 + 网关）已就绪，
-网关在 `127.0.0.1:9000`，三个后端均在 `127.0.0.1`（rice_mut 8001 / rice_reg 7001 / rice_OGR 6001）。
+前提：`bash dcs_gateway/start_all.sh`（或手动启动四个后端 + 网关）已就绪，
+网关在 `127.0.0.1:9000`，四个后端均在 `127.0.0.1`（rice_mut 8001 / rice_reg 7001 / rice_intro 5001 / rice_OGR 6001）。
 本机 `.env` 未配置 `DCS_API_KEY` 时无需 `Authorization` 头。
 
 ```bash
@@ -170,7 +171,24 @@ curl -X POST ${GW}/rice_reg/chromosomes  -H "Content-Type: application/json" \
   -d '{"genome":"MH63RS3"}' | python3 -m json.tool
 ```
 
-### 5.4 rice_OGR：embedding（model_sub 缺省即 rice_ogr）
+### 5.4 rice_intro：粳/籼血缘渗入分析
+
+```bash
+curl -X POST ${GW}/rice_intro/predict \
+  -H "Authorization: Bearer ${api_key}" -H "Content-Type: application/json" \
+  -d '{
+    "genome": "YF47",
+    "chromosome": "Chr01",
+    "start": 100001,
+    "end": 356001
+  }' | python3 -m json.tool
+# 整条模式（窗口数受后端 MAX_NUMBER_256W 限制）
+curl -X POST ${GW}/rice_intro/predict \
+  -H "Authorization: Bearer ${api_key}" -H "Content-Type: application/json" \
+  -d '{"genome": "YF47", "chromosome": "Chr01"}' | python3 -m json.tool
+```
+
+### 5.5 rice_OGR：embedding（model_sub 缺省即 rice_ogr）
 
 ```bash
 curl -X POST ${GW}/rice_ogr/dna_embedding \
@@ -193,7 +211,7 @@ curl -X POST ${GW}/rice_ogr/predict \
   }' | python3 -m json.tool
 ```
 
-### 5.5 兼容：body 字段路由（旧式，完全等价）
+### 5.6 兼容：body 字段路由（旧式，完全等价）
 
 ```bash
 curl -X POST ${GW} \
@@ -274,7 +292,20 @@ curl -X POST ${dcs_host}${dcs_entry}/rice_reg/predict \
   }' | python3 -m json.tool
 ```
 
-### 6.5 rice_OGR：embedding 提取（model_sub 缺省即 rice_ogr）
+### 6.5 rice_intro：粳/籼血缘渗入分析
+
+```bash
+curl -X POST ${dcs_host}${dcs_entry}/rice_intro/predict \
+  -H "Authorization: Bearer ${dcs_api_key}" -H "Content-Type: application/json" \
+  -d '{
+    "genome": "YF47",
+    "chromosome": "Chr01",
+    "start": 100001,
+    "end": 356001
+  }' | python3 -m json.tool
+```
+
+### 6.6 rice_OGR：embedding 提取（model_sub 缺省即 rice_ogr）
 
 ```bash
 curl -X POST ${dcs_host}${dcs_entry}/rice_ogr/dna_embedding \
@@ -286,7 +317,7 @@ curl -X POST ${dcs_host}${dcs_entry}/rice_ogr/dna_embedding \
   }' | python3 -m json.tool
 ```
 
-### 6.6 rice_OGR：下游碱基预测
+### 6.7 rice_OGR：下游碱基预测
 
 ```bash
 curl -X POST ${dcs_host}${dcs_entry}/rice_ogr/predict \
@@ -298,7 +329,7 @@ curl -X POST ${dcs_host}${dcs_entry}/rice_ogr/predict \
   }' | python3 -m json.tool
 ```
 
-### 6.7 兼容：body 字段路由（旧式）
+### 6.8 兼容：body 字段路由（旧式）
 
 ```bash
 curl -X POST ${dcs_host}${dcs_entry} \
@@ -322,6 +353,7 @@ curl -X POST ${dcs_host}${dcs_entry} \
 |---|---|---|
 | rice_mut | 参数表 / 返回结构 / 计费 / 排查 | [rice_mut/API.md](../rice_mut/API.md) |
 | rice_reg | 参数表 / 返回结构 / 计费 / 排查 | [rice_reg/API.md](../rice_reg/API.md) |
+| rice_intro | 参数表 / 返回结构 / 计费 / 排查 | [rice_intro/API.md](../rice_intro/API.md) |
 | rice_OGR | 参数表 / 返回结构 / 计费 / 排查 | [rice_OGR/API.md](../rice_OGR/API.md) |
 
 > 命名速查（一页版）见 [quick_start.md](../quick_start.md)；部署与维护见 [AGENTS.md](../AGENTS.md)、[dcs.md](../dcs.md)。

@@ -1,0 +1,388 @@
+INFO:     Started server process [740821]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:37218 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37228 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54302 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [740821]
+INFO:     Started server process [757977]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:46422 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56568 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42264 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [757977]
+INFO:     Started server process [760313]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:36540 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for background tasks to complete. (CTRL+C to force quit)
+INFO:     Started server process [760660]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:41666 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45506 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60458 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 304 Not Modified
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [760660]
+INFO:     Started server process [762769]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54326 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54342 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38330 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51530 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51530 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:33420 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33610 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     Started server process [769215]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54912 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54914 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54930 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57468 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57476 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57484 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57488 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37892 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37896 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37898 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37912 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37916 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55404 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48964 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48974 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48982 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44454 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48994 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49006 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44766 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37824 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57330 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57330 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57330 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57328 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57356 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50738 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49000 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39906 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60982 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60994 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38530 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38530 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58658 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55236 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60474 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45120 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45130 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45132 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:40806 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40806 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40806 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45740 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40806 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47472 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47480 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47472 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45544 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45544 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     Started server process [777012]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56156 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56170 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46012 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46012 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46012 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40774 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40780 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40788 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:56856 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54216 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54216 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54216 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40572 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40578 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55668 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56044 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56044 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52882 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44808 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54746 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47588 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47576 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50076 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50076 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50076 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50076 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [777012]
+INFO:     Started server process [779749]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:36590 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36592 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41232 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33916 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33928 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33932 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 304 Not Modified
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [779749]
+INFO:     Started server process [835067]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:36178 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36178 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36178 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36180 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36178 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36636 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:38010 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57396 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38010 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43624 - "POST /uploadFasta HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43624 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43624 - "GET /genomes/custom_1788484714/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39014 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39014 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39014 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39014 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39024 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49702 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49714 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52894 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35740 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35740 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35740 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35750 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [835067]
+INFO:     Started server process [1297100]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:45204 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38072 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38072 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38072 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38072 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38072 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38072 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38088 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39602 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 304 Not Modified
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Started server process [1298107]
+INFO:     Waiting for application startup.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1297100]
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:35084 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49036 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49034 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54842 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54848 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39980 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39984 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37128 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37138 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57174 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57188 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42222 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33812 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33820 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1298107]
+INFO:     Started server process [1300507]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60206 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54292 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60206 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41572 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41572 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41572 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41574 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1300507]
+INFO:     Started server process [1302121]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:43150 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51420 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51420 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51420 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51420 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51418 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1302121]

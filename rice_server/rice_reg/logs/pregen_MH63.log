@@ -1,0 +1,248 @@
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg: Initializing RiceRegPredictor ...
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg: Initializing RiceRegPredictor ...
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/rice_1B_32k_hf
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/rice_1B_32k_hf
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   predictor_type  = fusion
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   predictor_type  = fusion
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   device          = cuda:1
+2026-09-03 09:38:03,635 [INFO] rice_reg.core.rice_reg:   device          = cuda:0
+2026-09-03 09:38:03,636 [INFO] rice_reg.core.rice_reg: Loading base model and tokenizer ...
+2026-09-03 09:38:03,636 [INFO] rice_reg.core.rice_reg: Loading base model and tokenizer ...
+2026-09-03 09:38:03,636 [INFO] root: >>> Loading pretrained model and tokenizer...
+2026-09-03 09:38:03,636 [INFO] root: >>> Loading pretrained model and tokenizer...
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+2026-09-03 09:38:04,558 [INFO] rice_reg.core.rice_reg: Building multimodal predictor (fusion) ...
+2026-09-03 09:38:04,558 [INFO] rice_reg.core.rice_reg: Building multimodal predictor (fusion) ...
+2026-09-03 09:38:04,577 [INFO] root: Identified 12 transformer layers (fusion predictor; base frozen)
+2026-09-03 09:38:04,577 [INFO] root: Identified 12 transformer layers (fusion predictor; base frozen)
+2026-09-03 09:38:05,586 [INFO] rice_reg.core.rice_reg: Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+2026-09-03 09:38:05,586 [INFO] rice_reg.core.rice_reg: Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_reg/three_sam2.model.safetensors
+2026-09-03 09:38:06,253 [INFO] rice_reg.core.rice_reg: Checkpoint loaded (non-strict mode).
+2026-09-03 09:38:06,253 [INFO] rice_reg.core.rice_reg: Checkpoint loaded (non-strict mode).
+2026-09-03 09:38:06,253 [INFO] rice_reg.core.rice_reg: RiceRegPredictor initialized successfully.
+2026-09-03 09:38:06,253 [INFO] rice_reg.core.rice_reg: RiceRegPredictor initialized successfully.
+2026-09-03 09:38:06,417 [INFO] pregen_bigwigs: Predictor ready on cuda:1 (target_len=32678)
+2026-09-03 09:38:06,417 [INFO] pregen_bigwigs: Predictor ready on cuda:0 (target_len=32678)
+2026-09-03 09:38:06,421 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 09:38:06,422 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 09:45:42,017 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 09:45:42,372 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 09:45:42,833 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 09:45:43,164 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 09:53:18,128 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 09:53:18,483 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 09:53:19,858 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 09:53:20,217 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:00:54,465 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:00:54,785 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:00:56,914 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:00:57,232 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:08:30,900 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:08:31,254 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:08:34,032 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:08:34,356 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:16:07,332 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:16:07,670 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:16:10,996 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:16:11,330 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:23:43,668 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:23:44,024 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:23:48,110 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:23:48,463 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:31:20,270 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:31:20,601 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:31:25,552 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:31:25,868 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:38:56,871 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:38:57,236 [INFO] rice_reg.core.rice_reg: Running inference on 196 window(s), batch_size=8
+2026-09-03 10:39:02,998 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:39:03,349 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:44:46,822 [INFO] rice_reg.core.rice_reg: Inference completed: 196 windows
+2026-09-03 10:44:48,838 [INFO] pregen_bigwigs: [chr2] done: 2244 windows (4002s) -> parts saved
+2026-09-03 10:44:48,890 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:46:40,585 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:46:40,967 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:52:25,296 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:52:25,641 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 10:54:18,248 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 10:54:18,600 [INFO] rice_reg.core.rice_reg: Running inference on 164 window(s), batch_size=8
+2026-09-03 10:59:11,592 [INFO] rice_reg.core.rice_reg: Inference completed: 164 windows
+2026-09-03 10:59:14,005 [INFO] pregen_bigwigs: [chr1] done: 2724 windows (4867s) -> parts saved
+2026-09-03 10:59:14,071 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:00:01,841 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:00:02,233 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:06:51,437 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:06:51,796 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:07:38,608 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:07:38,942 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:14:28,688 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:14:29,031 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:15:15,075 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:15:15,404 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:22:06,306 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:22:06,677 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:22:51,734 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:22:52,080 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:29:43,779 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:29:44,158 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:30:28,316 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:30:28,695 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:37:21,814 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:37:22,183 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:38:05,747 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:38:06,113 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:44:59,612 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:45:00,012 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:45:43,191 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:45:43,572 [INFO] rice_reg.core.rice_reg: Running inference on 165 window(s), batch_size=8
+2026-09-03 11:50:38,526 [INFO] rice_reg.core.rice_reg: Inference completed: 165 windows
+2026-09-03 11:50:40,567 [INFO] pregen_bigwigs: [chr4] done: 2213 windows (3951s) -> parts saved
+2026-09-03 11:50:40,621 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:52:37,946 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:52:38,352 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 11:58:17,293 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 11:58:17,674 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:00:15,596 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:00:15,965 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:05:54,774 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:05:55,171 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:07:53,490 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:07:53,863 [INFO] rice_reg.core.rice_reg: Running inference on 104 window(s), batch_size=8
+2026-09-03 12:10:59,867 [INFO] rice_reg.core.rice_reg: Inference completed: 104 windows
+2026-09-03 12:11:02,187 [INFO] pregen_bigwigs: [chr3] done: 2408 windows (4308s) -> parts saved
+2026-09-03 12:11:02,240 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:13:32,442 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:13:32,851 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:18:39,511 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:18:39,869 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:21:09,362 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:21:09,758 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:26:17,438 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:26:17,807 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:28:46,968 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:28:47,319 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:33:55,198 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:33:55,609 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:36:24,097 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:36:24,472 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:41:32,947 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:41:33,294 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:44:01,421 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:44:01,814 [INFO] rice_reg.core.rice_reg: Running inference on 145 window(s), batch_size=8
+2026-09-03 12:48:20,575 [INFO] rice_reg.core.rice_reg: Inference completed: 145 windows
+2026-09-03 12:48:22,529 [INFO] pregen_bigwigs: [chr6] done: 1937 windows (3461s) -> parts saved
+2026-09-03 12:48:22,592 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:49:10,522 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:49:10,845 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:55:58,923 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:55:59,283 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 12:56:47,813 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 12:56:48,142 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:03:35,223 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:03:35,595 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:04:25,040 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:04:25,379 [INFO] rice_reg.core.rice_reg: Running inference on 98 window(s), batch_size=8
+2026-09-03 13:07:20,295 [INFO] rice_reg.core.rice_reg: Inference completed: 98 windows
+2026-09-03 13:07:22,139 [INFO] pregen_bigwigs: [chr5] done: 1890 windows (3379s) -> parts saved
+2026-09-03 13:07:22,198 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:11:12,514 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:11:12,888 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:14:59,419 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:14:59,783 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:18:49,175 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:18:49,550 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:22:36,764 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:22:37,123 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:26:25,935 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:26:26,270 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:30:13,906 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:30:14,263 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:34:02,248 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:34:02,585 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:37:51,325 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:37:51,702 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:41:39,143 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:41:39,494 [INFO] rice_reg.core.rice_reg: Running inference on 31 window(s), batch_size=8
+2026-09-03 13:42:34,770 [INFO] rice_reg.core.rice_reg: Inference completed: 31 windows
+2026-09-03 13:42:36,494 [INFO] pregen_bigwigs: [chr8] done: 1823 windows (3253s) -> parts saved
+2026-09-03 13:42:36,540 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:45:28,767 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:45:29,103 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:50:13,035 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:50:13,369 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:53:06,381 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:53:06,727 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 13:57:49,464 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 13:57:49,836 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:00:43,527 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:00:43,891 [INFO] rice_reg.core.rice_reg: Running inference on 37 window(s), batch_size=8
+2026-09-03 14:01:49,820 [INFO] rice_reg.core.rice_reg: Inference completed: 37 windows
+2026-09-03 14:01:51,758 [INFO] pregen_bigwigs: [chr7] done: 1829 windows (3269s) -> parts saved
+2026-09-03 14:01:51,816 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:05:26,305 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:05:26,642 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:09:28,780 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:09:29,143 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:13:02,679 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:13:03,034 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:17:05,979 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:17:06,340 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:20:39,372 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:20:39,726 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:24:43,215 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:24:43,569 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:28:16,293 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:28:16,667 [INFO] rice_reg.core.rice_reg: Running inference on 1 window(s), batch_size=8
+2026-09-03 14:28:18,466 [INFO] rice_reg.core.rice_reg: Inference completed: 1 windows
+2026-09-03 14:28:19,924 [INFO] pregen_bigwigs: [chr10] done: 1537 windows (2743s) -> parts saved
+2026-09-03 14:28:19,968 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:32:20,906 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:32:21,257 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:35:56,683 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:35:57,030 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:39:58,274 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:39:58,644 [INFO] rice_reg.core.rice_reg: Running inference on 209 window(s), batch_size=8
+2026-09-03 14:43:33,130 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:43:33,484 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:46:11,499 [INFO] rice_reg.core.rice_reg: Inference completed: 209 windows
+2026-09-03 14:46:13,023 [INFO] pregen_bigwigs: [chr9] done: 1489 windows (2661s) -> parts saved
+2026-09-03 14:46:13,070 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:51:10,327 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:51:10,674 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:53:50,550 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:53:50,919 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 14:58:46,944 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 14:58:47,307 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 15:01:27,639 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:01:27,986 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 15:06:23,480 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:06:23,852 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 15:09:04,619 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:09:04,969 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 15:13:59,928 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:14:00,282 [INFO] rice_reg.core.rice_reg: Running inference on 64 window(s), batch_size=8
+2026-09-03 15:15:54,358 [INFO] rice_reg.core.rice_reg: Inference completed: 64 windows
+2026-09-03 15:15:54,604 [INFO] pregen_bigwigs:   [chr12] 1600/1600 windows (0.6/s)
+2026-09-03 15:15:55,989 [INFO] pregen_bigwigs: [chr12] done: 1600 windows (2856s) -> parts saved
+2026-09-03 15:15:57,852 [INFO] rice_reg.core.rice_reg: RiceRegPredictor released.
+⚙️  Running in WANDB offline mode
+2026-09-03 15:16:41,447 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:16:41,820 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 15:24:19,170 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:24:19,539 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 15:31:56,772 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:31:57,135 [INFO] rice_reg.core.rice_reg: Running inference on 256 window(s), batch_size=8
+2026-09-03 15:43:28,137 [INFO] rice_reg.core.rice_reg: Inference completed: 256 windows
+2026-09-03 15:43:28,527 [INFO] rice_reg.core.rice_reg: Running inference on 220 window(s), batch_size=8
+2026-09-03 16:04:46,535 [INFO] rice_reg.core.rice_reg: Inference completed: 220 windows
+2026-09-03 16:04:48,662 [INFO] pregen_bigwigs: [chr11] done: 2012 windows (4715s) -> parts saved
+2026-09-03 16:04:51,362 [INFO] rice_reg.core.rice_reg: RiceRegPredictor released.
+⚙️  Running in WANDB offline mode
+2026-09-03 16:04:52,777 [INFO] pregen_bigwigs: All workers finished. Merging ...
+2026-09-03 16:11:29,223 [INFO] pregen_bigwigs:   wrote /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/pregen/MH63__SAM2_MH63_1_plus.bw (12 chromosomes)
+2026-09-03 16:17:56,973 [INFO] pregen_bigwigs:   wrote /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/pregen/MH63__SAM2_MH63_1_minus.bw (12 chromosomes)
+2026-09-03 16:17:57,083 [INFO] pregen_bigwigs: Manifest written: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg/cache/pregen/manifest.json
+2026-09-03 16:17:57,083 [INFO] pregen_bigwigs: Merge done in 784.3s

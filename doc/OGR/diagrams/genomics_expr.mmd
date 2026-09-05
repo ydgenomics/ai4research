@@ -1,0 +1,20 @@
+flowchart TD
+    IN["输入：DNA 序列窗口<br/>32,768 bp（16,384 bp 步幅，50% 重叠）"]
+    IN --> ENC["预训练 DNA 基础模型（编码器）<br/>rice_1B_32k · Mixtral MoE · 12 层<br/>hidden 1024 · 默认仅解冻最后一层"]
+
+    ENC --> PROJ["embed_proj：Conv1DBlock 1×1<br/>1024 → proj_dim 1024<br/>[B, 1024, L]"]
+
+    PROJ --> UNET["U-Net 回归头（func_genome_UNet）"]
+
+    subgraph UNET["U-Net 解码器"]
+        direction TB
+        E1["编码器 Encoder<br/>4 × Conv1DBlock<br/>kernel=5 · downsample=2<br/>维度 1024→1344→1536"]
+        E1 --> BT["瓶颈层 Bottleneck<br/>Conv1DBlock kernel=5<br/>dilation=2 / 4 · dim 1536"]
+        BT --> D1["解码器 Decoder<br/>ConvTranspose1d 上采样 ×4<br/>拼接跳跃连接（skip connections）"]
+    end
+
+    UNET --> HEAD["输出头 output_heads<br/>每 assay 一个 Conv1d<br/>(proj_dim → num_biosamples, kernel=1)"]
+
+    HEAD --> OUT["可学习缩放<br/>out = F.softplus(x) × F.softplus(scale)<br/>输出 [B, L, num_tracks]<br/>链特异性 RNA-seq 单碱基覆盖度"]
+
+    OUT --> LOSS["目标缩放（Enformer 风格）<br/>value / track_mean → ^0.75 → 2√(10x)−10<br/>MSE 损失（可选 poisson / tweedie / poisson-multinomial）"]

@@ -35,19 +35,21 @@ fi
 # 2) 使用 .env 中的值（若 .env 未提供对应变量，则用 shell 环境变量 → 内置默认值）
 RICE_MUT_PORT="${RICE_MUT_PORT:-8001}"
 RICE_REG_PORT="${RICE_REG_PORT:-7001}"
+RICE_INTRO_PORT="${RICE_INTRO_PORT:-5001}"
 RICE_OGR_PORT="${RICE_OGR_PORT:-6001}"
 GATEWAY_PORT="${GATEWAY_PORT:-9000}"
 
-# 可选启动：ENABLED_SERVICES 逗号分隔（rice_mut/rice_reg/rice_ogr），缺省全量
+# 可选启动：ENABLED_SERVICES 逗号分隔（rice_mut/rice_reg/rice_intro/rice_ogr），缺省全量
 # 优先级：位置参数 > ENABLED_SERVICES（.env / shell 环境变量）> 全部
 if [ "$#" -gt 0 ]; then
     ENABLED_SERVICES="$(IFS=','; echo "$*")"
 else
-    ENABLED_SERVICES="${ENABLED_SERVICES:-rice_mut,rice_reg,rice_ogr}"
+    ENABLED_SERVICES="${ENABLED_SERVICES:-rice_mut,rice_reg,rice_intro,rice_ogr}"
 fi
 echo "==> enabled services: $ENABLED_SERVICES"
 RICE_MUT_PYTHON="${RICE_MUT_PYTHON:-}"
 RICE_REG_PYTHON="${RICE_REG_PYTHON:-}"
+RICE_INTRO_PYTHON="${RICE_INTRO_PYTHON:-}"
 RICE_OGR_PYTHON="${RICE_OGR_PYTHON:-}"
 
 LOGDIR="${LOGDIR:-/tmp/rice_dcs}"
@@ -73,6 +75,7 @@ env_python() {
 # 注：RICE_*_PYTHON 已在上面被 .env 全覆盖（.env 优先级最高）
 RICE_MUT_PYTHON="$(env_python "rice_mut" "$RICE_MUT_PYTHON")"
 RICE_REG_PYTHON="$(env_python "rice_reg" "$RICE_REG_PYTHON")"
+RICE_INTRO_PYTHON="$(env_python "rice_intro" "$RICE_INTRO_PYTHON")"
 RICE_OGR_PYTHON="$(env_python "rice_OGR" "$RICE_OGR_PYTHON")"
 
 start_backend() {
@@ -93,20 +96,22 @@ enabled() {
 
 if enabled rice_mut; then start_backend "rice_mut" "rice_mut/backend" "$RICE_MUT_PORT" "$RICE_MUT_PYTHON"; else echo "    - skip rice_mut"; fi
 if enabled rice_reg; then start_backend "rice_reg" "rice_reg/backend" "$RICE_REG_PORT" "$RICE_REG_PYTHON"; else echo "    - skip rice_reg"; fi
+if enabled rice_intro; then start_backend "rice_intro" "rice_intro/backend" "$RICE_INTRO_PORT" "$RICE_INTRO_PYTHON"; else echo "    - skip rice_intro"; fi
 if enabled rice_ogr; then start_backend "rice_ogr" "rice_OGR"         "$RICE_OGR_PORT" "$RICE_OGR_PYTHON"; else echo "    - skip rice_ogr"; fi
 
-# 等待三个后端 /health 就绪（模型加载较慢，各最多 180s）
+# 等待后端 /health 就绪（模型加载较慢，各最多 180s）
 # POSIX 兼容：不用关联数组，改用 case 查端口
 backend_port() {
     case "$1" in
         rice_mut) echo "$RICE_MUT_PORT" ;;
         rice_reg) echo "$RICE_REG_PORT" ;;
+        rice_intro) echo "$RICE_INTRO_PORT" ;;
         rice_ogr) echo "$RICE_OGR_PORT" ;;
     esac
 }
 
 echo "==> 等待后端就绪（最多 180s）..."
-for name in rice_mut rice_reg rice_ogr; do
+for name in rice_mut rice_reg rice_intro rice_ogr; do
     if ! enabled "$name"; then continue; fi
     port="$(backend_port "$name")"
     url="http://127.0.0.1:${port}/health"

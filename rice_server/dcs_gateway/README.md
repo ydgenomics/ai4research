@@ -1,12 +1,13 @@
-# dcs_gateway — 统一网关（单端口收口三服务）
+# dcs_gateway — 统一网关（单端口收口多服务）
 
 DCS 平台侧只需配置 **一个外部地址**，网关按请求体 `model_sub` 字段把请求
-路由到三个后端 `dcs_adapter` 进程（**不加载任何模型、不持有 GPU**，纯轻量反向代理）：
+路由到各后端 `dcs_adapter` 进程（**不加载任何模型、不持有 GPU**，纯轻量反向代理）：
 
 | `model_sub` | 后端服务 | 后端监听（默认） |
 |---|---|---|
 | `rice_mut` | rice_mut（变异对比表达预测） | `127.0.0.1:8001` |
 | `rice_reg` | rice_reg（ATAC 条件表达预测） | `127.0.0.1:7001` |
+| `rice_intro` | rice_intro（粳/籼血缘渗入分析） | `127.0.0.1:5001` |
 | `rice_ogr`（**缺省**） | rice_OGR（embedding / 碱基预测） | `127.0.0.1:6001`（`.env` 可改） |
 
 外部唯一入口：`POST https://www.dcs.cloud/api/aigress/openai/OGR`（URL 路径或 body 路由两种方式）。
@@ -22,19 +23,19 @@ DCS 平台侧只需配置 **一个外部地址**，网关按请求体 `model_sub
 dcs_gateway/
 ├── app.py              # 网关主程序（FastAPI，标准库 http.client 转发）
 ├── run_gateway.sh      # 启动脚本：加载 .env 后 exec python app.py
-├── start_all.sh        # 一键拉起：三个后端 + 网关（支持服务开关，见 §2.0）
+├── start_all.sh        # 一键拉起：各后端 + 网关（支持服务开关，见 §2.0）
 ├── .env.example        # 配置模板（复制为 .env 使用）
-├── API.md              # ★ 三合一 API 调用文档（本机 + DCS 测试代码）
+├── API.md              # ★ 多合一 API 调用文档（本机 + DCS 测试代码）
 └── README.md
 ```
 
-依赖：仅 **Python 标准库（http.client）+ fastapi / uvicorn**（与三个后端同栈，无需额外安装）。
+依赖：仅 **Python 标准库（http.client）+ fastapi / uvicorn**（与各后端同栈，无需额外安装）。
 
 ---
 
 ## 2. 启动
 
-### 2.0 推荐：一键拉起（三个后端 + 网关）
+### 2.0 推荐：一键拉起（各后端 + 网关）
 
 ```bash
 cd dcs_gateway && bash start_all.sh        # 全部服务
@@ -87,9 +88,10 @@ GATEWAY_PORT=9111 python app.py  # 显式指定端口
 |---|---|---|
 | `RICE_MUT_HOST` / `RICE_MUT_PORT` | `127.0.0.1` / `8001` | rice_mut 后端地址 |
 | `RICE_REG_HOST` / `RICE_REG_PORT` | `127.0.0.1` / `7001` | rice_reg 后端地址 |
+| `RICE_INTRO_HOST` / `RICE_INTRO_PORT` | `127.0.0.1` / `5001` | rice_intro 后端地址 |
 | `RICE_OGR_HOST` / `RICE_OGR_PORT` | `127.0.0.1` / `6001` | rice_OGR 后端地址（与 rice_mut 错开） |
-| `RICE_MUT_PYTHON` / `RICE_REG_PYTHON` / `RICE_OGR_PYTHON` | （空，自动回退） | 各后端解释器（留空 = 用激活后的 vllm python） |
-| `ENABLED_SERVICES` | `rice_mut,rice_reg,rice_ogr` | 一键拉起时的服务开关（逗号分隔；`bash start_all.sh <svc>...` 位置参数优先） |
+| `RICE_MUT_PYTHON` / `RICE_REG_PYTHON` / `RICE_INTRO_PYTHON` / `RICE_OGR_PYTHON` | （空，自动回退） | 各后端解释器（留空 = 用激活后的 vllm python） |
+| `ENABLED_SERVICES` | `rice_mut,rice_reg,rice_intro,rice_ogr` | 一键拉起时的服务开关（逗号分隔；`bash start_all.sh <svc>...` 位置参数优先） |
 | `GATEWAY_HOST` | `0.0.0.0` | 网关监听地址 |
 | `GATEWAY_PORT` | `9000` | 网关监听端口（DCS 平台注入的 `PORT` 仍优先） |
 

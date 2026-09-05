@@ -1,0 +1,12 @@
+metric,value
+number_of_samples,251
+number_of_records_total,33928212
+number_of_SNP_sites,29481347
+number_of_indel_sites,5189781
+number_of_MNP_sites,0
+number_of_multiallelic_sites,4594122
+Ts,21253969
+Tv,9393188
+Ts/Tv,2.2600
+avg_SNP_per_sample,117455.6
+avg_indel_per_sample,20676.4

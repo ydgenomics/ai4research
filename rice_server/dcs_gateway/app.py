@@ -1,4 +1,4 @@
-"""DCS 统一网关 — 单端口收口 rice_mut / rice_reg / rice_OGR（model_sub 路由版）
+"""DCS 统一网关 — 单端口收口 rice_mut / rice_reg / rice_intro / rice_OGR（model_sub 路由版）
 
 外部**统一入口**，两种路由方式（推荐 URL 路径路由）：
 
@@ -49,6 +49,11 @@ BACKENDS: Dict[str, dict] = {
         "port": int(os.getenv("RICE_REG_PORT", "7001")),
         "path": "/api/aigress/openai/rice_reg",
     },
+    "rice_intro": {
+        "host": os.getenv("RICE_INTRO_HOST", "127.0.0.1"),
+        "port": int(os.getenv("RICE_INTRO_PORT", "5001")),
+        "path": "/api/aigress/openai/rice_intro",
+    },
     "rice_ogr": {
         "host": os.getenv("RICE_OGR_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_OGR_PORT", "6001")),  # 与 rice_mut 错开
@@ -72,7 +77,7 @@ _SKIP_REQ_HEADERS = {
 }
 
 app = FastAPI(
-    title="DCS Gateway (rice_mut + rice_reg + rice_OGR, model_sub routing)",
+    title="DCS Gateway (rice_mut + rice_reg + rice_intro + rice_OGR, model_sub routing)",
     version="0.1.0",
 )
 
@@ -146,7 +151,7 @@ async def _forward(request: Request, full_path: str = "") -> Response:
         return JSONResponse(
             {
                 "status": 400,
-                "message": f"未知 model_sub '{sub}',可选: rice_mut / rice_reg / rice_ogr",
+                "message": f"未知 model_sub '{sub}',可选: rice_mut / rice_reg / rice_intro / rice_ogr",
             },
             status_code=400,
         )
@@ -254,6 +259,7 @@ if __name__ == "__main__":
         f"[dcs_gateway] listening on {_LISTEN_HOST}:{_LISTEN_PORT} | "
         f"model_sub routes: mut={BACKENDS['rice_mut']['port']}, "
         f"reg={BACKENDS['rice_reg']['port']}, "
+        f"intro={BACKENDS['rice_intro']['port']}, "
         f"ogr={BACKENDS['rice_ogr']['port']} (default)",
         flush=True,
     )
