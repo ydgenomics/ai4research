@@ -1,0 +1,10 @@
+数据集名称,物种/品种,材料/组织/条件,数据类型/模态,数据阶段,样本/序列规模,质量指标/报告链接,标签/注释情况,存储位置/访问方式,来源/版本,权限/合规状态
+MaizeGenDB基因组组装数据集,"玉米（Zea mays）；141份玉米种质（含90个新组装和51个已发表的高质量基因组）","玉米自交系/种质；从头基因组组装","基因组学；全基因组组装、基因注释、mRNA/CDS/蛋白序列",参考基因组与注释资源,"142个基因组组装；约586万个注释基因","组装统计信息、染色体水平组装、scaffold N50、基因组大小及每种质的基因数量","已有基因组注释；基因模型链接至种质页面",https://ngdc.cncb.ac.cn/maizegendb/,"MaizeGenDB（国家基因组科学数据中心NGDC/CNCB）；当前数据库版本",公开学术资源
+MaizeGenDB泛基因组,"玉米（Zea mays）；141份玉米自交系",用于泛基因组构建的多个玉米种质,"泛基因组学；核心基因、可变基因、泛基因单倍型、结构变异",整合比较基因组资源,"280,546个泛基因簇；约125万个结构变异","泛基因聚类、单倍型信息、序列比对及系统发育分析",提供泛基因注释与同源基因信息,https://ngdc.cncb.ac.cn/maizegendb/,MaizeGenDB泛基因组模块,公开学术资源
+Mo17组织RNA-seq转录组,玉米Mo17自交系,"多个组织与发育阶段","批量RNA-seq转录组学；基因表达谱",处理后的表达数据集,"42个组织-发育阶段RNA-seq样本","表达谱以热图、箱线图和折线图形式可视化",基因表达按组织与发育阶段注释,https://ngdc.cncb.ac.cn/maizegendb/transcriptome,"Chen等，Nature Genetics 2023；Mo17v2参考基因组",公开学术资源
+RNA-seq种子器官转录组,玉米B73,"种子发育各阶段的珠心（nucellus）样本",批量RNA-seq转录组学,处理后的表达数据集,"193个种子器官RNA-seq样本","基于FPKM的表达谱，并附发育阶段注释",提供组织-发育阶段及基因功能注释,https://ngdc.cncb.ac.cn/maizegendb/transcriptome,MaizeGenDB种子器官转录组数据集,公开学术资源
+玉米胚乳单细胞RNA-seq,玉米B73自交系,"授粉后6-7天采集的胚乳组织",单细胞RNA测序（scRNA-seq）,处理后的单细胞表达图谱,"17,022个高质量细胞；检出25,365个基因","细胞QC指标、聚类、细胞周期评分及regulon活性评分","已注释细胞类型：糊粉层（aleurone）、淀粉胚乳、BETL、ESR、EAS",https://ngdc.cncb.ac.cn/maizegendb/transcriptome_scrna,"Yuan等，Nature Communications 2024",公开学术资源
+玉米群体SNP/InDel变异,"玉米（Zea mays）；3,367份玉米种质","基于B73v4参考基因组的群体水平基因组变异","变异组学；SNP与小InDel变异",处理后的变异数据集,"12,783,178个SNP与1,862,507个InDel","变异类型、基因组位置、等位基因频率、缺失率及功能影响",提供变异注释与单倍型分析,https://ngdc.cncb.ac.cn/maizegendb/variome,MaizeGenDB B73v4变异数据集,公开学术资源
+玉米结构变异数据集,"玉米（Zea mays）；141份玉米种质","比对至Mo17v2参考基因组的基因组组装",结构变异（SV）基因组学,处理后的变异资源,约125万个结构变异,"SV类型、基因组位置及种质层面信息",提供结构变异注释,https://ngdc.cncb.ac.cn/maizegendb/variome,MaizeGenDB Mo17v2 SV数据集,公开学术资源
+玉米表观基因组资源,玉米B73,"幼苗、胚及果穗（ear）组织","表观基因组学；染色质标记与调控数据集",整合表观基因组注释资源,"18种染色质标记；54张组蛋白修饰图谱",可通过基因组浏览器查看染色质标记track,表观基因组track已整合至基因组浏览器,https://ngdc.cncb.ac.cn/maizegendb/epigenome,MaizeGenDB表观基因组数据集,公开学术资源
+玉米表型组数据集,"玉米（Zea mays）；约3,000个玉米品种","从不同国家和年份收集的表型记录","表型组学；农艺性状",整理的表型数据库,"38,604条表型记录；16个主要性状；23个国家",提供性状描述及与种质关联的表型,提供性状注释与种质链接,https://ngdc.cncb.ac.cn/maizegendb/phenome,MaizeGenDB表型资源,公开学术资源
