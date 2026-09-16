@@ -1,0 +1,28 @@
+# 窗口 64k 消融配置 —— 复用 32k，仅覆盖窗口与资源
+compute:
+  gpus: "0,1,2,3,4,5,6,7"        # 64k 注意力 L²=64×，建议更多卡
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 4
+  gvl_max_mem: "16g"
+
+window:
+  length: 65536
+  step: 32768
+  density_power: 0.5
+  sampling_mode: two_stage
+  coverage_k: 8
+  cover_frac: 0.6
+
+data:
+  out_dir: data_64k
+
+train:
+  lr: 5e-6                       # 更长窗→损失量级更大，lr 相应下调（冒烟校准）
+  lora: false
+  max_steps: 2560
+  save_steps: 250
+  logging_steps: 10
+  aux_loss_coef: 1e-3
+  weight_decay: 0.01
+  warmup_steps: 50
+  output_dir: output/variant_cpt_64k

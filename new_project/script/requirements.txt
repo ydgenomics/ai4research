@@ -1,0 +1,13 @@
+# 水稻变异感知 CPT 微调（GenVarLoader 版）依赖
+genvarloader>=0.42.1
+transformers>=4.40
+torch>=2.2
+safetensors
+seqpro
+einops
+numpy
+pandas
+polars
+pyyaml
+cyvcf2
+# 系统工具（需在环境中预装）: bcftools, plink2, samtools

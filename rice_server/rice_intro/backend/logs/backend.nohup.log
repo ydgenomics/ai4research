@@ -386,3 +386,49 @@ INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [1302121]
+INFO:     Started server process [2070162]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2070162]
+INFO:     Started server process [2071188]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:36634 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47772 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36710 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36710 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36710 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36710 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36726 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42512 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/static/plotly.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:59882 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2071188]
+INFO:     Started server process [3385827]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54962 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54962 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43652 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34150 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34148 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3385827]

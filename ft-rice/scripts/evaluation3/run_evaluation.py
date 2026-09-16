@@ -79,7 +79,7 @@ class EvalTask:
     triplets: list[CsvTriplet]    # (csv, chrom, strand) 三元组列表
 
 
-@dataclass(frozen=True)
+@dataclass
 class EvalConfig:
     """评估配置。"""
     output_dir: Path
@@ -991,8 +991,10 @@ def aggregate_to_features(
                 _feat_strand_norm = feat_strand
 
             for i in range(left, right):
-                # 按链匹配：跳过链不匹配的窗口（strand="total" 时匹配所有链）
-                if _feat_strand_norm != "total" and win_strands[i] != _feat_strand_norm:
+                # 按链匹配：跳过链不匹配的窗口（窗口或特征为 "total" 时匹配所有链）
+                # 例: CSV 窗口 strand="total"（无链池化）时，应能匹配 + / - 的基因特征
+                if (_feat_strand_norm != "total" and win_strands[i] != "total"
+                        and win_strands[i] != _feat_strand_norm):
                     continue
 
                 w_start = int(win_starts[i])

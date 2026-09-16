@@ -1,0 +1,131 @@
+# 模型注册表：新增模型只需在此追加一条配置
+#
+# 字段说明:
+#   path        模型目录（HF 格式）
+#   arch        causal  = decoder LM（用 AutoModelForCausalLM, 如 Mixtral/Llama/Gemma）
+#               encoder = encoder / SSM（用 AutoModel, 如 ESM/Botanic/NTv3/Caduceus）
+#   tokenizer   singlebase=单碱基(1bp=1tok) | kmer3=3-mer | kmer6=6-mer(需'补A'到6倍数) |
+#               kmer6_cls=6-mer+自动前置<cls>(ESM 风格) | char=字符级(含N)
+#   max_context 上下文 token 上限; null = 无硬上限(不截断)
+#   layer       -1=最后一层; 省略/None 则跟随 run.yaml 的 layer
+#   pooling     可选; 覆盖 run 级池化方式。建议按架构选:
+#               causal -> last (末位已看到全部上文) | encoder+kmer6_cls -> first (<cls>)
+#               留空则跟随 run.yaml 的 pooling
+#   max_tokens  每批总 token 限额（按显存/注意力复杂度调整; 全注意力模型调低）
+#   batch_size  可选; >0 时该模型用固定条数打包(忽略 max_tokens), 覆盖 run 级 batch_size
+#   device      可选; 强制该模型所在设备, 如 "cuda:1"(优先于 run 的 gpus 轮询)
+#   flash_attention 是否使用 flash_attention_2（仅支持该实现的架构可用）
+models:
+  # ---------- 自研 OGR 系列 ----------
+  rice_1B_stage2_8k:
+    path: /mnt/rice/default/Workspace/yangdong/ai4research/new_project/script/output/variant_cpt_32k_10samp/final
+    # /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+    arch: causal
+    tokenizer: singlebase
+    max_context: 1048576        # 1M 位置, 实际不截断
+    layer: -1
+    # pooling: last             # 想削弱长度混杂时取消注释（默认跟随 run yaml 的 mean）
+    max_tokens: 65536
+    flash_attention: true
+
+  # ---------- GENERator (Llama, 6-mer) ----------
+  GENERator_v2_eukaryote_1b2:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/GENERator-v2-eukaryote-1.2b
+    arch: causal
+    tokenizer: kmer6            # 输入长度需为 6 的倍数 -> 自动左侧补 A
+    max_context: 16384
+    max_tokens: 32768
+    torch_dtype: bfloat16       # fp16 加载会 NaN(与 3b 同族)
+
+  GENERator_v2_eukaryote_3b:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/GENERator-v2-eukaryote-3b
+    arch: causal
+    tokenizer: kmer6
+    max_context: 16384
+    max_tokens: 32768
+    torch_dtype: bfloat16     # config 实际声明 float32; fp16 加载会 NaN(实测 layer4 起溢出)
+
+  # ---------- OryzaG3 (Gemma3, 3-mer) ----------
+  OryzaG3_8k:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/OryzaG3-8k
+    arch: causal
+    tokenizer: kmer3
+    max_context: 32768          # config 中 max_position_embeddings
+    max_tokens: 65536
+    torch_dtype: bfloat16       # 权重本身是 BF16, 避免 fp16 截断
+    tokenizer_fix: true         # 与 32k 同族: tokenizer_class 是 TokenizersBackend
+
+  OryzaG3_32k:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/OryzaG3-32k
+    arch: causal
+    tokenizer: kmer3
+    max_context: 32768
+    max_tokens: 65536
+    torch_dtype: bfloat16       # 权重本身是 BF16
+    tokenizer_fix: true         # tokenizer_class"TokenizersBackend" 是 4.57 新格式; 本地用 PreTrainedTokenizerFast 兼容
+
+  # ---------- Botanic0 (ESM 式 encoder, 6-mer + <cls>) ----------
+  Botanic0_L:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/Botanic0-L
+    arch: encoder
+    tokenizer: kmer6_cls
+    max_context: 1024           # 1026 - pad_idx(1) - 1
+    # pooling: first            # ESM 风格 encoder 可用 <cls>（默认跟随 run yaml 的 mean）
+    max_tokens: 32768
+
+  Botanic0_M:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/Botanic0-M
+    arch: encoder
+    tokenizer: kmer6_cls
+    max_context: 1024
+    max_tokens: 32768
+
+  Botanic0_S:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/Botanic0-S
+    arch: encoder
+    tokenizer: kmer6_cls
+    max_context: 1024
+    max_tokens: 32768
+
+  # ---------- AgroNT (ESM 式 encoder, 6-mer + <cls>) ----------
+  agront_1b:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/agront_1b
+    arch: encoder
+    tokenizer: kmer6_cls
+    max_context: 1025           # 1026 - pad(0) - 1
+    max_tokens: 32768
+
+  # ---------- NTv3 (U-Net 卷积 encoder, 只注册了 AutoModelForMaskedLM; tokenizer 不带 attention_mask) ----------
+  NTv3_650M_pre:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/NTv3_650M_pre
+    arch: mlm                  # 复用 AutoModelForMaskedLM(而非 AutoModel)
+    tokenizer: char
+    max_context: null           # 无硬上限
+    max_tokens: 32768
+    torch_dtype: float32        # config 全字段声明 float32; fp16/bf16 权重与内部 x.float() 冲突
+    pad_to_multiple: 128        # U-Net 下采样 2^7: 长度需 128 倍数, 否则残差对不齐
+
+  # ---------- PlantCAD2 (Caduceus/Mamba2 SSM, 双向 RCPS; forward 无 attention_mask) ----------
+  PlantCAD2_Large:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/PlantCAD2-Large-l48-d1536
+    arch: encoder
+    tokenizer: char
+    max_context: null
+    max_tokens: 32768
+    attention_mask: false       # SSM 不接受 attention_mask(Caduceus.forward 无此参数)
+
+  PlantCAD2_Medium:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/PlantCAD2-Medium-l48-d1024
+    arch: encoder
+    tokenizer: char
+    max_context: null
+    max_tokens: 32768
+    attention_mask: false
+
+  PlantCAD2_Small:
+    path: /mnt/rice/default/Workspace/Rice-Genome/model/PlantCAD2-Small-l24-d0768
+    arch: encoder
+    tokenizer: char
+    max_context: null
+    max_tokens: 32768
+    attention_mask: false

@@ -1,0 +1,14 @@
+Evaluation Dataset,AgroNT-1b,Botanic0-L,PlantCAD2-Large-694m,GENERator-v2-3b,NTv3,Evo2-7b,OGR
+chromatin_access_MH63_pgb,0.910,0.903,0.94,0.912,0.897,0.916,0.933
+chromatin_access_ZS97_pgb,0.914,0.909,0.936,0.911,0.914,0.920,0.931
+chromatin_access_512,0.755,0.780,0.819,0.791,0.769,0.797,0.838
+Epigenetic_Marks_Prediction-Histone,0.640,0.621,0.691,0.688,0.642,0.660,0.703
+enhancer_strength,0.450,0.494,0.524,0.435,0.476,0.345,0.588
+sweep_region_sor,0.649,0.772,0.660,0.563,0.836,0.728,0.807
+RiceVar_8k,/,/,0.886,0.884,0.893,0.878,0.887
+sweep_region_8k,/,/,0.593,0.514,0.587,0.646,0.764
+varieties_classification_8k,/,/,0.556,0.545,0.553,0.485,0.799
+sweep_region_32k,/,/,/,0.523,0.735,0.875,0.802
+varieties_classification_32k,/,/,/,0.556,0.608,0.601,0.835
+sweep_region_100k,/,/,/,/,0.916,0.635,0.8
+varieties_classification_128k,/,/,/,/,0.572,0.540,0.815

@@ -1,0 +1,68 @@
+# 10 样本微调验证配置（32k 窗口 × 前 10 个样本 × 2×A40）
+# 用途：小样本快速验证变异感知 CPT 效果；coverage_k=2（每窗 2 个代表样本）
+#
+# 用法:
+#   bash run.sh configs/train_32k_10samples_2gpu.yaml data         # 数据预处理（10 样本专属 gvl，独立 out_dir）
+#   bash run.sh configs/train_32k_10samples_2gpu.yaml model smoke  # 冒烟定 lr + 验显存（强烈建议先做）
+#   bash run.sh configs/train_32k_10samples_2gpu.yaml model        # 正式微调
+compute:
+  gpus: "0,1"                  # 2×A40（DDP）
+  # 保持 1：32k 窗口 + bf16 + grad_ckpt 单样本激活已 ~40-50GB 临界，batch=2 激活翻倍必 OOM
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 8
+  bf16: true
+  grad_ckpt: true              # 32k 窗单卡显存临界（~40-50GB），必须开
+  flash_attn: true
+  dataloader_workers: 0        # GVL 多线程, 用 0/1
+  gvl_threads: 8
+  gvl_max_mem: "8g"
+  seed: 42
+
+window:
+  length: 32768                # 与正式训练一致（32k）
+  step: 16384
+  chroms: [Chr1,Chr2,Chr3,Chr4,Chr5,Chr6,Chr7,Chr8,Chr9,Chr10,Chr11,Chr12]
+  train_chroms: [Chr1,Chr2,Chr3,Chr4,Chr5,Chr6,Chr7]
+  val_chroms:   [Chr8,Chr9]
+  test_chroms:  [Chr10,Chr11,Chr12]
+  density_power: 0.5
+  density_cap_p: 0.99
+  sampling_mode: two_stage
+  coverage_k: 2                # ★ 每窗 2 个代表样本（10 样本下池=14,762窗×2=29,524 对）
+  cover_frac: 0.6
+
+data:
+  reference_fasta: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+  vcf: /mnt/rice/data/Lianguang_shang/251.SNP.vcf.gz
+  # ★ 独立 out_dir！sample_subset 会重写 gvl（只含前 N 样本），不能与正式 251 共用
+  out_dir: output/data_32k_10samp
+  max_sv_len: 50
+  maf: 0.05
+  hwe: 1e-6
+  max_missing: 0.1
+  sample_subset: 10            # ★ 只取前 10 个样本（null=全部）
+
+model:
+  path: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+
+train:
+  lr: 1e-5
+  # ★ 8h 内跑完：每卡预算 = 1024×8×1 = 8,192；全局 = 16,384
+  #   覆盖段 = 14,762（全窗 1 代表，位置覆盖 100%）+ 聚焦段 1,622；ETA ≈ 6.7h（实测 23.68s/it）
+  max_steps: 1024
+  warmup_steps: 50
+  weight_decay: 0.01
+  save_steps: 500
+  logging_steps: 10
+  aux_loss_coef: 1e-3
+  lora: true                  # LoRA 微调（r=8, q/k/v/o_proj；对比 32k 正式全参微调 lora:false）
+  output_dir: output/variant_cpt_32k_10samp
+  bf16: true
+
+loss:                          # 与正式一致
+  variant_weight: 3.0
+  motif_weight: 1.5
+  background_weight: 0.02
+  focus_left: 100
+  focus_right: 25
+  motif_halfwidth: 15

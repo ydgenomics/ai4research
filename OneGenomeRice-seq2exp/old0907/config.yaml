@@ -1,0 +1,277 @@
+# =============================================================================
+# 评估配置文件（evaluation3 版本，用于 OneGenomeRice-seq2exp 项目）
+#
+# 用法: python run_evaluation.py --config config.yaml
+#       (脚本位于 ft-rice/scripts/evaluation3/run_evaluation.py)
+#
+# 所有文件路径均为绝对路径，显式指定，不依赖目录扫描和正则。
+#
+# predict_csv / chromosome / strand 三者长度必须一致（一一对应）：
+#   - chromosome 为 "all" 表示不重写 CSV 中的 chromosome 列
+#   - strand 为 "total" / "plus" / "minus"
+# 本批次预测 CSV 均为单条染色体（Chr5），故 chromosome 填 "all" 保留原名。
+# =============================================================================
+
+# ===== 输出目录 =====
+output_dir: /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/evaluation
+
+# ===== 评估任务列表 =====
+# 每个任务明确指定:
+#   predict_csv: 预测CSV文件(含 predicted_expression 和 true_expression 列)，支持多个
+#   sample:      品种 (如 NH001)
+#   biosample:   组织/处理 (如 leaf_ck / leaf_salt)
+#   gff:         GFF 注释文件完整路径 (可选，不配则跳过 feature 级评估)
+#   split:       train / valid / test
+#   chromosome:  染色体重命名值，与 predict_csv 数量一致，all 则不重写
+#   strand:      链类型，total / plus / minus
+#   modality:    测序模态 (如 RNA-seq)
+tasks:
+  # ---- NH001 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH001/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH001
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH001.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH001/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH001
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH001.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH002 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH002/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH002
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH002.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH002/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH002
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH002.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH003 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH003/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH003
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH003.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH003/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH003
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH003.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH005 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH005/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH005
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH005.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH005/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH005
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH005.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH006 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH006/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH006
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH006.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH006/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH006
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH006.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH007 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH007/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH007
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH007.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH007/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH007
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH007.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH008 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH008/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH008
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH008.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH008/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH008
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH008.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH009 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH009/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH009
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH009.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH009/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH009
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH009.os7.gff3
+    split: train
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH013 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH013/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH013
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH013.os7.gff3
+    split: test
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH013/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH013
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH013.os7.gff3
+    split: test
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq
+
+  # ---- NH014 ----
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH014/leaf_ck__total_RNA-seq_+_predictions.csv
+    sample: NH014
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH014.os7.gff3
+    split: test
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_ck
+    modality: RNA-seq
+
+  - predict_csv:
+      - /mnt/rice/default/Workspace/yangdong/ai4research/OneGenomeRice-seq2exp/old0907/output/202609081121/outputs/NH014/leaf_salt__total_RNA-seq_+_predictions.csv
+    sample: NH014
+    gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/genome_os7/NH014.os7.gff3
+    split: test
+    chromosome:
+      - all
+    strand:
+      - total
+    biosample: leaf_salt
+    modality: RNA-seq

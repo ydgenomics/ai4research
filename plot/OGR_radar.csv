@@ -1,0 +1,28 @@
+Evaluation Dataset,class,AgroNT-1b,PlantCAD2-Large-694m,GENERator-v2-3b,Botanic0-L,NTv3,Evo2-7b,OGR
+chromatin_access_MH63_PGB,PGB Evaluation Task,0.91,0.94,0.912,0.903,0.897,0.916,0.933
+chromatin_access_ZS97_PGB,PGB Evaluation Task,0.914,0.936,0.911,0.909,0.914,0.92,0.931
+polyA_japonica_PGB,PGB Evaluation Task,0.526,0.515,0.505,0.53,0.54,0.516,0.506
+polyA_indica_PGB,PGB Evaluation Task,0.532,0.523,0.506,0.517,0.535,0.521,0.506
+bulk_gene_exp_PGB,PGB Evaluation Task,0.564,0.633,0.47,0.51,0.555,0.586,0.456
+chromatin_access_512bp,Short-sequence Task,0.755,0.819,0.791,0.78,0.769,0.797,0.838
+epigenetic_marks_prediction_histone,Short-sequence Task,0.64,0.691,0.688,0.621,0.642,0.66,0.703
+smallRNA,Short-sequence Task,0.946,0.95,0.965,0.954,0.961,0.977,0.961
+splice_sites_labels,Short-sequence Task,0.82,0.896,0.858,0.867,0.903,0.914,0.842
+RiceVar_512bp,Short-sequence Task,0.946,0.937,0.961,0.96,0.938,0.949,0.942
+enhancer_strength,Short-sequence Task,0.45,0.524,0.435,0.494,0.476,0.345,0.588
+enhancer_regions,Long-sequence Task,0.964,0.963,0.937,0.961,0.969,0.972,0.958
+lncRNA,Long-sequence Task,0.916,0.918,0.908,0.937,0.93,0.948,0.925
+rice_NLR,Long-sequence Task,0.918,0.937,0.927,0.953,0.983,0.959,0.923
+RiceVar_6kb,Long-sequence Task,0.832,0.888,0.903,0.836,0.858,0.865,0.887
+RiceVar_8kb,Long-sequence Task,/,0.886,0.884,/,0.893,0.878,0.887
+CDS_multilabel,Single-nucleotide Task,0.827,0.926,0.5,0.86,0.901,0.93,0.852
+bulk_single_base_Callus,Single-nucleotide Task,0.659,0.681,/,0.579,0.636,0.661,0.613
+sweep_region_PSR,Sweep Region Identification Task,0.66,0.643,0.553,0.768,0.813,0.725,0.765
+sweep_region_SOR,Sweep Region Identification Task,0.649,0.66,0.563,0.772,0.836,0.728,0.807
+sweep_region_8kb,Sweep Region Identification Task,/,0.593,0.514,/,0.587,0.646,0.764
+sweep_region_32kb,Sweep Region Identification Task,/,/,0.523,/,0.735,0.875,0.802
+sweep_region_100kb,Sweep Region Identification Task,/,/,/,/,0.916,0.635,0.8
+varieties_classification_8kb,Varieties Classification Task,/,0.556,0.545,/,0.553,0.485,0.799
+varieties_classification_32kb,Varieties Classification Task,/,/,0.556,/,0.608,0.601,0.835
+varieties_classification_128kb,Varieties Classification Task,/,/,/,/,0.572,0.54,0.815
+varieties_classification_1Mb,Varieties Classification Task,/,/,/,/,0.782,0.648,0.646
