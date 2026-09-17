@@ -65,23 +65,13 @@ curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_mut/predict \
 }'
 
 # snv 单碱基突变对比(chr09:20731844 C→T)
-curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_mut/snv \
-  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" -H "Content-Type: application/json" \
-  -d '{
-    "model":"OGR",
-    "genome":"osa1_r7",
-    "chromosome":"chr09",
-    "start":20716774,
-    "snv_index":20731844,
-    "snv_base":"T",
-    "output_format":"mean"
-}'
+OGROG
 
 # 返回: ref_values=参考表达, mut_values=突变后表达
 
 # ===== 3. rice_reg: DNA+ATAC→RNA-seq(输出区分正负链) =====
-# 必填: genome(MH63RS3|NIP)  chromosome(chr01-12)  start(1-based inclusive,窗口固定TARGET_LEN=32678)
-# ATAC二选一: atac_source(SAM2_MH63_1↔MH63RS3 | SAM2_NIP_1↔NIP)
+# 必填: genome(MH63|NIP)  chromosome(chr01-12)  start(1-based inclusive,窗口固定TARGET_LEN=32678)
+# ATAC二选一: atac_source(SAM2_MH63_1↔MH63 | SAM2_NIP_1↔NIP)
 # 可选: end(窗口终点)  output_format(full默认|mean|downsample)
 # 返回: values 分 RNA-seq_+(正链)/RNA-seq_-(负链) 两通道
 
@@ -89,7 +79,7 @@ curl -s -X POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/predict \
   -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" -H "Content-Type: application/json" \
   -d '{
     "model":"OGR",
-    "genome":"MH63RS3",
+    "genome":"NIP",
     "chromosome":"chr01",
     "start":20716774,
     "atac_source":"SAM2_MH63_1",
@@ -114,6 +104,7 @@ curl -s -X POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/predict \
 curl -s -X POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_intro/predict \
   -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" -H "Content-Type: application/json" \
   -d '{
+    "model": "OGR"
     "genome": "YF47",
     "chromosome": "Chr01",
     "start": 100001,
