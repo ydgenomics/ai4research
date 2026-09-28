@@ -1,4 +1,4 @@
-Evaluation Dataset,class,AgroNT-1b,PlantCAD2-Large-694m,GENERator-v2-3b,Botanic0-L,NTv3,Evo2-7b,OGR
+Evaluation Dataset,class,AgroNT (1B),PlantCAD2-Large (694M),GENERator-v2 (3B),Botanic0-L (991M),NTv3 (650M),Evo2 (7B),OGR (1.25B)
 chromatin_access_MH63_PGB,PGB Evaluation Task,0.91,0.94,0.912,0.903,0.897,0.916,0.933
 chromatin_access_ZS97_PGB,PGB Evaluation Task,0.914,0.936,0.911,0.909,0.914,0.92,0.931
 polyA_japonica_PGB,PGB Evaluation Task,0.526,0.515,0.505,0.53,0.54,0.516,0.506

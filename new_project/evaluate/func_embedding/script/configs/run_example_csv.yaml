@@ -1,0 +1,54 @@
+# 面板 CSV 模式的运行配置：
+#   python ./script/main.py --run ./script/configs/run_example_csv.yaml
+#
+# 与 GFF 模式的区别: 提供 `csv` 后, 基因列表来自 CSV(行序 = 输出顺序),
+#   id 优先用 CSV 的 MSU 列(LOC_Os..), 该列为空/None 时回退 gene_id(RAPdb,
+#   Os..) 再回退坐标; 坐标优先取 source_gff(rice_mut 的 MSU GFF),
+#   其次 csv_coord_gff(IRGSP-1.0 注释 GFF), 最后用 CSV 自带的 chr/start/end/strand。
+run:
+  # 要跑的模型（models.yaml 中注册的名字; 省略或留空 = 全部）
+  models: [rice_1B_stage2_8k, GENERator_v2_eukaryote_3b, OryzaG3_32k, Botanic0_L, agront_1b, NTv3_650M_pre, PlantCAD2_Large]
+
+  # 模型注册表路径（相对本文件）
+  models_registry: models.yaml
+
+  # ---- 面板 CSV（提供后进入 CSV 模式）----
+  csv: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/rice/gene_sets/panel/csv/all_7class.csv   # 可用 --csv 覆盖
+  id_col: MSU              # CSV 中基因 ID 列（默认 MSU）; --id-col 可覆盖
+  # 坐标参考: 推荐同时给 MSU 版 GFF(source, ID=LOC_..) + IRGSP 版 GFF(coord, ID=Os..)
+  csv_source_gff: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.all_models.gff3
+  csv_coord_gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/rice/IRGSP-1.0_representative/locus.gff
+
+  # 参考序列（IRGSP-1.0, chr01..chr12 命名; CSV 自带坐标即基于它）
+  fasta: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/rice/IRGSP-1.0_genome.fasta
+
+  # GFF 模式才用到（CSV 模式忽略; 保留以便两种模式切换）
+  gff: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/rice/IRGSP-1.0_representative/locus.gff
+  feature: gene
+
+  # 基因区域
+  flank: 0        # 基因两侧侧翼 bp
+  max_len: 0      # 0=跟随各模型上下文上限; >0=全局统一截断(所有模型一致)
+
+  # 通用
+  layer: -1                 # 默认最后一层; 可被 models.yaml 中该模型的 layer 覆盖
+  output_dir: ../output/csv_7class     # 相对本文件 -> script/output; 产物 {output_dir}/{model_name}/...
+  resume: true              # 产物已存在且 pooling/layer 等配置一致 -> 跳过该模型(断点续跑)
+
+  # ---- 池化（一个区间 -> 一个向量 的聚合方式; 直接影响长度混杂）----
+  pooling: mean
+  pool_k: 64           # 仅 pooling=mean_last_k 生效
+  pool_trim: 0.25      # 仅 pooling=mean_trim 生效（须 0 <= v < 0.5）
+  l2_normalize: false  # true = 池化后再做行 L2 归一化（只保留方向, 丢掉随长度变化的模长）
+
+  # ---- 多卡 ----
+  gpus: null                # 如 [0, 1]; null/省略 -> 用下方 device
+  parallel: false
+  device: cuda              # 单卡模式设备: cuda / cuda:0 / auto(单模型跨多卡) / cpu
+
+  # ---- 打包（二选一; 模型级 batch_size 可覆盖 run 级）----
+  batch_size: 0             # >0 = 固定每批条数(忽略 max_tokens); 0 = 用各模型 max_tokens 动态打包
+
+  # ---- 测试子集（可选, 用于冒烟; CSV 模式下同样按行序取前 N 条）----
+  max_genes: 50             # 只取前 50 条基因 (冒烟测试)
+  # gene_frac: 0.1          # 只取前 10%

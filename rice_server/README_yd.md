@@ -1,3 +1,4 @@
+```shell
 # 水稻模型 OGR 及其应用模型 API（极简 shell 版）
 
 # 统一鉴权: Authorization: Bearer $KEY
@@ -151,3 +152,4 @@ BASE=http://127.0.0.1:9000/api/aigress/openai/OGR
 # 多卡: rice_ogr --device cuda:0,cuda:1 --device_map auto; rice_mut/reg 用 CUDA_VISIBLE_DEVICES 控制
 # 安全: rice_mut/reg 网页后端把根目录挂 /static-files 静态服务(IGV加载bigWig用), 暴露公网前必须白名单目录或加鉴权
 # 缓存: 预测结果写 bigWig(cache/predictions), 后台线程按TTL自动清理; Docker 不含 cache/ logs/ *.pid
+```

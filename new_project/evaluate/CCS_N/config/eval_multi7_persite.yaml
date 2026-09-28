@@ -1,0 +1,52 @@
+# CCS-N 多模型对比评测 + per-site 分数保存 (供热图/统计分析)
+# 在 eval_multi7.yaml 基础上开启 save_per_site / save_distance_profiles
+data:
+  vcf: data/251.SNP.bsnp.vcf.gz
+  ref: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+  out_dir: data
+
+sampling:
+  enabled: true
+  bed: data/carrier_hom.bed
+  sample: NH001
+  genotype: hom
+  window_size: 2048
+  max_variants: 1000
+  seed: 42
+
+gvl:
+  dir: data/gvl_hom
+  skip: false
+
+eval:
+  models:
+    - path: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+      tokenizer_type: single_base
+      model_class: causal_lm
+    - path: /mnt/rice/default/Workspace/yangdong/ai4research/new_project/script/output/variant_cpt_32k_10samp/final
+      tokenizer_type: single_base
+      model_class: causal_lm
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/RiceModel2/AgriGenome_4n8a_1.2b_8k_pt_32k_cpt_stage1_iter14000_hf
+      tokenizer_type: single_base
+      model_class: causal_lm
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/agront_1b
+      tokenizer_type: kmer_diff
+      model_class: auto
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/Botanic0-L
+      tokenizer_type: kmer_diff
+      model_class: auto
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/PlantCAD2-Large-l48-d1536
+      tokenizer_type: single_base
+      model_class: caduceus
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/NTv3_650M_pre
+      tokenizer_type: single_base
+      model_class: ntv3
+  sample: NH001
+  batch_size: 16
+  device: cuda:1
+  out_dir: output/hom_1000_multi7
+  max_regions: null
+  seed: 42
+  n_list: [0, 1, 2, 4, 8, 16]
+  save_per_site: true
+  save_distance_profiles: true

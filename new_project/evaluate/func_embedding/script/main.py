@@ -26,7 +26,8 @@ import yaml
 
 from ogr_extract.adapter import get_adapter
 from ogr_extract.embedder import embed_batch, validate_pooling
-from ogr_extract.genome import extract_sequences, load_genes
+from ogr_extract.genome import (extract_sequences, load_genes,
+                                load_genes_from_csv, normalize_chrom)
 from ogr_extract.loader import load_model, model_device
 from ogr_extract.output import is_done, save_run
 from ogr_extract.packing import pack_batches, pack_batches_by_count, padding_ratio
@@ -231,6 +232,14 @@ def main() -> None:
     ap.add_argument("--models", nargs="*", default=None, help="只跑指定模型(空格分隔, 覆盖 run yaml)")
     ap.add_argument("--max-genes", type=int, default=None, help="只取 GFF 前 N 条基因(测试用)")
     ap.add_argument("--gene-frac", type=float, default=None, help="只取 GFF 前 fraction(如 0.1=前10%%)")
+    ap.add_argument("--csv", type=str, default=None,
+                    help="面板 CSV 路径(如 all_7class.csv); 提供后只提取 CSV 里的基因, 不再读 gff")
+    ap.add_argument("--id-col", type=str, default="MSU",
+                    help="CSV 中代表基因 ID 的列名(默认 MSU, 即 LOC_Os..; 空值时回退 gene_id/RAPdb)")
+    ap.add_argument("--csv-coord-gff", type=str, default=None,
+                    help="CSV 坐标参考 GFF(IRGSP-1.0 注释, ID=Os..); 缺省用 run yaml 的 gff")
+    ap.add_argument("--csv-source-gff", type=str, default=None,
+                    help="MSU 版本 GFF(osa1_r7.all_models.gff3, ID=LOC_..); 提供时坐标以它为准")
     ap.add_argument("--gpus", nargs="*", type=int, default=None, help="使用的 GPU id 列表, 如 0 1")
     ap.add_argument("--parallel", action="store_true", help="多卡并行(每卡一进程); 默认多卡串行")
     ap.add_argument("--serial", action="store_true", help="强制单卡串行(忽略 gpus)")
@@ -272,9 +281,25 @@ def main() -> None:
     logger.info(f"池化方式: {pooling_by_model}")
 
     # 基因数据只加载一次，所有模型共用（保证顺序一致 = 跨模型 index 对齐）
-    gff = resolve_path(run_cfg["gff"], base_dir)
     fasta = resolve_path(run_cfg["fasta"], base_dir)
-    genes = load_genes(str(gff), feature=run_cfg.get("feature", "gene"))
+    csv_path = args.csv or run_cfg.get("csv")
+    if csv_path:
+        # 面板 CSV 模式: 只提取 CSV 里列出的基因(id 用 MSU 列, 空值回退 gene_id)
+        csv_path = resolve_path(csv_path, base_dir)
+        id_col = args.id_col or run_cfg.get("id_col", "MSU")
+        coord_gff = resolve_path(args.csv_coord_gff or run_cfg.get("csv_coord_gff",
+                                run_cfg.get("gff")), base_dir)
+        src_gff = args.csv_source_gff or run_cfg.get("csv_source_gff")
+        source_gff = resolve_path(src_gff, base_dir) if src_gff else None
+        genes = load_genes_from_csv(str(csv_path), id_col=id_col,
+                                    coord_gff=str(coord_gff) if coord_gff.exists() else None,
+                                    source_gff=str(source_gff) if source_gff else None)
+        genes = normalize_chrom(genes, str(fasta))
+        logger.info(f"面板 CSV 模式: {csv_path} (id 列: {id_col})")
+    else:
+        gff = resolve_path(run_cfg["gff"], base_dir)
+        genes = load_genes(str(gff), feature=run_cfg.get("feature", "gene"))
+        genes = normalize_chrom(genes, str(fasta))
     seqs = extract_sequences(genes, str(fasta), run_cfg.get("flank", 0), run_cfg.get("max_len", 0))
     genes["seq_len"] = [len(s) for s in seqs]
     logger.info(f"基因序列提取完成: {len(seqs)} 条")

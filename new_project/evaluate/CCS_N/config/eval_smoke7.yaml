@@ -1,0 +1,35 @@
+# CCS-N 7 模型冒烟测试
+data:
+  vcf: data/251.SNP.bsnp.vcf.gz
+  ref: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+  out_dir: data
+sampling:
+  enabled: false
+  bed: data/carrier_hom.bed
+gvl:
+  dir: data/gvl_hom
+  skip: true
+eval:
+  models:
+    - path: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+      tokenizer_type: single_base
+      model_class: causal_lm
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/agront_1b
+      tokenizer_type: kmer_diff
+      model_class: auto
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/Botanic0-L
+      tokenizer_type: kmer_diff
+      model_class: auto
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/PlantCAD2-Large-l48-d1536
+      tokenizer_type: single_base
+      model_class: caduceus
+    - path: /mnt/rice/default/Workspace/Rice-Genome/model/NTv3_650M_pre
+      tokenizer_type: single_base
+      model_class: ntv3
+  sample: NH001
+  batch_size: 16
+  device: cuda:1
+  out_dir: output/smoke_multi7
+  max_regions: 20
+  seed: 42
+  n_list: [0, 1, 2, 4, 8, 16]

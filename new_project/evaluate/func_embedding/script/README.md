@@ -81,6 +81,12 @@ python main.py --run configs/run_example.yaml --gene-frac 0.1
 python main.py --run configs/run_example.yaml --gpus 0 1             # 多卡串行(模型轮流放不同卡)
 python main.py --run configs/run_example.yaml --gpus 0 1 --parallel  # 多卡并行(每卡一进程)
 python main.py --run configs/run_example.yaml --serial               # 强制单卡串行
+
+# 6) 面板 CSV 模式（推荐）：只提取 CSV 里列出的基因, id 用 CSV 的 MSU 列(LOC_Os..)
+python main.py --run configs/run_example_csv.yaml                    # 全量 7 类面板
+python main.py --run configs/run_example_csv.yaml --max-genes 50     # 冒烟: 只取前 50 行
+python main.py --run configs/run_example_csv.yaml --csv ../../../DATA/rice/gene_sets/panel/csv/balanced_39perclass.csv  # 换 CSV
+python main.py --run configs/run_example_csv.yaml --id-col RAPdb     # 换 ID 列(如用 RAPdb 对位)
 ```
 
 ### 运行前必改
