@@ -1,0 +1,54 @@
+# 一次运行的配置：python ./script/main.py --run ./script/configs/run_example_IRGSP.yaml
+run:
+  # 要跑的模型（models.yaml 中注册的名字; 省略或留空 = 全部）
+  models: [rice_1B_stage2_8k, GENERator_v2_eukaryote_3b, OryzaG3_32k, Botanic0_L, agront_1b, NTv3_650M_pre, PlantCAD2_Large]
+
+  # 模型注册表路径。注意：所有相对路径都以「本文件所在目录」为基准。
+  # models.yaml 与本文件同在 configs/ 下, 故此处写 models.yaml（不是 configs/models.yaml）
+  models_registry: models.yaml
+
+  # 基因组注释与参考序列
+  gff: /mnt/rice/default/Workspace/yangdong/ai4research/new_project/evaluate/func_embedding/output/integrated_features.gff
+  fasta: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/rice/IRGSP-1.0_genome.fasta
+
+  # GFF 第 3 列特征类别（取哪些特征做 embedding; 单个字符串或列表）
+  # 默认 "gene"(=原行为, 只取 gene); integrated_features.gff 可用:
+  #   CDS / 5_UTR / 3_UTR / Intron / Intergenic / Repeat / ncRNA, 或 [CDS, 5_UTR] 合并
+  feature: [CDS, 5_UTR, 3_UTR, Intron, Intergenic, Repeat]
+
+  # 基因区域
+  flank: 0        # 基因两侧侧翼 bp
+  max_len: 0      # 0=跟随各模型上下文上限; >0=全局统一截断(所有模型一致)
+
+  # 通用
+  layer: -1                 # 默认最后一层; 可被 models.yaml 中该模型的 layer 覆盖
+  output_dir: ../output/IRGSP_0915     # 相对本文件 -> script/output; 产物 {output_dir}/{model_name}/...
+  resume: true              # 产物已存在且 pooling/layer 等配置一致 -> 跳过该模型(断点续跑)
+
+  # ---- 池化（一个区间 -> 一个向量 的聚合方式; 直接影响长度混杂）----
+  # mean        全 token mask-aware 均值（默认 = 旧行为; causal 下容易把长度写进 PC1）
+  # max         全 token 最大值
+  # first       第一个真实 token（kmer6_cls 的 <cls>; ESM 风格 encoder 推荐）
+  # last        最后一个真实 token（causal/decoder 推荐: 末位已通过注意力看到全部上文）
+  # mean_last_k 最后 k 个真实 token 的均值（k 见 pool_k）
+  # mean_trim   去掉首尾各 pool_trim 比例后取均值（缓解首尾边界效应）
+  # 可在 models.yaml 中给单个模型写 pooling 覆盖（causal / encoder 混跑时很有用）
+  pooling: mean
+  pool_k: 64           # 仅 pooling=mean_last_k 生效
+  pool_trim: 0.25      # 仅 pooling=mean_trim 生效（须 0 <= v < 0.5）
+  l2_normalize: false  # true = 池化后再做行 L2 归一化（只保留方向, 丢掉随长度变化的模长）
+
+  # ---- 多卡 ----
+  # 指定使用的 GPU; 多卡时默认串行: 第 i 个模型依次放到 gpus[i % len(gpus)]
+  # parallel: true 时多卡并行(每卡一个进程, 同时跑不同模型, 需显存足够)
+  gpus: [1]                # 如 [0, 1]; null/省略 -> 用下方 device
+  parallel: false
+  device: cuda              # 单卡模式设备: cuda / cuda:0 / auto(单模型跨多卡) / cpu
+
+  # ---- 打包（二选一; 模型级 batch_size 可覆盖 run 级）----
+  batch_size: 0             # >0 = 固定每批条数(忽略 max_tokens); 0 = 用各模型 max_tokens 动态打包
+  # max_tokens 在 configs/models.yaml 中按模型配置
+
+  # ---- 测试子集（可选, 用于冒烟）----
+  max_genes: 3000             # 只取 GFF 前 50 条 (冒烟测试)
+  # gene_frac: 0.1          # 只取 GFF 前 10%

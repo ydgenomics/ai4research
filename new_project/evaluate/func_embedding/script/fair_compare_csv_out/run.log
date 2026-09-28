@@ -1,0 +1,136 @@
+[10:24:21] 功能标签表: 509 条 unique MSU，7 类
+[10:24:21] 发现 7 个模型: ['Botanic0_L', 'GENERator_v2_eukaryote_3b', 'NTv3_650M_pre', 'OryzaG3_32k', 'PlantCAD2_Large', 'agront_1b', 'rice_1B_stage2_8k']
+[10:24:21] 长度窗口 log10(bp) ∈ [3.1, 3.85] = bp [1259, 7079] → 命中 441/512
+[10:24:21]   载入 Botanic0_L                   dim=1500  无标签=3 (0.0s)
+[10:24:22]   载入 GENERator_v2_eukaryote_3b    dim=3072  无标签=3 (0.9s)
+[10:24:22]   载入 NTv3_650M_pre                dim=1536  无标签=3 (0.0s)
+[10:24:22]   载入 OryzaG3_32k                  dim=1152  无标签=3 (0.0s)
+[10:24:22]   载入 PlantCAD2_Large              dim=3072  无标签=3 (0.1s)
+[10:24:22]   载入 agront_1b                    dim=1500  无标签=3 (0.0s)
+[10:24:22]   载入 rice_1B_stage2_8k            dim=1024  无标签=3 (0.0s)
+[10:24:22] 统一 bp 分箱: 4 箱（窗口内等频）, 有效箱 4/4, 有效样本 438/512 (85.5%)
+[10:24:22] 每箱构成:
+ bin   n  n_class  min_class_n  keep
+   0 110        7            8  True
+   1 109        7            6  True
+   2 108        7            5  True
+   3 111        7            3  True
+[10:24:22] CV 折分配完成（箱×类 分层轮转, 5 折）；类别构成: {'Protein kinase': 159, 'RING/FYVE/PHD': 68, 'TPR': 48, 'MFS transporter': 45, 'NAC TF': 44, 'Cytochrome P450': 43, 'bZIP TF': 31}
+[10:24:33]   Botanic0_L: eff_rank raw=7.5 decon=10.8, top30保留=85.0%
+[10:24:33]     k=8    global=0.5731  LM=0.6073  LM_macro=0.5260  (12s)
+[10:24:34]     k=16   global=0.7900  LM=0.7374  LM_macro=0.6838  (12s)
+[10:24:34]     k=32   global=0.8311  LM=0.7671  LM_macro=0.7153  (12s)
+[10:24:34]     k=64   global=0.8858  LM=0.8151  LM_macro=0.7688  (12s)
+[10:24:34]     k=128  global=0.8904  LM=0.7694  LM_macro=0.7105  (12s)
+[10:24:34]     k=256  global=0.7900  LM=0.6142  LM_macro=0.4961  (12s)
+[10:24:35]   完成 Botanic0_L（13s）
+[10:24:39]   GENERator_v2_eukaryote_3b: eff_rank raw=3.4 decon=4.6, top30保留=95.0%
+[10:24:39]     k=8    global=0.4703  LM=0.4863  LM_macro=0.3889  (5s)
+[10:24:39]     k=16   global=0.6005  LM=0.6347  LM_macro=0.5949  (5s)
+[10:24:39]     k=32   global=0.6826  LM=0.6461  LM_macro=0.6097  (5s)
+[10:24:40]     k=64   global=0.7991  LM=0.7237  LM_macro=0.6835  (5s)
+[10:24:40]     k=128  global=0.8516  LM=0.6986  LM_macro=0.6203  (5s)
+[10:24:40]     k=256  global=0.7420  LM=0.6164  LM_macro=0.5149  (5s)
+[10:24:41]   完成 GENERator_v2_eukaryote_3b（6s）
+[10:24:47]   NTv3_650M_pre: eff_rank raw=1.0 decon=1.0, top30保留=100.0%
+[10:24:47]     k=8    global=0.3927  LM=0.4589  LM_macro=0.3272  (7s)
+[10:24:47]     k=16   global=0.5822  LM=0.5776  LM_macro=0.4668  (7s)
+[10:24:47]     k=32   global=0.7420  LM=0.6484  LM_macro=0.5542  (7s)
+[10:24:48]     k=64   global=0.7717  LM=0.6895  LM_macro=0.6250  (7s)
+[10:24:48]     k=128  global=0.8151  LM=0.6804  LM_macro=0.6446  (7s)
+[10:24:48]     k=256  global=0.6758  LM=0.5799  LM_macro=0.5314  (7s)
+[10:24:49]   完成 NTv3_650M_pre（8s）
+[10:24:54]   OryzaG3_32k: eff_rank raw=4.0 decon=8.6, top30保留=86.8%
+[10:24:55]     k=8    global=0.4201  LM=0.4726  LM_macro=0.4122  (6s)
+[10:24:55]     k=16   global=0.5183  LM=0.5000  LM_macro=0.4644  (6s)
+[10:24:55]     k=32   global=0.5228  LM=0.4954  LM_macro=0.4383  (6s)
+[10:24:55]     k=64   global=0.5297  LM=0.4954  LM_macro=0.4248  (6s)
+[10:24:55]     k=128  global=0.5205  LM=0.4795  LM_macro=0.3928  (7s)
+[10:24:56]     k=256  global=0.4361  LM=0.4384  LM_macro=0.3386  (7s)
+[10:24:56]   完成 OryzaG3_32k（8s）
+[10:25:05]   PlantCAD2_Large: eff_rank raw=1.8 decon=3.4, top30保留=92.0%
+[10:25:05]     k=8    global=0.6187  LM=0.6507  LM_macro=0.5984  (9s)
+[10:25:05]     k=16   global=0.8311  LM=0.7900  LM_macro=0.7563  (9s)
+[10:25:05]     k=32   global=0.9132  LM=0.8425  LM_macro=0.8223  (9s)
+[10:25:05]     k=64   global=0.9749  LM=0.8539  LM_macro=0.8358  (9s)
+[10:25:05]     k=128  global=0.9406  LM=0.8037  LM_macro=0.7746  (9s)
+[10:25:06]     k=256  global=0.8516  LM=0.6712  LM_macro=0.6055  (9s)
+[10:25:06]   完成 PlantCAD2_Large（10s）
+[10:25:13]   agront_1b: eff_rank raw=6.5 decon=10.6, top30保留=86.0%
+[10:25:13]     k=8    global=0.6347  LM=0.6301  LM_macro=0.5392  (7s)
+[10:25:13]     k=16   global=0.7922  LM=0.7511  LM_macro=0.6855  (7s)
+[10:25:13]     k=32   global=0.8242  LM=0.7808  LM_macro=0.7320  (7s)
+[10:25:13]     k=64   global=0.8379  LM=0.7808  LM_macro=0.7235  (7s)
+[10:25:13]     k=128  global=0.8584  LM=0.7443  LM_macro=0.6646  (7s)
+[10:25:13]     k=256  global=0.7489  LM=0.6393  LM_macro=0.5205  (7s)
+[10:25:14]   完成 agront_1b（8s）
+[10:25:22]   rice_1B_stage2_8k: eff_rank raw=2.4 decon=3.7, top30保留=99.2%
+[10:25:22]     k=8    global=0.3699  LM=0.3995  LM_macro=0.3056  (8s)
+[10:25:22]     k=16   global=0.5228  LM=0.4384  LM_macro=0.3871  (8s)
+[10:25:22]     k=32   global=0.5548  LM=0.4886  LM_macro=0.4297  (8s)
+[10:25:22]     k=64   global=0.5205  LM=0.5137  LM_macro=0.4464  (8s)
+[10:25:23]     k=128  global=0.4772  LM=0.5183  LM_macro=0.4320  (8s)
+[10:25:23]     k=256  global=0.3607  LM=0.4521  LM_macro=0.3457  (9s)
+[10:25:23]   完成 rice_1B_stage2_8k（9s）
+
+================================================================================================================
+跨模型【基因功能类别】表征能力对比（统一 bp 分箱 4 箱 | 7 类 | n=438 | k_ref=128 | 5 折 | 随机=0.143）
+长度窗口 log10(bp) ∈ [3.1, 3.85] = bp [1259, 7079]
+多数类基线 = 0.363（类别严重不均衡 → 准确率会被多数类主导，务必同看 macro_recall）
+================================================================================================================
+                    model  eff_rank  top30_var_pct  n_bins  coverage_pct  lm@k128  global@k128  lm_macro@k128  global_macro@k128  lm@length_only  global@length_only  lm_macro@length_only  global_macro@length_only  lm@k8  global@k8  lm_macro@k8  global_macro@k8  lm@k16  global@k16  lm_macro@k16  global_macro@k16  lm@k32  global@k32  lm_macro@k32  global_macro@k32  lm@k64  global@k64  lm_macro@k64  global_macro@k64  lm@k256  global@k256  lm_macro@k256  global_macro@k256 len_window bp_window
+          PlantCAD2_Large      3.43           92.0       4          85.5   0.8037       0.9406         0.7746             0.9409           0.379               0.379                0.2079                    0.1891 0.6507     0.6187       0.5984           0.5591  0.7900      0.8311        0.7563            0.8098  0.8425      0.9132        0.8223            0.9113  0.8539      0.9749        0.8358            0.9728   0.6712       0.8516         0.6055             0.8391   3.1-3.85 1259-7079
+               Botanic0_L     10.80           85.0       4          85.5   0.7694       0.8904         0.7105             0.8735           0.379               0.379                0.2079                    0.1891 0.6073     0.5731       0.5260           0.4578  0.7374      0.7900        0.6838            0.7393  0.7671      0.8311        0.7153            0.8062  0.8151      0.8858        0.7688            0.8587   0.6142       0.7900         0.4961             0.7129   3.1-3.85 1259-7079
+                agront_1b     10.61           86.0       4          85.5   0.7443       0.8584         0.6646             0.8280           0.379               0.379                0.2079                    0.1891 0.6301     0.6347       0.5392           0.5215  0.7511      0.7922        0.6855            0.7386  0.7808      0.8242        0.7320            0.7828  0.7808      0.8379        0.7235            0.8050   0.6393       0.7489         0.5205             0.6818   3.1-3.85 1259-7079
+GENERator_v2_eukaryote_3b      4.60           95.0       4          85.5   0.6986       0.8516         0.6203             0.8260           0.379               0.379                0.2079                    0.1891 0.4863     0.4703       0.3889           0.3422  0.6347      0.6005        0.5949            0.5478  0.6461      0.6826        0.6097            0.6589  0.7237      0.7991        0.6835            0.7847   0.6164       0.7420         0.5149             0.6836   3.1-3.85 1259-7079
+            NTv3_650M_pre      1.04          100.0       4          85.5   0.6804       0.8151         0.6446             0.7826           0.379               0.379                0.2079                    0.1891 0.4589     0.3927       0.3272           0.2133  0.5776      0.5822        0.4668            0.4439  0.6484      0.7420        0.5542            0.6404  0.6895      0.7717        0.6250            0.7340   0.5799       0.6758         0.5314             0.6272   3.1-3.85 1259-7079
+        rice_1B_stage2_8k      3.69           99.2       4          85.5   0.5183       0.4772         0.4320             0.4179           0.379               0.379                0.2079                    0.1891 0.3995     0.3699       0.3056           0.2454  0.4384      0.5228        0.3871            0.4579  0.4886      0.5548        0.4297            0.4913  0.5137      0.5205        0.4464            0.4776   0.4521       0.3607         0.3457             0.2897   3.1-3.85 1259-7079
+              OryzaG3_32k      8.55           86.8       4          85.5   0.4795       0.5205         0.3928             0.4831           0.379               0.379                0.2079                    0.1891 0.4726     0.4201       0.4122           0.3237  0.5000      0.5183        0.4644            0.4464  0.4954      0.5228        0.4383            0.4741  0.4954      0.5297        0.4248            0.5024   0.4384       0.4361         0.3386             0.3594   3.1-3.85 1259-7079
+
+【长度匹配口径 @k=128 配对 McNemar（Holm 校正后）】
+                  model_a                   model_b  acc_a  acc_b   delta   ci_lo   ci_hi  p_holm  significant
+               Botanic0_L               OryzaG3_32k 0.7694 0.4795  0.2900  0.2397  0.3425  0.0000         True
+          PlantCAD2_Large         rice_1B_stage2_8k 0.8037 0.5183  0.2854  0.2374  0.3356  0.0000         True
+               Botanic0_L         rice_1B_stage2_8k 0.7694 0.5183  0.2511  0.1986  0.3014  0.0000         True
+                agront_1b         rice_1B_stage2_8k 0.7443 0.5183  0.2260  0.1780  0.2740  0.0000         True
+GENERator_v2_eukaryote_3b               OryzaG3_32k 0.6986 0.4795  0.2192  0.1689  0.2694  0.0000         True
+            NTv3_650M_pre               OryzaG3_32k 0.6804 0.4795  0.2009  0.1438  0.2557  0.0000         True
+GENERator_v2_eukaryote_3b         rice_1B_stage2_8k 0.6986 0.5183  0.1804  0.1279  0.2329  0.0000         True
+            NTv3_650M_pre         rice_1B_stage2_8k 0.6804 0.5183  0.1621  0.1073  0.2146  0.0000         True
+               Botanic0_L             NTv3_650M_pre 0.7694 0.6804  0.0890  0.0365  0.1393  0.0090         True
+               Botanic0_L GENERator_v2_eukaryote_3b 0.7694 0.6986  0.0708  0.0319  0.1142  0.0093         True
+          PlantCAD2_Large                 agront_1b 0.8037 0.7443  0.0594  0.0160  0.1027  0.0842        False
+               Botanic0_L                 agront_1b 0.7694 0.7443  0.0251 -0.0114  0.0662  0.6531        False
+GENERator_v2_eukaryote_3b             NTv3_650M_pre 0.6986 0.6804  0.0183 -0.0320  0.0708  0.6531        False
+               Botanic0_L           PlantCAD2_Large 0.7694 0.8037 -0.0342 -0.0776  0.0114  0.6531        False
+              OryzaG3_32k         rice_1B_stage2_8k 0.4795 0.5183 -0.0388 -0.0913  0.0137  0.6531        False
+GENERator_v2_eukaryote_3b                 agront_1b 0.6986 0.7443 -0.0457 -0.0868 -0.0068  0.1431        False
+            NTv3_650M_pre                 agront_1b 0.6804 0.7443 -0.0639 -0.1096 -0.0183  0.0842        False
+GENERator_v2_eukaryote_3b           PlantCAD2_Large 0.6986 0.8037 -0.1050 -0.1530 -0.0616  0.0001         True
+            NTv3_650M_pre           PlantCAD2_Large 0.6804 0.8037 -0.1233 -0.1712 -0.0776  0.0000         True
+              OryzaG3_32k                 agront_1b 0.4795 0.7443 -0.2648 -0.3128 -0.2169  0.0000         True
+              OryzaG3_32k           PlantCAD2_Large 0.4795 0.8037 -0.3242 -0.3744 -0.2717  0.0000         True
+
+【各功能类别 LM 召回率 @k=128】
+model            Botanic0_L  GENERator_v2_eukaryote_3b  NTv3_650M_pre  OryzaG3_32k  PlantCAD2_Large  agront_1b  rice_1B_stage2_8k
+label                                                                                                                            
+Cytochrome P450       0.814                      0.628          0.767        0.372            0.791      0.698              0.465
+MFS transporter       0.822                      0.667          0.711        0.489            0.778      0.800              0.444
+NAC TF                0.750                      0.705          0.568        0.455            0.795      0.614              0.523
+Protein kinase        0.925                      0.912          0.767        0.711            0.874      0.943              0.717
+RING/FYVE/PHD         0.588                      0.544          0.691        0.324            0.838      0.618              0.456
+TPR                   0.688                      0.500          0.458        0.271            0.604      0.625              0.354
+bZIP TF               0.387                      0.387          0.548        0.129            0.742      0.355              0.065
+
+【宏平均召回（各类召回等权）@k=128｜按长度匹配排序】
+                           lm_macro  global_macro  excess_over_length_only
+model                                                                     
+PlantCAD2_Large              0.7746        0.9409                   0.5667
+Botanic0_L                   0.7105        0.8735                   0.5026
+agront_1b                    0.6646        0.8280                   0.4567
+NTv3_650M_pre                0.6446        0.7826                   0.4366
+GENERator_v2_eukaryote_3b    0.6203        0.8260                   0.4124
+rice_1B_stage2_8k            0.4320        0.4179                   0.2240
+OryzaG3_32k                  0.3928        0.4831                   0.1849
+（仅长度基线 macro_recall = 0.208）
+[10:25:25] 全部产物已写入 /mnt/rice/default/Workspace/yangdong/ai4research/new_project/evaluate/func_embedding/script/fair_compare_csv_out

@@ -1,0 +1,59 @@
+# 小数据量 8k 窗口测试配置 —— 端到端冒烟（preprocess→write→smoke）
+# 只测 Chr1:1-2Mb 区域 + 前 8 个样本，几十秒内跑完，验证整条数据管线
+compute:
+  gpus: "1"                      # 单卡（GPU1 空闲；GPU0 被 dcs 服务占用）
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 1
+  bf16: true
+  grad_ckpt: true
+  flash_attn: true
+  dataloader_workers: 0
+  gvl_threads: 4                 # 测试阶段少开线程
+  gvl_max_mem: "2g"
+  seed: 42
+
+window:
+  length: 8192                   # 8k 窗口（原模型预训练长度，最低成本验证）
+  step: 4096                     # 50% overlap
+  chroms: [Chr1]                 # 只测 Chr1
+  train_chroms: [Chr1]           # 无 train/val/test 隔离，测试阶段不评 val
+  val_chroms: []
+  test_chroms: []
+  density_power: 0.5             # density 采样：w=n_variants^power（<1 压峰；无变异窗权重=0 不采样）
+  density_cap_p: 0.99            # 权重 cap 分位（防超密窗过采样）
+  sampling_mode: density         # 两段采样在 8 样本/几十窗下无意义，冒烟用纯 density
+  coverage_k: 8
+  cover_frac: 0.6
+
+data:
+  reference_fasta: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+  vcf: /mnt/rice/default/Workspace/yangdong/ai4research/DATA/shang_data/vcf/251.SNP.final.vcf.gz
+  out_dir: output/data_test8k           # 独立产物目录，不污染正式数据
+  max_sv_len: 50
+  maf: 0.05
+  hwe: 1e-6
+  max_missing: 0.1
+  region: Chr1:1000000-2000000   # 【测试关键】只取 1Mb 区域 → 几十个 8k 窗口
+  sample_subset: 8               # 【测试关键】只取前 8 个样本（null=全部 251）
+
+model:
+  path: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+
+train:
+  lr: 1e-5
+  max_steps: 8                   # 冒烟 8 步
+  warmup_steps: 1
+  weight_decay: 0.0
+  save_steps: 4
+  logging_steps: 1
+  aux_loss_coef: 1e-3
+  lora: false
+  output_dir: output/test_8k
+
+loss:                            # 与 train_32k 完全一致（只改窗口/数据规模）
+  variant_weight: 3.0
+  motif_weight: 1.5
+  background_weight: 0.02
+  focus_left: 100
+  focus_right: 25
+  motif_halfwidth: 15

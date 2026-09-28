@@ -1,0 +1,38 @@
+# CCS-N 变异感知评测 - 统一配置
+# 所有路径均为相对本项目根目录 (evaluate/CCS_N) 或绝对路径
+# 运行: bash run_eval.sh config/eval.yaml  或  python scripts/run_eval.py config/eval.yaml
+
+# ---- 数据 ----
+data:
+  vcf: data/251.SNP.bsnp.vcf.gz        # 过滤后双等位SNP VCF (准备阶段输出)
+  ref: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+  out_dir: data                        # 中间产物输出目录 (BED/GVL等)
+
+# ---- 采样 (sample_carriers.py) ----
+sampling:
+  enabled: true                        # false 则跳过采样 (用已有 BED)
+  bed: data/carrier_hom.bed            # 采样输出的 BED 路径
+  sample: NH001                        # 目标样本 (GVL 中索引)
+  genotype: hom                        # hom=纯合1/1 | het=杂合0/1 | any=任意携带
+  window_size: 256                     # 窗口大小 (变异位于 idx=ws//2-1)
+  max_variants: 1000                   # 采样位点数 (null=全量)
+  seed: 42                             # 随机采样种子
+
+# ---- GVL 数据集 (prepare_data.write_gvl_dataset) ----
+gvl:
+  dir: data/gvl_hom                    # GVL 数据集输出目录
+  skip: false                          # true 则跳过 GVL 写入 (用已有数据集)
+
+# ---- 评测 (run_ccs_n.py) ----
+eval:
+  models:                              # 模型目录 (相对或绝对), 支持 dict 带 tokenizer_type
+    - /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+    - /mnt/rice/default/Workspace/yangdong/ai4research/new_project/script/output/variant_cpt_32k_10samp/final
+    - /mnt/rice/default/Workspace/Rice-Genome/model/RiceModel2/AgriGenome_4n8a_1.2b_8k_pt_32k_cpt_stage1_iter14000_hf
+  sample: NH001                        # 评测样本
+  batch_size: 16
+  device: cuda:1                       # cuda:0 被占39GB, 用 cuda:1
+  out_dir: output/hom_1000_multi       # 结果输出目录 (多模型对比)
+  max_regions: null                    # 最多评测区间数 (null=全部)
+  seed: 42                             # 随机对照 seed
+  n_list: [0, 1, 2, 4, 8, 16]          # CCS-N 累加半径

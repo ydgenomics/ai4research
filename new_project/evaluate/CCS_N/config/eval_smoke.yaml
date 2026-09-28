@@ -1,0 +1,25 @@
+# CCS-N 多模型冒烟测试
+data:
+  vcf: data/251.SNP.bsnp.vcf.gz
+  ref: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+  out_dir: data
+
+sampling:
+  enabled: false
+  bed: data/carrier_hom.bed
+
+gvl:
+  dir: data/gvl_hom
+  skip: true
+
+eval:
+  models:
+    - /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+    - /mnt/rice/default/Workspace/Rice-Genome/model/RiceModel2/AgriGenome_4n8a_1.2b_8k_pt_32k_cpt_stage1_iter14000_hf
+  sample: NH001
+  batch_size: 16
+  device: cuda:1
+  out_dir: output/hom_1000_multi
+  max_regions: null
+  seed: 42
+  n_list: [0, 1, 2, 4, 8, 16]

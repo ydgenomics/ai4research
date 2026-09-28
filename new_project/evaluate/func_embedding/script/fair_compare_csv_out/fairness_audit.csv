@@ -1,0 +1,8 @@
+model,dim,tokenizer,arch,max_context,n_truncated,pooling,eff_rank_raw,eff_rank_decon,d90_decon,top30_var_pct,n_comp_used
+Botanic0_L,1500,kmer6_cls,encoder,1024.0,82,mean,7.48,10.8,53,85.0,256
+GENERator_v2_eukaryote_3b,3072,kmer6,causal,16384.0,0,mean,3.35,4.6,13,95.0,256
+NTv3_650M_pre,1536,char,mlm,,0,mean,1.0,1.04,1,100.0,256
+OryzaG3_32k,1152,kmer3,causal,32768.0,0,mean,4.04,8.55,47,86.8,256
+PlantCAD2_Large,3072,char,encoder,,0,mean,1.79,3.43,20,92.0,256
+agront_1b,1500,kmer6_cls,encoder,1025.0,82,mean,6.52,10.61,46,86.0,256
+rice_1B_stage2_8k,1024,singlebase,causal,1048576.0,0,mean,2.37,3.69,5,99.2,256

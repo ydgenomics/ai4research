@@ -24,7 +24,7 @@
 | 请求体 | 推断模式 | 说明 |
 |---|---|---|
 | `{"mode":"health"}` | **health** | 健康检查（免鉴权） |
-| `{"mode":"predict", ...}` | **predict** | 渗入分析（默认） |
+| `{"mode":"predict", ...}` | **predict** | 渗入分析（默认；`analyze` / `intro` 为等价别名） |
 | `{}` 空 body | **health** | 自动推断（向后兼容） |
 | 其他（含 `start` 等，无 mode） | **predict** | 默认预测 |
 | `{"mode":"xxx"}` | 400 | 未知 mode 报错 |
@@ -95,6 +95,7 @@ curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_intro/health \
 
 | 字段 | 必填 | 类型 | 说明 |
 |---|---|---|---|
+| `mode` | ❌ | string | `health` / `predict`（别名 `analyze`、`intro`）；缺省按 body 自动推断 |
 | `genome` | ❌ | string | 基因组 ID（默认第一个 `GENOME_*_FASTA`，如 `YF47`） |
 | `chromosome` | ❌ | string | 染色体（默认 `Chr01`；FASTA 实际命名，不归一化） |
 | `start` | ❌ | int | **1-based inclusive** 起始坐标 |
@@ -132,6 +133,22 @@ curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_intro/predict \
     "end": 356001
   }' | python3 -m json.tool
 ```
+
+**整条染色体模式**（start/end 都留空；窗口个数受 `.env` `MAX_NUMBER_256W` 限制，当前部署=4）：
+
+```bash
+# ── 本机 ──
+curl -s -X POST http://127.0.0.1:5001/api/aigress/openai/rice_intro \
+  -H "Content-Type: application/json" \
+  -d '{"genome": "YF47", "chromosome": "Chr01"}' | python3 -m json.tool
+
+# ── DCS（整条模式）──
+curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_intro/predict \
+  -H "Authorization: Bearer <DCS_API_KEY>" -H "Content-Type: application/json" \
+  -d '{"genome": "YF47", "chromosome": "Chr01"}' | python3 -m json.tool
+```
+
+> ⚠️ 整条模式每个 256k 窗口需推理 32 段 8k 序列（约 20–30s/窗）；窗口数多时留意网关 180s 超时，建议先用 `start`+`end` 指定小区域。
 
 ### 4.3 返回结构
 
@@ -195,6 +212,28 @@ curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_intro/predict \
 
 **分组规则**：`Jap` = `topk_mean_jap ≥ thr_jap` 且 `topk_mean_ind < thr_ind`；`Ind` = `topk_mean_jap < thr_jap` 且 `topk_mean_ind ≥ thr_ind`；否则 `uncertain`。
 
+### 4.5 错误响应结构
+
+非 200 时统一返回（HTTP 状态码与 `status` 字段一致）：
+
+```json
+{
+    "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+    "status": 400,
+    "message": "Introgression prediction failed: ...",
+    "result": null,
+    "detail": {"request": {"genome": "YF47", "chromosome": "Chr01", "start": 100001, "end": 356001}}
+}
+```
+
+| HTTP | 触发场景 | 排查 |
+|---|---|---|
+| 400 | 参数缺漏/格式错（`start<1`、`mode` 未知、未知基因组） | 检查请求体字段与 `mode` 白名单（`health`/`predict`/`analyze`/`intro`） |
+| 401 | 鉴权失败 | 检查 `Authorization: Bearer <key>` / `X-API-Key: <key>` 与 `.env` 的 `DCS_API_KEY` |
+| 404 | 基因组 FASTA / 染色体不存在 | 检查 `chromosome` 拼写（FASTA 实际命名，不归一化） |
+| 500 | 推理异常 | `detail.traceback` / 服务端日志 |
+| 503 | 模型初始化失败，无法推理 | `/health` 查 `diagnostics.init_error`，重启容器 |
+
 ---
 
 ## 5. 易错点 / 排障
@@ -206,3 +245,38 @@ curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_intro/predict \
 | 推理请求慢/超时 | 模型是 1B LoRA，单窗 32 段 8k 序列；整条模式 + MAX 空时窗口数可达 683（约 5488 片段），注意网关 180s 超时 |
 | 鉴权 401 | 确认 `.env` 配置了 `DCS_API_KEY` 且请求带 `Authorization: Bearer <key>` |
 | 端口冲突 | `fuser -k 5001/tcp`（本机联调时清理残留进程） |
+
+---
+
+## 6. Python 调用示例（httpx）
+
+```python
+import httpx
+
+# ── 本机后端直连（模型加载约 30–60s，首次推理慢属正常）──
+resp = httpx.post(
+    "http://127.0.0.1:5001/api/aigress/openai/rice_intro",
+    json={
+        "mode": "predict",
+        "genome": "YF47",
+        "chromosome": "Chr01",
+        "start": 100001,
+        "end": 356001,
+    },
+    timeout=300,
+)
+data = resp.json()
+print(data["status"], data["message"])          # 200 Introgression analysis succeeded
+for w in data["result"]["windows"]:
+    print(w["win_start"], w["win_end"],
+          round(w["topk_mean_jap"], 4), round(w["topk_mean_ind"], 4), w["group"])
+
+# ── DCS 平台（URL 路径路由 + 鉴权）──
+resp = httpx.post(
+    "https://www.dcs.cloud/api/aigress/openai/OGR/rice_intro/predict",
+    headers={"Authorization": "Bearer <DCS_API_KEY>"},
+    json={"genome": "YF47", "chromosome": "Chr02", "start": 100001, "end": 356001},
+    timeout=300,
+)
+print(resp.json()["usage"])                      # {"prompt_tokens": ..., "completion_tokens": ...}
+```

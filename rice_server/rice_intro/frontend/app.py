@@ -48,7 +48,7 @@ I18N = {
         "subtitle": "Genome-wide introgression analysis (Jap / Ind). Inference runs only on the requested region; the full-genome view is always shown.",
         "genome": "Genome",
         "chromosome": "Chromosome",
-        "start": "Start (optional; empty = whole chromosome)",
+        "start": "Start (optional; empty = maximum window)",
         "end": "End (optional; empty = start+256k)",
         "start_placeholder": "e.g. 100000",
         "end_placeholder": "e.g. 356000",
@@ -61,7 +61,7 @@ I18N = {
         "placeholder": "Select a genome & chromosome, then click Predict to see the result.",
         "err_no_genome": "Please select a genome.",
         "err_no_chromosome": "Please select a chromosome.",
-        "err_range": "Start is empty so End must also be empty (whole chromosome).",
+        "err_range": "Start is empty so End must also be empty (maximum window).",
         "progress_run": "Running: {pct:.0f}% (batch {done}/{total} · {elapsed:.0f}s) · {chrom}",
         "done": "{cached}Done ({elapsed}s · {n_win} windows · {n_seg} segments)",
         "predict_failed": "Prediction failed: {msg}",
@@ -71,7 +71,7 @@ I18N = {
         "subtitle": "全基因组渗入分析 —— 粳/籼。仅对请求区域推理，展示恒为全基因组视图。",
         "genome": "基因组",
         "chromosome": "染色体",
-        "start": "Start（可选，留空=整条染色体）",
+        "start": "Start（可选，留空=最大窗口）",
         "end": "End（可选，留空=start+256k）",
         "start_placeholder": "如 100000",
         "end_placeholder": "如 356000",
@@ -84,7 +84,7 @@ I18N = {
         "placeholder": "选择基因组与染色体后点击预测，查看结果。",
         "err_no_genome": "请选择基因组。",
         "err_no_chromosome": "请选择染色体。",
-        "err_range": "Start 为空时 End 也必须为空（整条染色体）。",
+        "err_range": "Start 为空时 End 也必须为空（最大窗口）。",
         "progress_run": "推理中：{pct:.0f}%（批次 {done}/{total} · {elapsed:.0f}s） · {chrom}",
         "done": "{cached}完成（{elapsed}s · {n_win} 窗口 · {n_seg} 片段）",
         "predict_failed": "预测失败：{msg}",
@@ -156,7 +156,7 @@ Plotly.newPlot('chart', FIGURE.data, FIGURE.layout, FIGURE.config);
 # ---------------------------------------------------------------------------
 #  后端通信（同步 httpx——Gradio 事件处理器运行在工作线程，避免 asyncio 嵌套）
 # ---------------------------------------------------------------------------
-# 3600s：整条染色体推理（5488 片段）可能超过 10 分钟，600s 默认超时不够
+# 3600s：最大窗口推理（5488 片段）可能超过 10 分钟，600s 默认超时不够
 _HTTP = httpx.Client(timeout=httpx.Timeout(3600.0, connect=30.0))
 
 
@@ -337,7 +337,7 @@ def _build_genome_figures(payload: dict) -> dict:
             "hoverinfo": "skip",
             "name": str(chrom),
         })
-        # uninferenced 浅灰带（最底层，覆盖整条染色体，被下方已推断色带覆盖）
+        # uninferenced 浅灰带（最底层，覆盖最大窗口，被下方已推断色带覆盖）
         traces.append({
             "type": "scatter",
             "mode": "lines",

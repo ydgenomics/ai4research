@@ -124,3 +124,23 @@ httpx.ConnectError: All connection attempts failed
   with gr.Blocks(
 /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
   with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'theme' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'theme' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'theme' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'theme' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'theme' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'theme' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'theme' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'theme' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'theme' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'theme' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_intro/frontend/app.py:462: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
+  with gr.Blocks(

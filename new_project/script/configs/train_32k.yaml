@@ -1,0 +1,58 @@
+# 水稻变异感知 CPT · 默认配置（窗口 32k）
+compute:
+  gpus: "0,1,2,3"                # torchrun 用（逗号分隔）
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 8
+  bf16: true
+  grad_ckpt: true
+  flash_attn: true
+  dataloader_workers: 0          # GVL 多线程, 用 0/1
+  gvl_threads: 8                 # GVL_NUM_THREADS
+  gvl_max_mem: "8g"              # gvl.write 内存预算（36G VCF 建议 >=8g）
+  seed: 42
+
+window:
+  length: 32768                  # 【核心可调参数：窗口大小】
+  step: 16384                    # 网格步长（默认 50% overlap）
+  chroms: [Chr1,Chr2,Chr3,Chr4,Chr5,Chr6,Chr7,Chr8,Chr9,Chr10,Chr11,Chr12]  # 排 ChrUn/ChrSy
+  train_chroms: [Chr1,Chr2,Chr3,Chr4,Chr5,Chr6,Chr7]
+  val_chroms:   [Chr8,Chr9]
+  test_chroms:  [Chr10,Chr11,Chr12]
+  density_power: 0.5             # density 采样：w=n_variants^power（<1 压峰；无变异窗权重=0 不采样）
+  density_cap_p: 0.99            # 权重 cap 分位（防超密窗过采样）
+  sampling_mode: two_stage       # 两段采样：覆盖段（每窗 K 代表样本等形态覆盖）+ 聚焦段（剩余预算按 density）
+  coverage_k: 8                  # 覆盖段每窗代表样本数（≤样本数；预算≥窗数时前 K*窗 个即全窗位置覆盖）
+  cover_frac: 0.6                # 覆盖段占预算比例（≥1 轮全窗位置覆盖；剩余预算 → density 聚焦高变异窗）
+
+data:
+  reference_fasta: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/osa1_r7.asm.ch.fa
+  vcf: /mnt/rice/data/Lianguang_shang/251.SNP.vcf.gz
+  out_dir: data                  # 相对 script/，产物：data/norm、data/bed、data/gvl
+  max_sv_len: 50                 # 过滤 SV：只留 SNP+indel<50bp
+  maf: 0.05
+  hwe: 1e-6
+  max_missing: 0.1
+  samples: null                  # null=全部样本；或显式列表
+
+model:
+  path: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/rice_mut/rice_1B_stage2_8k_hf
+
+train:
+  lr: 1e-5                       # 冒烟 10-20 步后按 loss 量级校准（C5）
+  max_steps: 5120
+  warmup_steps: 100
+  weight_decay: 0.01
+  save_steps: 500
+  logging_steps: 10
+  aux_loss_coef: 1e-3            # C4: 沿用 MoE aux-loss 防路由塌缩
+  lora: false                    # false=全参微调；true 或 {r:8,alpha:16,dropout:0.05,target_modules:[...]}=LoRA 冻结基模
+  output_dir: output/variant_cpt_32k
+  bf16: true
+
+loss:                            # 方案一：变异聚焦 loss_mask
+  variant_weight: 3.0
+  motif_weight: 1.5
+  background_weight: 0.02
+  focus_left: 100                # 变异位点左窗（预测变异碱基及上游）
+  focus_right: 25                # 变异位点右窗（学变异对下游影响）
+  motif_halfwidth: 15            # motif ±6-15bp 区域（1.5）
