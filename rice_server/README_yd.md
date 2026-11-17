@@ -66,7 +66,18 @@ curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_mut/predict \
 }'
 
 # snv 单碱基突变对比(chr09:20731844 C→T)
-OGROG
+curl -X POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_mut/snv \
+  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "OGR",
+    "genome": "osa1_r7",
+    "chromosome": "chr09",
+    "start": 20716774,
+    "snv_index": 20731844,
+    "snv_base": "T",
+    "output_format": "mean"
+  }'
 
 # 返回: ref_values=参考表达, mut_values=突变后表达
 

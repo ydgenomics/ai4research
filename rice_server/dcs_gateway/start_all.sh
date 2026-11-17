@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# 一键启动：三个后端 dcs_adapter + dcs_gateway（统一网关，单端口收口）
+# 一键启动：四个后端 dcs_adapter + dcs_gateway（统一网关，单端口收口）
 #
 # 用法:
 #   bash start_all.sh                                      # 启动全部服务（读本目录 .env + 各服务 .env）
-#   bash start_all.sh rice_mut rice_reg                    # 位置参数：只启动指定服务（等价于 ENABLED_SERVICES）
-#   ENABLED_SERVICES=rice_mut,rice_reg bash start_all.sh   # 环境变量方式（逗号分隔；.env 的 ENABLED_SERVICES 缺省=全部）
+#   bash start_all.sh ogr_prediction ogr_regulation        # 位置参数：只启动指定服务（等价于 ENABLED_SERVICES）
+#   ENABLED_SERVICES=ogr_prediction,ogr_regulation bash start_all.sh   # 环境变量方式（逗号分隔；.env 的 ENABLED_SERVICES 缺省=全部）
 #   RICE_OGR_PORT=8003 bash start_all.sh                   # shell 环境变量兜底（低于 .env）
 #   RICE_MUT_PYTHON=/path/to/python bash start_all.sh      # 同上，覆盖解释器
+#
+# 服务名（ENABLED_SERVICES）与目录映射:
+#   ogr_prediction    → OGR_Prediction/backend   (端口 8001)
+#   ogr_regulation    → OGR_Regulation/backend   (端口 7001)
+#   ogr_introgression → OGR_Introgression/backend(端口 5001)
+#   ogr_base          → OGR_Base                 (端口 6001)
 #
 # 解释器优先级（从高到低）:
 #   0) conda activate vllm（脚本启动时先激活 vllm 环境，python=该环境 python）
@@ -39,12 +45,12 @@ RICE_INTRO_PORT="${RICE_INTRO_PORT:-5001}"
 RICE_OGR_PORT="${RICE_OGR_PORT:-6001}"
 GATEWAY_PORT="${GATEWAY_PORT:-9000}"
 
-# 可选启动：ENABLED_SERVICES 逗号分隔（rice_mut/rice_reg/rice_intro/rice_ogr），缺省全量
+# 可选启动：ENABLED_SERVICES 逗号分隔（ogr_prediction/ogr_regulation/ogr_introgression/ogr_base），缺省全量
 # 优先级：位置参数 > ENABLED_SERVICES（.env / shell 环境变量）> 全部
 if [ "$#" -gt 0 ]; then
     ENABLED_SERVICES="$(IFS=','; echo "$*")"
 else
-    ENABLED_SERVICES="${ENABLED_SERVICES:-rice_mut,rice_reg,rice_intro,rice_ogr}"
+    ENABLED_SERVICES="${ENABLED_SERVICES:-ogr_prediction,ogr_regulation,ogr_introgression,ogr_base}"
 fi
 echo "==> enabled services: $ENABLED_SERVICES"
 RICE_MUT_PYTHON="${RICE_MUT_PYTHON:-}"
@@ -60,12 +66,12 @@ env_python() {
     local dir="$1" override="$2" py
     # 1) 已配置的 RICE_*_PYTHON（来自 .env 或 shell 环境变量）
     if [ -n "$override" ]; then echo "$override"; return; fi
-    # 2) 各服务 .env 里的 BACKEND_PYTHON_BIN（三服务部署约定均指向 vllm 环境）
+    # 2) 各服务 .env 里的 BACKEND_PYTHON_BIN（部署约定均指向 vllm 环境）
     if [ -f "$ROOT/$dir/.env" ]; then
         py="$(sed -n 's/^BACKEND_PYTHON_BIN=//p' "$ROOT/$dir/.env" | tail -1)"
         [ -n "$py" ] && { echo "$py"; return; }
     fi
-    # 3) 回退：vllm 环境（含 sanic，rice_OGR 依赖）→ 系统 python
+    # 3) 回退：vllm 环境（含 sanic，OGR-Base 依赖）→ 系统 python
     for cand in /root/miniconda3/envs/vllm/bin/python python; do
         if command -v "$cand" >/dev/null 2>&1 || [ -x "$cand" ]; then echo "$cand"; return; fi
     done
@@ -73,10 +79,10 @@ env_python() {
 }
 
 # 注：RICE_*_PYTHON 已在上面被 .env 全覆盖（.env 优先级最高）
-RICE_MUT_PYTHON="$(env_python "rice_mut" "$RICE_MUT_PYTHON")"
-RICE_REG_PYTHON="$(env_python "rice_reg" "$RICE_REG_PYTHON")"
-RICE_INTRO_PYTHON="$(env_python "rice_intro" "$RICE_INTRO_PYTHON")"
-RICE_OGR_PYTHON="$(env_python "rice_OGR" "$RICE_OGR_PYTHON")"
+RICE_MUT_PYTHON="$(env_python "OGR_Prediction" "$RICE_MUT_PYTHON")"
+RICE_REG_PYTHON="$(env_python "OGR_Regulation" "$RICE_REG_PYTHON")"
+RICE_INTRO_PYTHON="$(env_python "OGR_Introgression" "$RICE_INTRO_PYTHON")"
+RICE_OGR_PYTHON="$(env_python "OGR_Base" "$RICE_OGR_PYTHON")"
 
 start_backend() {
     local name="$1" dir="$2" port="$3" py="$4"
@@ -94,24 +100,24 @@ enabled() {
     return 1
 }
 
-if enabled rice_mut; then start_backend "rice_mut" "rice_mut/backend" "$RICE_MUT_PORT" "$RICE_MUT_PYTHON"; else echo "    - skip rice_mut"; fi
-if enabled rice_reg; then start_backend "rice_reg" "rice_reg/backend" "$RICE_REG_PORT" "$RICE_REG_PYTHON"; else echo "    - skip rice_reg"; fi
-if enabled rice_intro; then start_backend "rice_intro" "rice_intro/backend" "$RICE_INTRO_PORT" "$RICE_INTRO_PYTHON"; else echo "    - skip rice_intro"; fi
-if enabled rice_ogr; then start_backend "rice_ogr" "rice_OGR"         "$RICE_OGR_PORT" "$RICE_OGR_PYTHON"; else echo "    - skip rice_ogr"; fi
+if enabled ogr_prediction; then start_backend "ogr_prediction" "OGR_Prediction/backend"    "$RICE_MUT_PORT" "$RICE_MUT_PYTHON"; else echo "    - skip ogr_prediction"; fi
+if enabled ogr_regulation; then start_backend "ogr_regulation" "OGR_Regulation/backend"    "$RICE_REG_PORT" "$RICE_REG_PYTHON"; else echo "    - skip ogr_regulation"; fi
+if enabled ogr_introgression; then start_backend "ogr_introgression" "OGR_Introgression/backend" "$RICE_INTRO_PORT" "$RICE_INTRO_PYTHON"; else echo "    - skip ogr_introgression"; fi
+if enabled ogr_base; then start_backend "ogr_base" "OGR_Base"         "$RICE_OGR_PORT" "$RICE_OGR_PYTHON"; else echo "    - skip ogr_base"; fi
 
 # 等待后端 /health 就绪（模型加载较慢，各最多 180s）
 # POSIX 兼容：不用关联数组，改用 case 查端口
 backend_port() {
     case "$1" in
-        rice_mut) echo "$RICE_MUT_PORT" ;;
-        rice_reg) echo "$RICE_REG_PORT" ;;
-        rice_intro) echo "$RICE_INTRO_PORT" ;;
-        rice_ogr) echo "$RICE_OGR_PORT" ;;
+        ogr_prediction) echo "$RICE_MUT_PORT" ;;
+        ogr_regulation) echo "$RICE_REG_PORT" ;;
+        ogr_introgression) echo "$RICE_INTRO_PORT" ;;
+        ogr_base) echo "$RICE_OGR_PORT" ;;
     esac
 }
 
 echo "==> 等待后端就绪（最多 180s）..."
-for name in rice_mut rice_reg rice_intro rice_ogr; do
+for name in ogr_prediction ogr_regulation ogr_introgression ogr_base; do
     if ! enabled "$name"; then continue; fi
     port="$(backend_port "$name")"
     url="http://127.0.0.1:${port}/health"
