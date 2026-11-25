@@ -51,6 +51,7 @@ curl -s https://<dcs-host>/api/aigress/openai/OGR \
 ```json
 {
   "usage": { "prompt_tokens": 32768, "completion_tokens": 128 },
+  "token_cnt": 32896,
   "status": 200,
   "message": "成功提示",
   "result": { ... }
@@ -58,6 +59,7 @@ curl -s https://<dcs-host>/api/aigress/openai/OGR \
 ```
 
 - **计费口径**：`prompt_tokens = 输入 token 数 × DCS_PROMPT_TOKEN_MULTIPLIER`（默认 1）；`completion_tokens = 输出元素数 × DCS_COMPLETION_TOKEN_MULTIPLIER`（默认 1）。水稻基模为单碱基编码，**1 bp = 1 token**。
+- **`token_cnt`**（顶层键，三个服务统一）= `prompt_tokens + completion_tokens`（按折算后两值求和；错误/未鉴权时 = 0）。
 - **鉴权**：`.env` 配置 `DCS_API_KEY` 后，除 `/health` 外均需 `Authorization: Bearer <key>` 或 `X-API-Key: <key>`；key 未配置（空）则不鉴权。
 - **返回末尾自带换行**：curl 查看结果不粘连提示符。
 

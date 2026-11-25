@@ -12,6 +12,10 @@ DCS 平台侧只需配置 **一个外部地址**，网关按请求体 `model_sub
 
 外部唯一入口：`POST https://www.dcs.cloud/api/aigress/openai/OGR`（URL 路径或 body 路由两种方式）。
 
+> **自定义文件（FASTA / GFF）**：三个服务（OGR-Prediction / OGR-Regulation / OGR-Introgression）
+> 支持 `POST .../OGR/{sub}/RegisterGenome` **传本地文件路径注册**（文件需已放在后端同机，
+> 不做文件传输），预测时用返回的 `genome` 引用；详见 [API.md §4.5](API.md)。
+
 > **API 调用（本机 + DCS、四合一完整说明 + 测试代码）见 [API.md](API.md)**。
 > 其它文档：`../README.md`（总览）、`../dcs.md`（DCS 部署要求）、`../quick_start.md`（快手上手）。
 
@@ -124,3 +128,6 @@ curl -s http://127.0.0.1:4000/health
 - **健康检查**：`/health`、`/api/aigress/openai/health` 为聚合探活（本地合成，不转发）；`_probe` 对各后端 `/health` 免鉴权探测，超时 5s。
 - **转发超时**：推理请求较长，connect 5s / read 600s；连接失败→502，读超时→504。
 - **token 计费**：仍由后端按 1 bp = 1 token 计算，网关不改动 `usage`。
+- **文件系统探查**（调试用，默认关闭）：`EXPLORE_ENABLED=true` 时开放 `POST .../OGR/fs/{list,stat,find,cat}`
+  （网关本地只读实现，不转发后端），用于远程排查部署机文件位置与目录结构（详见 [API.md §4.6](API.md)）；
+  仅 list/stat/find/cat 四项只读操作，配置 `DCS_API_KEY` 后强制鉴权，cat 限 64KB；**排查完请关闭**。

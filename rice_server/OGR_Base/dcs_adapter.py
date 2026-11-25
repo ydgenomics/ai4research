@@ -15,6 +15,7 @@
 
     {
       "usage": {"prompt_tokens": N, "completion_tokens": M},
+      "token_cnt": N + M,
       "status": 200,
       "message": "...",
       "result": {...}
@@ -219,15 +220,19 @@ def _parse_model(body: dict) -> str:
 
 
 def _usage(prompt_tokens: int, completion_tokens: int) -> dict:
+    pt = int(prompt_tokens * PROMPT_TOKEN_MULTIPLIER)
+    ct = int(completion_tokens * COMPLETION_TOKEN_MULTIPLIER)
     return {
-        "prompt_tokens": int(prompt_tokens * PROMPT_TOKEN_MULTIPLIER),
-        "completion_tokens": int(completion_tokens * COMPLETION_TOKEN_MULTIPLIER),
+        "prompt_tokens": pt,
+        "completion_tokens": ct,
     }
 
 
 def _ok(usage: dict, message: str, result: dict):
     return {
+        "model_name": "OGR",
         "usage": usage,
+        "token_cnt": usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0),
         "status": 200,
         "message": message,
         "result": result,
@@ -236,7 +241,9 @@ def _ok(usage: dict, message: str, result: dict):
 
 def _err(message: str, status: int = 400, detail: dict | None = None):
     resp = {
+        "model_name": "OGR",
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+        "token_cnt": 0,
         "status": status,
         "message": message,
         "result": None,
@@ -278,7 +285,9 @@ def _check_api_key(authorization: str | None = None, x_api_key: str | None = Non
 
 def _unauthorized(message: str = "Invalid or missing API Key"):
     return {
+        "model_name": "OGR",
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+        "token_cnt": 0,
         "status": 401,
         "message": message,
         "result": None,

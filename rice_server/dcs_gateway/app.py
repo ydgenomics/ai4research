@@ -11,15 +11,18 @@
 
 路由表（model_sub 小写匹配，连字符自动归一为下划线，缺省走主服务 ogr_base）：
 
-    model_sub=OGR-Prediction   → 127.0.0.1:8001  /api/aigress/openai/OGR-Prediction/{Prediction,SNV}
-    model_sub=OGR-Regulation   → 127.0.0.1:7001  /api/aigress/openai/OGR-Regulation/{Genome,Chromosome,Prediction}
-    model_sub=OGR-Introgression→ 127.0.0.1:5001  /api/aigress/openai/OGR-Introgression/predict
+    model_sub=OGR-Prediction   → 127.0.0.1:8001  /api/aigress/openai/OGR-Prediction/{Prediction,SNV,RegisterGenome}
+    model_sub=OGR-Regulation   → 127.0.0.1:7001  /api/aigress/openai/OGR-Regulation/{Genome,Chromosome,Prediction,RegisterGenome}
+    model_sub=OGR-Introgression→ 127.0.0.1:5001  /api/aigress/openai/OGR-Introgression/{predict,RegisterGenome}
     model_sub=OGR-Base         → 127.0.0.1:6001  /api/aigress/openai/OGR-Base/{Embedding,NTP}   (缺省)
 
 说明：
 - 四个后端 dcs_adapter 均为**纯子路径路由（无 body mode）**：URL 路径的第二段
-  （Prediction/SNV/Genome/Chromosome/Embedding/NTP/predict）映射到后端子路径，
+  （Prediction/SNV/Genome/Chromosome/Embedding/NTP/predict/RegisterGenome）映射到后端子路径，
   网关只做路径重写，**不注入任何 mode 字段**；请求体其余字段原样透传。
+- RegisterGenome：三个服务（OGR-Prediction/Regulation/Introgression）支持**传本地文件路径**
+  注册自定义基因组（FASTA/GFF），文件需已预置于后端同机，不做文件传输；
+  注册后预测请求用返回的 genome 字段引用（详见 API.md §4.5）。
 - 转发前剥离 `model_sub`（仅供路由），其余字段（Genome/Chromosome/Start/...）
   与请求头（Authorization / X-API-Key 等）原样透传，后端计费/错误语义不变。
 - /health 为聚合健康检查：汇总各后端的就绪状态（本地合成，不转发）。
@@ -40,8 +43,11 @@
 from __future__ import annotations
 
 import asyncio
+import fnmatch
 import json
 import os
+import pathlib
+from datetime import datetime
 from typing import Dict, Tuple
 
 import httpx
@@ -57,24 +63,31 @@ BACKENDS: Dict[str, dict] = {
         "host": os.getenv("RICE_MUT_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_MUT_PORT", "8001")),
         "path": "/api/aigress/openai/OGR-Prediction",
-        "subpath_modes": ("prediction", "snv"),   # URL 第二段 → 后端子路径(首字母大写)
-        "subpath_map": {"prediction": "Prediction", "snv": "SNV"},
+        "subpath_modes": ("prediction", "snv", "registergenome"),   # URL 第二段 → 后端子路径（归一形式）
+        "subpath_map": {
+            "prediction": "Prediction", "snv": "SNV",
+            "registergenome": "RegisterGenome",
+        },
     },
     "ogr_regulation": {
         "host": os.getenv("RICE_REG_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_REG_PORT", "7001")),
         "path": "/api/aigress/openai/OGR-Regulation",
-        "subpath_modes": ("genome", "chromosome", "prediction"),
+        "subpath_modes": ("genome", "chromosome", "prediction", "registergenome"),
         "subpath_map": {
             "genome": "Genome", "chromosome": "Chromosome", "prediction": "Prediction",
+            "registergenome": "RegisterGenome",
         },
     },
     "ogr_introgression": {
         "host": os.getenv("RICE_INTRO_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_INTRO_PORT", "5001")),
         "path": "/api/aigress/openai/OGR-Introgression",
-        "subpath_modes": ("predict", "health"),
-        "subpath_map": {"predict": "predict", "health": "health"},
+        "subpath_modes": ("predict", "health", "registergenome"),
+        "subpath_map": {
+            "predict": "predict", "health": "health",
+            "registergenome": "RegisterGenome",
+        },
     },
     "ogr_base": {
         "host": os.getenv("RICE_OGR_HOST", "127.0.0.1"),
@@ -134,13 +147,15 @@ _FWD_TIMEOUT = httpx.Timeout(
 
 app = FastAPI(
     title="DCS Gateway (OGR-Prediction + OGR-Regulation + OGR-Introgression + OGR-Base, model_sub routing)",
-    version="0.3.1",
+    version="0.4.0",
 )
 
 
-# URL 路径路由已知子路径集合（用于校验路径第二段是否为合法 subpath）
+# URL 路径路由已知子路径集合（用于校验路径第二段是否为合法 subpath；
+# 全部为归一后的形式——小写、无连字符/下划线）
 _KNOWN_MODES = {"prediction", "snv", "genome", "chromosome",
-                "predict", "health", "embedding", "ntp"}
+                "predict", "health", "embedding", "ntp",
+                "registergenome"}
 
 # 全局共享的异步客户端（keep-alive 连接池；max_connections 放宽以支撑并发）
 _client: httpx.AsyncClient | None = None
@@ -272,7 +287,9 @@ def _gateway_err(status: int, message: str) -> JSONResponse:
     """统一 DCS 错误方言（与后端 dcs_adapter 的 _err 一致）。"""
     return JSONResponse(
         {
+            "model_name": "OGR",
             "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+            "token_cnt": 0,
             "status": status,
             "message": message,
             "result": None,
@@ -330,6 +347,9 @@ def _parse_path(full_path: str) -> Tuple[str, str]:
         return "", "health"
     sub = rest[0].lower().replace("-", "")
     mode = rest[1].lower() if len(rest) > 1 else ""
+    # mode 同样做归一:去连字符与下划线(RegisterGenome / register_genome /
+    # registergenome 均归一为 registergenome),与 sub 的处理保持一致
+    mode = mode.replace("-", "").replace("_", "")
     if mode not in _KNOWN_MODES:
         mode = ""  # 非合法子路径（多余路径残余）→ 不当作子路径
     return sub, mode
@@ -351,6 +371,229 @@ async def aggregated_health(request: Request):
         "status": "ok" if all_ok else "degraded",
         "services": services,
     }
+
+
+# ---------------------------------------------------------------------------
+#  文件系统探查接口（调试排查用，EXPLORE_ENABLED=true 时开放；生产默认关闭）
+#  - 只读：fs/list | fs/stat | fs/find | fs/cat，无任何写/删/改操作
+#  - 不限路径（排查阶段按需访问部署机任意绝对路径；用后请立即关闭开关）
+#  - 鉴权：沿用 DCS_API_KEY（配置后需 Authorization: Bearer <key> / X-API-Key: <key>）
+#  - 限流：cat 默认 64KB、list 默认 200 条、find 默认深度 4 / 200 条
+# ---------------------------------------------------------------------------
+_EXPLORE_ENABLED = os.getenv("EXPLORE_ENABLED", "false").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+_EXPLORE_MAX_FILE_BYTES = int(os.getenv("EXPLORE_MAX_FILE_BYTES", "65536") or 65536)
+_EXPLORE_MAX_LIST_ITEMS = int(os.getenv("EXPLORE_MAX_LIST_ITEMS", "200") or 200)
+_EXPLORE_MAX_FIND_DEPTH = int(os.getenv("EXPLORE_MAX_FIND_DEPTH", "4") or 4)
+
+
+def _fs_auth_error(request: Request) -> str | None:
+    """网关本地鉴权（仅探查接口用）：与后端一致，DCS_API_KEY 配置后需匹配。"""
+    key = os.getenv("DCS_API_KEY", "").strip()
+    if not key:
+        return None
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer ") and auth[7:].strip() == key:
+        return None
+    if request.headers.get("x-api-key", "") == key:
+        return None
+    return "invalid api key (Authorization: Bearer <key> / X-API-Key: <key>)"
+
+
+def _resolve_abs(raw: object) -> pathlib.Path:
+    """校验并解析绝对路径（不支持相对路径 / 空值）。"""
+    if not isinstance(raw, str) or not raw.strip() or not raw.strip().startswith("/"):
+        raise ValueError("path must be an absolute path (e.g. /data/xxx)")
+    return pathlib.Path(raw.strip()).resolve()
+
+
+def _fs_entry(p: pathlib.Path) -> dict:
+    """单个文件/目录详情（等价 ll 单行）。"""
+    st = p.stat()
+    is_link = p.is_symlink()
+    if is_link:
+        etype = "symlink"
+    elif p.is_dir():
+        etype = "dir"
+    elif p.is_file():
+        etype = "file"
+    else:
+        etype = "other"
+    return {
+        "name": p.name,
+        "path": str(p),
+        "type": etype,
+        "size": st.st_size,
+        "mode": oct(st.st_mode & 0o7777),
+        "mtime": datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+        "target": os.readlink(p) if is_link else None,
+    }
+
+
+def _fs_list(body: dict) -> dict:
+    """列目录（等价 ls -lh）。"""
+    p = _resolve_abs(body.get("path"))
+    if not p.exists():
+        raise FileNotFoundError(str(p))
+    if not p.is_dir():
+        raise ValueError(f"path is not a directory: {p}")
+    entries = []
+    with os.scandir(p) as it:
+        for e in sorted(it, key=lambda x: x.name):
+            try:
+                entries.append(_fs_entry(pathlib.Path(e.path)))
+            except OSError:
+                continue
+    total = len(entries)
+    truncated = total > _EXPLORE_MAX_LIST_ITEMS
+    return {
+        "path": str(p),
+        "total": total,
+        "truncated": truncated,
+        "items": entries[:_EXPLORE_MAX_LIST_ITEMS],
+    }
+
+
+def _fs_stat(body: dict) -> dict:
+    """单个文件/目录详情（等价 ll /path）。"""
+    p = _resolve_abs(body.get("path"))
+    if not p.exists():
+        raise FileNotFoundError(str(p))
+    return {"path": str(p), "entry": _fs_entry(p)}
+
+
+def _fs_find(body: dict) -> dict:
+    """按文件名模式递归搜索（等价 find /path -name PATTERN）。"""
+    p = _resolve_abs(body.get("path"))
+    pattern = str(body.get("pattern") or "*")
+    depth = min(int(body.get("max_depth") or _EXPLORE_MAX_FIND_DEPTH), 20)
+    limit = min(int(body.get("limit") or 200), 1000)
+    if not p.exists():
+        raise FileNotFoundError(str(p))
+    if not p.is_dir():
+        raise ValueError(f"path is not a directory: {p}")
+    matches, matched = [], 0
+    for root, dirs, files in os.walk(p):
+        rel = pathlib.Path(root).relative_to(p)
+        rel_depth = 0 if str(rel) == "." else len(rel.parts)
+        if rel_depth >= depth:
+            dirs[:] = []
+            continue
+        for name in files:
+            if fnmatch.fnmatch(name, pattern):
+                matches.append(str(pathlib.Path(root) / name))
+                matched += 1
+                if matched >= limit:
+                    break
+        if matched >= limit:
+            break
+    return {
+        "path": str(p),
+        "pattern": pattern,
+        "max_depth": depth,
+        "matched": matched,
+        "truncated": matched >= limit,
+        "matches": matches,
+    }
+
+
+def _fs_cat(body: dict) -> dict:
+    """读文件内容（等价 head -c 64K；tail=true 时读末尾）。"""
+    p = _resolve_abs(body.get("path"))
+    tail = bool(body.get("tail", False))
+    limit = min(int(body.get("limit") or _EXPLORE_MAX_FILE_BYTES), _EXPLORE_MAX_FILE_BYTES)
+    if not p.exists():
+        raise FileNotFoundError(str(p))
+    if not p.is_file():
+        raise ValueError(f"path is not a file: {p}")
+    size = p.stat().st_size
+    with open(p, "rb") as f:
+        if tail and size > limit:
+            f.seek(size - limit)
+            data = f.read(limit)
+            truncated = True
+        else:
+            data = f.read(limit)
+            truncated = size > len(data)
+    return {
+        "path": str(p),
+        "size": size,
+        "read_bytes": len(data),
+        "truncated": truncated,
+        "tail": tail,
+        "content": data.decode("utf-8", errors="replace"),
+    }
+
+
+def _fs_error(status: int, message: str) -> JSONResponse:
+    """探查接口统一错误方言（与 _gateway_err / 后端 _err 一致）。"""
+    return JSONResponse(
+        {
+            "model_name": "OGR",
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+            "token_cnt": 0,
+            "status": status,
+            "message": message,
+            "result": None,
+        },
+        status_code=status,
+    )
+
+
+async def _fs_handle(request: Request, fn) -> dict | JSONResponse:
+    """探查接口统一入口：开关检查 → 鉴权 → 参数解析 → 执行 → 错误方言。"""
+    if not _EXPLORE_ENABLED:
+        return _fs_error(
+            403,
+            "fs explore disabled (set EXPLORE_ENABLED=true in dcs_gateway/.env)",
+        )
+    err = _fs_auth_error(request)
+    if err:
+        return _fs_error(401, err)
+    try:
+        body = await request.json()
+    except Exception:
+        return _fs_error(400, "invalid JSON body")
+    if not isinstance(body, dict):
+        return _fs_error(400, "request body must be a JSON object")
+    try:
+        result = fn(body)
+    except FileNotFoundError as e:
+        return _fs_error(404, f"not found: {e}")
+    except PermissionError as e:
+        return _fs_error(403, f"permission denied: {e}")
+    except (ValueError, TypeError) as e:
+        return _fs_error(400, str(e))
+    except Exception as e:
+        return _fs_error(500, f"{type(e).__name__}: {e}")
+    return {
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+        "token_cnt": 0,
+        "status": 200,
+        "message": "ok",
+        "result": result,
+    }
+
+
+@app.api_route("/api/aigress/openai/OGR/fs/list", methods=["POST"])
+async def fs_list(request: Request):
+    return await _fs_handle(request, _fs_list)
+
+
+@app.api_route("/api/aigress/openai/OGR/fs/stat", methods=["POST"])
+async def fs_stat(request: Request):
+    return await _fs_handle(request, _fs_stat)
+
+
+@app.api_route("/api/aigress/openai/OGR/fs/find", methods=["POST"])
+async def fs_find(request: Request):
+    return await _fs_handle(request, _fs_find)
+
+
+@app.api_route("/api/aigress/openai/OGR/fs/cat", methods=["POST"])
+async def fs_cat(request: Request):
+    return await _fs_handle(request, _fs_cat)
 
 
 # 唯一外部入口 + 其他任何路径：URL 路径路由 / body model_sub 路由

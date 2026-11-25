@@ -1,5 +1,33 @@
 # CHANGELOG — dcs_gateway 统一网关
 
+## [0.4.0] - 2026-11-25
+
+### 新增：文件系统探查接口（排查部署机文件/数据结构用）
+
+部署机不在本地、无法 SSH，新增 4 个网关本地**只读**接口用于远程排查文件位置与目录结构
+（网关实现，不转发后端、不碰模型进程）：
+
+- `POST .../OGR/fs/list`（等价 `ls -lh /path`）：列目录，`{path}`，默认限 200 条
+- `POST .../OGR/fs/stat`（等价 `ll /path`）：单文件/目录详情（type/size/mode/mtime/symlink target）
+- `POST .../OGR/fs/find`（等价 `find /path -name PATTERN`）：递归按文件名模式搜索，
+  `{path, pattern, max_depth, limit}`，默认深度 4 / 200 条（上限 20 / 1000）
+- `POST .../OGR/fs/cat`（等价 `head -c 64K /path`）：读文件内容，`{path, tail, limit}`，默认/上限 64KB，UTF-8 容错解码
+
+**设计**：
+- **只读**：仅 list/stat/find/cat，无任何写、删、改、上传操作。
+- **不限路径**：排查阶段可访问部署机任意绝对路径（`realpath` 解析）；用后请立即关闭。
+- **开关控制**：`.env` 新增 `EXPLORE_ENABLED`（默认 `false`，生产保持关闭）；
+  开启后若配置了 `DCS_API_KEY` 则强制鉴权（`Authorization: Bearer <key>` / `X-API-Key: <key>`）。
+- **限流限长**：`EXPLORE_MAX_FILE_BYTES`（cat，默认 65536）/ `EXPLORE_MAX_LIST_ITEMS`（list，默认 200）/ `EXPLORE_MAX_FIND_DEPTH`（find，默认 4）。
+- 返回沿用四服务统一结构（`usage`/`token_cnt`/`status`/`message`/`result`，计费为 0）；
+  错误方言一致：404（不存在）/ 403（无权限或未启用）/ 400（参数错）/ 500（IO 异常）。
+
+**文档**：API.md 新增 §4.6 探查接口；README.md 目录结构/行为约定补充说明。
+
+**验证**：`py_compile` 通过；路由为具体路径（`/api/aigress/openai/OGR/fs/*`），优先于 catch-all 转发路由。
+
+---
+
 ## [0.3.1] - 2026-11-17
 
 ### 修复：响应头透传的压缩错位隐患（0.2.0 遗留）

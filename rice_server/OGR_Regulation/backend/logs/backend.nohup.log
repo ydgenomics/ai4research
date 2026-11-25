@@ -912,3 +912,29 @@ INFO:     Waiting for application shutdown.
 11/17/2026 00:25:58 - INFO - rice_reg.prediction_service - Predictor released.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [1960150]
+INFO:     Started server process [4113070]
+INFO:     Waiting for application startup.
+11/19/2026 16:10:10 - INFO - rice_reg.core.rice_reg - Initializing RiceRegPredictor ...
+11/19/2026 16:10:10 - INFO - rice_reg.core.rice_reg -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/rice_1B_32k_hf
+11/19/2026 16:10:10 - INFO - rice_reg.core.rice_reg -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/three_sam2.model.safetensors
+11/19/2026 16:10:10 - INFO - rice_reg.core.rice_reg -   predictor_type  = fusion
+11/19/2026 16:10:10 - INFO - rice_reg.core.rice_reg -   device          = cuda:0
+11/19/2026 16:10:10 - INFO - rice_reg.core.rice_reg - Loading base model and tokenizer ...
+11/19/2026 16:10:10 - INFO - root - >>> Loading pretrained model and tokenizer...
+`torch_dtype` is deprecated! Use `dtype` instead!
+11/19/2026 16:10:46 - INFO - rice_reg.core.rice_reg - Building multimodal predictor (fusion) ...
+11/19/2026 16:10:46 - INFO - root - Identified 12 transformer layers (fusion predictor; base frozen)
+11/19/2026 16:10:48 - INFO - rice_reg.core.rice_reg - Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/three_sam2.model.safetensors
+11/19/2026 16:11:08 - INFO - rice_reg.core.rice_reg - Checkpoint loaded (non-strict mode).
+11/19/2026 16:11:08 - INFO - rice_reg.core.rice_reg - RiceRegPredictor initialized successfully.
+11/19/2026 16:11:08 - INFO - rice_reg.prediction_service - RiceRegPredictor initialised and ready.
+11/19/2026 16:11:08 - INFO - rice_reg.cache_service - Started bigWig cleanup thread (dir=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions, interval=600s, ttl=1800s)
+11/19/2026 16:11:08 - INFO - rice_reg.prediction_service - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:7001 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+11/19/2026 16:29:25 - INFO - rice_reg.core.rice_reg - RiceRegPredictor released.
+11/19/2026 16:29:25 - INFO - rice_reg.prediction_service - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4113070]

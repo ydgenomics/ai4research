@@ -31,6 +31,7 @@ ATAC 输入(二选一,``uploaded_atac`` 优先):
 
     {
       "usage": {"prompt_tokens": N, "completion_tokens": M},
+      "token_cnt": N + M,
       "status": 200,
       "message": "...",
       "result": {...}
@@ -87,10 +88,12 @@ from rice_reg.prediction_service import (  # noqa: E402
     _PREDICTOR,
     _validate_atac_bw,
     adjust_window,
+    attach_uploaded_gff,
     get_genome_chromosomes,
     init_predictor,
     list_genomes,
     normalize_chromosome,
+    register_uploaded_genome,
     require_predictor,
     resolve_atac_path,
     resolve_genome_config,
@@ -191,15 +194,19 @@ def _parse_common(body: dict):
 
 
 def _usage(prompt_tokens: int, completion_tokens: int) -> dict:
+    pt = int(prompt_tokens * PROMPT_TOKEN_MULTIPLIER)
+    ct = int(completion_tokens * COMPLETION_TOKEN_MULTIPLIER)
     return {
-        "prompt_tokens": int(prompt_tokens * PROMPT_TOKEN_MULTIPLIER),
-        "completion_tokens": int(completion_tokens * COMPLETION_TOKEN_MULTIPLIER),
+        "prompt_tokens": pt,
+        "completion_tokens": ct,
     }
 
 
 def _ok(usage: dict, message: str, result: dict):
     return {
+        "model_name": "OGR",
         "usage": usage,
+        "token_cnt": usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0),
         "status": 200,
         "message": message,
         "result": result,
@@ -208,7 +215,9 @@ def _ok(usage: dict, message: str, result: dict):
 
 def _err(message: str, status: int = 400, detail: dict | None = None):
     resp = {
+        "model_name": "OGR",
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+        "token_cnt": 0,
         "status": status,
         "message": message,
         "result": None,
@@ -223,6 +232,7 @@ def _summarize_body(body: dict) -> dict:
     keys = (
         "model", "Genome", "Chromosome", "Start",
         "ATAC-seq_Source", "uploaded_atac", "Format",
+        "fasta_path", "genome_id", "gff_path",
     )
     return {k: body[k] for k in keys if k in body}
 
@@ -244,7 +254,9 @@ def _check_api_key(authorization: str | None = None, x_api_key: str | None = Non
 
 def _unauthorized(message: str = "Invalid or missing API Key"):
     return {
+        "model_name": "OGR",
         "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+        "token_cnt": 0,
         "status": 401,
         "message": message,
         "result": None,
@@ -536,6 +548,28 @@ async def _chromosomes_inner(
     )
 
 
+# ---------------------------------------------------------------------------
+#  自定义基因组懒注册:预测请求 body 直接带 fasta_path(有则替代 Genome 键)
+#  生成的 genome id 与网页端同风格:{time_ns}_{原文件名}
+# ---------------------------------------------------------------------------
+def _lazy_register_genome(body: dict) -> tuple[str, dict | None]:
+    """若 body 含 fasta_path,现场注册并返回 (genome_id, cfg);
+    否则返回 ("", None)。gff_path 随 fasta_path 一起附加。
+    """
+    fasta_path = str(body.get("fasta_path", "") or "").strip()
+    if not fasta_path:
+        return "", None
+    gff_path = str(body.get("gff_path", "") or "").strip() or ""
+
+    # genome id = {time_ns}_{原文件名},与网页端落盘文件命名一致
+    fname = os.path.basename(fasta_path) or "custom.fa"
+    genome_id = f"{time.time_ns()}_{fname}"
+    cfg = register_uploaded_genome(fasta_path, genome_id=genome_id)
+    if gff_path:
+        cfg = attach_uploaded_gff(genome_id, gff_path)
+    return genome_id, cfg
+
+
 async def _predict_inner(
     req: Request,
     body: dict,
@@ -558,7 +592,14 @@ async def _predict_inner(
             detail={"init_error": _INIT_ERROR, "request": _summarize_body(body)},
         )
 
+    lazy_genome, lazy_cfg = "", None
     try:
+        # 懒注册:body 有 fasta_path → 现场注册并生成 genome(替代 Genome 键)
+        lazy_genome, lazy_cfg = _lazy_register_genome(body)
+        if lazy_genome:
+            body["Genome"] = lazy_genome
+            body["gff_path"] = ""
+
         genome, chromosome, start_1, atac_source, uploaded_atac, fmt = (
             _parse_common(body)
         )
@@ -568,8 +609,11 @@ async def _predict_inner(
 
         predictor = require_predictor()
 
+        # 坐标转换:API 输入 1-based inclusive → 内部 0-based half-open
+        # (与网页版 /predict/rice-reg 一致:start_0 = start_1 - 1;返回时再 +1)
+        start_0 = max(0, start_1 - 1)
         # 窗口归一化(center-align 到 target_len,与网页版一致);无 end,窗口长取 target_len
-        norm_start, norm_end = adjust_window(start_1, None, predictor.target_len)
+        norm_start, norm_end = adjust_window(start_0, None, predictor.target_len)
         # 染色体别名归一化 + ATAC bigWig 兼容性校验(与 run_prediction_core 一致)
         chrom = normalize_chromosome(genome, chromosome, genome_config)
         _validate_atac_bw(atac_path, chrom)
@@ -636,6 +680,8 @@ async def _predict_inner(
         result={
             "model": "OGR-Regulation",
             "Genome": genome,
+            "fasta_path": (lazy_cfg or {}).get("fasta", ""),
+            "gff_path": (lazy_cfg or {}).get("gff", ""),
             "Chromosome": pos_chrom,
             "Start": pos_start + 1,
             "window_len": pos_end - pos_start,
@@ -648,6 +694,101 @@ async def _predict_inner(
             },
         },
     )
+
+
+# ---------------------------------------------------------------------------
+#  自定义基因组路径注册(传文件地址即可,不做文件传输)
+#  文件已预先放在本机;调用方只需在 body 中传 fasta_path(必填) +
+#  可选 genome_id / gff_path,后端校验并注册后,预测请求用 Genome 字段引用。
+#  注:ATAC bigWig 无需注册,预测请求直接传 uploaded_atac 文件路径即可。
+# ---------------------------------------------------------------------------
+@app.post("/api/aigress/openai/OGR-Regulation/RegisterGenome")
+@app.post("/OGR-Regulation/RegisterGenome")
+async def register_genome(
+    req: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    """注册本地 FASTA 为可用基因组(传路径,不传输文件)。"""
+    try:
+        body = await req.json()
+    except Exception:
+        return _err("Request body is not valid JSON. " + USAGE_TEXT, 400)
+    return await _register_genome_inner(req, body, authorization, x_api_key)
+
+
+async def _register_genome_inner(
+    req: Request,
+    body: dict,
+    authorization: str | None = None,
+    x_api_key: str | None = None,
+):
+    """按本地路径注册自定义基因组(可附带 GFF 注释)。"""
+    try:
+        _check_api_key(authorization, x_api_key)
+    except RequestError as e:
+        return _unauthorized(str(e))
+
+    try:
+        fasta_path = str(body.get("fasta_path", "") or "").strip()
+        if not fasta_path:
+            raise RequestError(
+                "Missing required parameter 'fasta_path' (local path to a .fa/.fasta/.fna file). " + USAGE_TEXT
+            )
+        genome_id = str(body.get("genome_id", "") or "").strip() or ""
+        gff_path = str(body.get("gff_path", "") or "").strip() or ""
+
+        cfg = register_uploaded_genome(fasta_path, genome_id=genome_id)
+        # 定位刚注册的 genome id(register_uploaded_genome 返回 config 不含 id)
+        gid = _find_registered_id(cfg["fasta"])
+        if gff_path:
+            cfg = attach_uploaded_gff(gid, gff_path)
+
+        chroms = get_genome_chromosomes(gid, cfg)
+    except RequestError as e:
+        return _err(
+            f"RegisterGenome failed: {e}", 400,
+            detail={"request": _summarize_body(body)},
+        )
+    except (FileNotFoundError, ValueError) as e:
+        return _err(
+            f"RegisterGenome failed: {e}", 400,
+            detail={"request": _summarize_body(body)},
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return _err(
+            f"RegisterGenome failed: {e}", 500,
+            detail={
+                "error_type": e.__class__.__name__,
+                "traceback": traceback.format_exc()[-2000:],
+                "request": _summarize_body(body),
+            },
+        )
+
+    return _ok(
+        usage=_usage(0, 0),
+        message=f"Custom genome registered: {gid}",
+        result={
+            "model": "OGR-Regulation",
+            "genome": gid,
+            "fasta_path": cfg["fasta"],
+            "gff_path": cfg.get("gff") or "",
+            "chromosomes": chroms,
+            "chromosome_count": len(chroms),
+            "note": "Files are referenced by path only (no upload). Use the returned 'genome' as the Genome field in Prediction requests; pass ATAC bigWig path directly as 'uploaded_atac'.",
+        },
+    )
+
+
+def _find_registered_id(fasta_path: str) -> str:
+    """按 fasta 绝对路径在注册表中反查 genome id(注册时 id 由时间戳生成)。"""
+    from rice_reg.prediction_service import _UPLOADED_GENOMES
+    fasta_abs = os.path.abspath(fasta_path)
+    for gid, cfg in _UPLOADED_GENOMES.items():
+        if os.path.abspath(cfg.get("fasta", "")) == fasta_abs:
+            return gid
+    raise ValueError(f"Uploaded genome not found in registry for {fasta_path}")
 
 
 # ---------------------------------------------------------------------------

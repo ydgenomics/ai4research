@@ -165,12 +165,14 @@ class TestUsageAndResponses(unittest.TestCase):
         self.assertEqual(resp["status"], 200)
         self.assertEqual(resp["message"], "ok")
         self.assertEqual(resp["result"], {"k": "v"})
+        self.assertEqual(resp["token_cnt"], 3)
 
     def test_err_shape(self):
         resp = _err("bad", 400)
         self.assertEqual(resp["status"], 400)
         self.assertIsNone(resp["result"])
         self.assertEqual(resp["usage"], {"prompt_tokens": 0, "completion_tokens": 0})
+        self.assertEqual(resp["token_cnt"], 0)
 
 
 class TestSnvBilling(unittest.TestCase):
@@ -227,6 +229,7 @@ class TestApiKey(unittest.TestCase):
         self.assertEqual(resp["status"], 401)
         self.assertIsNone(resp["result"])
         self.assertEqual(resp["usage"], {"prompt_tokens": 0, "completion_tokens": 0})
+        self.assertEqual(resp["token_cnt"], 0)
 
 
 if __name__ == "__main__":
