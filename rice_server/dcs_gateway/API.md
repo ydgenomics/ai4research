@@ -433,4 +433,5 @@ curl -X POST ${dcs_host}${dcs_entry} \
 | OGR-Introgression | 参数表 / 返回结构 / 计费 / 排查 | [OGR_Introgression/API.md](../OGR_Introgression/API.md) |
 | OGR-Base | 参数表 / 返回结构 / 计费 / 排查 | [OGR_Base/API.md](../OGR_Base/API.md) |
 
-> 命名速查（一页版）见 [quick_start.md](../quick_start.md)；部署与维护见 [AGENTS.md](../AGENTS.md)、[dcs.md](../dcs.md)。
+> 命名速查（一页版）见 [OGR_Applications_Call_Guide_private.md](../OGR_Applications_Call_Guide_private.md)；
+> 服务级细节见各服务 `API.md`（OGR_Prediction / OGR_Regulation / OGR_Introgression / OGR_Base）；部署与维护见 `../README.md`。

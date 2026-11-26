@@ -250,3 +250,9 @@ INFO:     127.0.0.1:53058 - "GET /static-files/mnt/rice/default/Workspace/yangdo
 INFO:     127.0.0.1:53076 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/predictions/Chr1_20716772_20749540_RNA-seq_Leaf_result1_1795596712.bw HTTP/1.1" 206 Partial Content
 INFO:     127.0.0.1:53064 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/predictions/Chr1_20716772_20749540_RNA-seq_Leaf_result2_1795596712.bw HTTP/1.1" 206 Partial Content
 INFO:     127.0.0.1:53082 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-11-25 17:04:44,915 - INFO - RiceMutationPredictor released.
+2026-11-25 17:04:45,147 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [910584]

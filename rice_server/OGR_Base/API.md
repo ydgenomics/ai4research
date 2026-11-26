@@ -256,7 +256,7 @@ curl --location 'https://www.dcs.cloud/api/aigress/openai/OGR' \
 
 ## 6. 返回结构与计费
 
-遵循 `rice_server/dcs.md` 规范，返回 `{"usage", "status", "message", "result"}`。
+遵循 `rice_server/dcs_gateway/API.md` 统一规范，返回 `{"usage", "status", "message", "result"}`。
 
 **mode=dna_embedding 响应示例：**
 

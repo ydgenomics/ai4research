@@ -1,31 +1,31 @@
 # Rice-Server — 水稻基因组学模型服务仓库
 
-本仓库包含 **三个水稻基因组学服务**（基于 Genos DNA 大模型衍生的 1B 水稻基模），
-共享同一份模型/基因组数据（`source/`），并通过 **DCS 平台网关** 以 OpenAI 风格对外提供 API。
+基于 **Genos DNA 大模型**衍生的 1B 水稻基模，提供 **四个水稻基因组学服务**（共享 `source/` 模型/基因组数据），
+通过 **DCS 平台统一网关** 以 OpenAI 风格对外提供 API。
 
-> 部署与维护细节见 [AGENTS.md](AGENTS.md)（部署指南）、[dcs.md](dcs.md)（DCS 部署要求）。
-> **API 调用**（本机 + DCS 两套测试代码）：三合一完整版见 [dcs_gateway/API.md](dcs_gateway/API.md)，各服务见 [rice_mut/API.md](rice_mut/API.md)、[rice_reg/API.md](rice_reg/API.md)、[rice_OGR/API.md](rice_OGR/API.md)。
-> **外部用户**（只关心 API 怎么调）直接看 [quick_start.md](quick_start.md)（一页速查）。
+> **API 调用（唯一完整文档）**：[dcs_gateway/API.md](dcs_gateway/API.md)（四合一：统一入口 + 本机/DCS 测试代码 + 各服务参数表 + 错误排查 + fs 探查接口）
+> **调用速查（含网页端）**：[OGR_Applications_Call_Guide_private.md](OGR_Applications_Call_Guide_private.md)
+> **网关实现**：[dcs_gateway/README.md](dcs_gateway/README.md)
 
 ---
 
-## 1. 三个服务一览
+## 1. 四个服务一览
 
-| 服务 | 任务 | 基础模型 | 输入 | 输出 | 本地端口(网页/API) | DCS 入口 |
-|---|---|---|---|---|---|---|
-| **rice_mut** | DNA → 多组学表达预测（**参考 vs SNV 变异对比**） | `rice_1B_stage2_8k_hf` | DNA 序列 | assay×biosample 多维表达 + bigWig | 8000 / 8001 | 统一入口 `…/OGR` + `model_sub=rice_mut` |
-| **rice_reg** | DNA + **ATAC** → RNA-seq 表达预测 | `rice_1B_32k_hf` | DNA + ATAC bigWig | RNA-seq ± 两通道 + bigWig | 7000 / 7001 | 统一入口 `…/OGR` + `model_sub=rice_reg` |
-| **rice_OGR** | **embedding 提取 / 下游碱基预测**（基模直接开放） | 两者均可（注册表） | DNA 序列 | 1024 维向量 / 预测碱基 | 8000(本地 Sanic) / **6001**(DCS 适配) | 统一入口 `…/OGR`（`model_sub` 缺省即此） |
+| 服务 | 能力 | 基础模型 | 输入 | 输出 | DCS 子路径 |
+|---|---|---|---|---|---|
+| **OGR-Prediction** | DNA → 多组学表达预测（**参考 vs SNV 变异对比**） | `rice_1B_stage2_8k_hf` | DNA 序列 | assay×biosample 多维表达 + bigWig | `Prediction` / `SNV` |
+| **OGR-Regulation** | DNA + **ATAC** → RNA-seq 表达预测 | `rice_1B_32k_hf` | DNA + ATAC bigWig | RNA-seq ± 两通道 + bigWig | `Genome` / `Chromosome` / `Prediction` |
+| **OGR-Introgression** | 粳/籼血缘渗入分析 | — | DNA 区域 | 渗入窗口分组（Jap/Ind/uncertain） | `predict` |
+| **OGR-Base**（**缺省**） | **embedding 提取 / 下游碱基预测** | 注册表（`1B_8k` 等） | DNA 序列 | 1024 维向量 / 预测碱基 | `Embedding` / `NTP` |
 
-> ⚠️ **端口规划**：rice_OGR 的 DCS 适配层默认 **6001**（与 rice_mut 8001 错开，见 `dcs_gateway/.env`）。
-> **统一网关**：`dcs_gateway/` 单端口（默认 9000）收口三个服务，对外**唯一入口**
-> `POST /api/aigress/openai/OGR`（URL 路径或 body `model_sub` 路由，详见 [dcs_gateway/API.md](dcs_gateway/API.md)）。
+**统一入口（DCS 平台只配一个地址）**：`POST .../api/aigress/openai/OGR/{model_sub}[/{subpath}]`
+（URL 路径路由，推荐；或 body `model_sub` 字段路由，兼容旧式）。网关 `dcs_gateway/` 单端口（默认 4000）收口四服务，**不加载模型**。
 
-| 服务 | 快速入口 |
-|---|---|
-| rice_mut | [README](rice_mut/README.md) · [API 调用](rice_mut/API.md) |
-| rice_reg | [README](rice_reg/README.md) · [API 调用](rice_reg/API.md) |
-| rice_OGR | [README](rice_OGR/README.md) · [API 调用](rice_OGR/API.md) |
+**公共约定**：
+- **返回结构**：`{"usage": {prompt_tokens, completion_tokens}, "token_cnt", "status", "message", "result"}`
+- **计费**：水稻基模单碱基编码，**1 bp = 1 token**；`token_cnt = prompt_tokens + completion_tokens`
+- **鉴权**：`Authorization: Bearer <key>` 或 `X-API-Key: <key>`（`/health` 免鉴权）
+- **自定义文件**：OGR-Prediction / Regulation / Introgression 支持 `RegisterGenome` 传**本地文件路径**注册自定义基因组（FASTA/GFF，不做文件传输）
 
 ---
 
@@ -33,86 +33,78 @@
 
 ```
 rice_server/
-├── README.md                # 本文档(索引导航)
-├── AGENTS.md                # ★ 部署/维护指南(端口、.env、缓存、并发、FAQ)
-├── dcs.md                   # ★ DCS 平台部署要求
-├── quick_start.md           # ★ 外部用户一页速查(三服务功能 + curl 示例)
+├── README.md                # 本文档（索引导航）
+├── OGR_Applications_Call_Guide_private.md  # 调用速查（网页端 + DCS API 端）
 │
-├── rice_mut/                # 服务一：变异对比表达预测 (网页:8000 / API:8001)
-│   ├── backend/             #   FastAPI 后端 + dcs_adapter.py
-│   ├── frontend/            #   Gradio 前端 + IGV.js
-│   └── API.md               #   API 调用文档（本机 + DCS）
-├── rice_reg/                # 服务二：ATAC 条件表达预测 (网页:7000 / API:7001)
-│   ├── backend/             #   FastAPI 后端 + dcs_adapter.py
-│   ├── frontend/            #   Gradio 前端
-│   └── API.md               #   API 调用文档（本机 + DCS）
-├── rice_OGR/                # 服务三：embedding 提取 / 碱基预测 (Sanic:8000 / DCS:6001)
-│   ├── dna_embedding.py     #   Sanic 原服务
-│   ├── dcs_adapter.py       #   FastAPI DCS 适配层(单入口 + mode 分发)
-│   ├── README.md            #   服务介绍 / 配置 / 启动
-│   └── API.md               #   API 调用文档（本机 + DCS）
+├── OGR_Prediction/          # 服务一：变异对比表达预测（网页 :8000 / DCS 适配 :8001）
+├── OGR_Regulation/          # 服务二：ATAC 条件表达预测（网页 :7000 / DCS 适配 :7001）
+├── OGR_Introgression/       # 服务三：粳/籼血缘渗入分析（网页 :5000 / DCS 适配 :5001）
+├── OGR_Base/                # 服务四：embedding / 碱基预测（纯 API，DCS 适配 :6001）
 │
-├── dcs_gateway/            # ★ 统一网关：单端口收口三个服务的 DCS API
-│   ├── app.py               #   FastAPI 轻量反代（model_sub 路由，不加载模型）
-│   ├── .env.example         #   后端地址 / 端口配置
-│   └── run_gateway.sh       #   启动脚本
+├── dcs_gateway/            # ★ 统一网关：单端口收口四服务的 DCS API
+│   ├── app.py               #   FastAPI 轻量反代（model_sub/子路径路由，不加载模型）
+│   ├── API.md               #   ★ 四合一 API 调用文档（本机 + DCS 测试代码）
+│   ├── .env                 #   后端地址 / 端口 / 服务开关 / fs 探查开关
+│   ├── start_all.sh         #   一键拉起：四后端 + 网关
+│   └── run_gateway.sh       #   网关启动脚本
 │
-├── docker/                  # 交付镜像
-│   ├── org_web/             #   DCS 平台镜像(包含依赖)
-│   ├── org_web-jupyter/     #   Jupyter 变体
-│   └── push_org_web.sh      #   推送脚本(ydgenomics/org_web)
+├── docker/                  # 交付镜像（org_web / org_web-jupyter / push 脚本）
 │
-└── source/                  # ★ 模型 + 基因组数据(约 17G, 交付必带)
-    ├── rice_mut/            #   rice_1B_stage2_8k_hf + csq-5 checkpoint + osa1_r7 基因组
-    └── rice_reg/            #   rice_1B_32k_hf + three_sam2 checkpoint + MH63/NIP + ATAC
+└── source/                  # ★ 模型 + 基因组数据（交付必带）
+    ├── OGR_Prediction/      #   rice_1B_stage2_8k_hf + csq-5 checkpoint + osa1_r7
+    ├── OGR_Regulation/      #   rice_1B_32k_hf + three_sam2 checkpoint + MH63/NIP + ATAC
+    └── OGR_Introgression/   #   渗入分析基因组（YF47 等）
 ```
+
+> 各服务内部结构一致：`backend/`（FastAPI 后端 + `dcs_adapter.py` DCS 适配层）、`frontend/`（Gradio 前端 + IGV.js）、
+> `tools/startup_self_check.sh`（启动自检）、`test/`（API 冒烟测试）、`cache/`（运行时缓存）、`logs/`。
 
 ---
 
-## 3. 快速开始（本地）
+## 3. 启动
 
-每个服务独立的启动方式见各自 README。共性流程：
+### 3.1 一键拉起（推荐）
 
 ```bash
-# 1. 配置 .env(必改：模型/基因组/缓存路径, 参考各项目 .env.example)
-cd rice_mut && cp .env.example .env && vim .env
-
-# 2. 启动后端 + 前端(以 rice_mut 为例)
-bash backend/run_backend.sh
-bash frontend/run_frontend.sh
-# 网页 → http://<host>:8000 ; 后端健康检查 → http://<host>:8001/health
-
-# 3. DCS 适配层(供 DCS 网关转发, 与网页版独立端口)
-python backend/dcs_adapter.py        # rice_mut: 8001(与网页后端同端口, 二选一)
+cd dcs_gateway && bash start_all.sh        # 全部服务（四后端 + 网关）
+bash start_all.sh ogr_prediction ogr_regulation   # 只启动指定后端 + 网关
 ```
 
-> rice_OGR 无网页前端，直接：`python dcs_adapter.py`（:6001）即可提供 DCS API；
-> 或用 `python dna_embedding.py`（:8000）提供 Sanic 原生接口。
+脚本先 `conda activate vllm`，按优先级解析各后端 Python 解释器与端口（`.env` 的 `RICE_*_PYTHON`/`RICE_*_PORT` 最高），
+等待各后端 `/health` 就绪（最长 180s）后前台拉起网关（默认 4000）。日志在 `/tmp/rice_dcs/*.log`。
 
----
-
-## 4. DCS 平台部署（统一网关模式）
-
-三个服务的 DCS 适配层遵循**同一套约定**，对外由 **`dcs_gateway/` 统一收口**（三合一完整说明 + 测试代码见 [dcs_gateway/API.md](dcs_gateway/API.md)）：
-
-- **唯一入口**：`POST /api/aigress/openai/OGR`，请求体 **`model_sub`** 路由（`rice_mut`/`rice_reg`/`rice_ogr` 缺省）
-- **统一返回**：`{"usage": {prompt_tokens, completion_tokens}, "status", "message", "result"}`
-- **鉴权**：`.env` 配 `DCS_API_KEY` 后 POST 需 `Authorization: Bearer <key>`（`health` 免鉴权）
-- **计费**：`prompt_tokens = 输入碱基数 × 系数`，`completion_tokens = 输出元素数 × 系数`（系数可调）
+### 3.2 手动启动
 
 ```bash
-# 示例：经统一入口调用 rice_OGR 提取 embedding
-curl --location 'https://<dcs-host>/api/aigress/openai/OGR' \
-  --header 'Authorization: Bearer <YOUR_API_KEY>' \
-  --header 'Content-Type: application/json' \
-  --data '{"model_sub": "rice_ogr", "mode": "dna_embedding", "model_name": "1B_8k", "sequence": "ACGTTGCATGCAACGT", "pooling_method": "mean"}'
+# 各后端 DCS 适配层（每服务独立进程，加载模型）
+cd ../OGR_Prediction/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py   # :8001
+cd ../OGR_Regulation/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py   # :7001
+cd ../OGR_Introgression/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py  # :5001
+cd ../OGR_Base && BACKEND_PORT=6001 /root/miniconda3/envs/vllm/bin/python dcs_adapter.py  # :6001（默认 8001，必须覆盖）
+
+# 网关
+cd dcs_gateway && bash run_gateway.sh      # 加载 .env，监听 GATEWAY_PORT（默认 4000；DCS 平台注入 PORT 优先）
 ```
+
+> 各服务完整说明（网页版启动、配置 .env、模型路径）见各自 `README.md`。
 
 ---
 
-## 5. 部署注意事项（摘要，详见 AGENTS.md）
+## 4. 验证
 
-1. **安全**：rice_mut / rice_reg 后端将根文件系统挂载为 `/static-files` 静态服务（IGV 加载 bigWig 用），**暴露公网前必须改白名单目录或加鉴权**。
-2. **数据必带**：`source/`（约 17G 模型+基因组）无法从网络重取，打包交付必须包含；`cache/`、`logs/`、`*.pid` 为运行时产物，打包前删除。
-3. **路径耦合**：`.env` 均为开发机绝对路径，部署机必须逐项修改。
+```bash
+curl -s http://127.0.0.1:4000/health | python3 -m json.tool   # 网关聚合健康检查（免鉴权）
+# → {"status":"ok|degraded","services":{"ogr_prediction":{...},"ogr_regulation":{...},...}}
+```
+
+完整调用示例（本机 + DCS 两套 curl）见 [dcs_gateway/API.md](dcs_gateway/API.md)。
+
+---
+
+## 5. 部署注意事项
+
+1. **安全**：OGR-Prediction / Regulation 后端将根文件系统挂载为 `/static-files` 静态服务（IGV 加载 bigWig），**暴露公网前必须改白名单目录或加鉴权**。
+2. **数据必带**：`source/`（模型 + 基因组）无法从网络重取，打包交付必须包含；`cache/`、`logs/`、`*.pid` 为运行时产物，打包前删除。
+3. **路径耦合**：`.env` 均为开发机绝对路径，部署机必须逐项修改（各服务 `.env.example` 有说明）。
 4. **版本锁定**：`requirements.txt` 用 `>=`，交付前建议 `pip freeze > requirements-lock.txt`。
+5. **fs 探查接口**（调试用）：`dcs_gateway/.env` 的 `EXPLORE_ENABLED=true` 可开放 `POST .../OGR/fs/{list,stat,find,cat}` 远程查看部署机文件（详见 [API.md §4.6](dcs_gateway/API.md)）；**排查完请关闭**。

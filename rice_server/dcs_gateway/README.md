@@ -17,7 +17,7 @@ DCS 平台侧只需配置 **一个外部地址**，网关按请求体 `model_sub
 > 不做文件传输），预测时用返回的 `genome` 引用；详见 [API.md §4.5](API.md)。
 
 > **API 调用（本机 + DCS、四合一完整说明 + 测试代码）见 [API.md](API.md)**。
-> 其它文档：`../README.md`（总览）、`../dcs.md`（DCS 部署要求）、`../quick_start.md`（快手上手）。
+> 其它文档：`../README.md`（总览）、`../OGR_Applications_Call_Guide_private.md`（调用速查，含网页端）。
 
 ---
 
