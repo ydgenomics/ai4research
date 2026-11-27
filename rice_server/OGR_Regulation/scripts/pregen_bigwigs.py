@@ -89,7 +89,7 @@ STRANDS = ("plus", "minus")
 CELL_TYPE = "sample"          # batch key prefix used by RiceRegPredictor
 _PLUS_KEY = f"{CELL_TYPE}_plus"
 _MINUS_KEY = f"{CELL_TYPE}_minus"
-DEFAULT_OUT_DIR = _ROOT / "cache" / "pregen"
+DEFAULT_OUT_DIR = _ROOT / "OGR" / "pregen"
 CHUNK_BP = 5_000_000          # bigWig addEntries block to bound memory
 
 # ---------------------------------------------------------------------------
@@ -506,7 +506,7 @@ def main() -> int:
     parser.add_argument("--hop", type=int, default=0,
                         help="sliding hop (default: target_len // 2)")
     parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR),
-                        help="output root (default: <rice_reg>/cache/pregen)")
+                        help="output root (default: <rice_reg>/OGR/pregen)"))
     parser.add_argument("--chunk-windows", type=int, default=256,
                         help="windows per predict_batch call (memory/throughput trade-off)")
     parser.add_argument("--device", default="",

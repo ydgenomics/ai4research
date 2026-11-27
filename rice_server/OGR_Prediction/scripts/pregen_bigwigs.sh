@@ -89,4 +89,4 @@ fi
 
 echo ""
 echo ">> Done. Merged genome-wide files under:"
-echo "   $ROOT_DIR/cache/pregen/osa1_r7/"
+echo "   $ROOT_DIR/OGR/pregen/osa1_r7/"

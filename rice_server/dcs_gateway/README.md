@@ -60,6 +60,13 @@ bash start_all.sh stop ogr_prediction ogr_regulation   # 只停指定后端
 端口同理（`.env` 的 `RICE_*_PORT` / `GATEWAY_PORT` 优先级最高）。
 后端以 `setsid` 脱离终端后台启动，日志写在 `/tmp/rice_dcs/*.log`，等待各自 `/health` 就绪（最长 180s）后前台拉起网关（默认 4000）。
 
+> **startup 缓存清理开关**：仅 **`web` / `monitor-web`**（`ENABLE_WEB=true`）启动时，
+> 后端进程收到 `OGR_ENABLE_STARTUP_CLEAN=1`，执行启动清理（清空预测缓存目录、
+> 重建上传目录、拉起后台 TTL 清理线程）；**`start` / `monitor`（纯后端 API）注入
+> `OGR_ENABLE_STARTUP_CLEAN=0`，后端跳过所有删除与目录重建**——配合纯 API 调用
+> 缺省不保存中间文件（`save_intermediate=false`），规避低权限部署下缓存目录
+> 不可删/只读导致的启动失败。
+
 ### 2.1 手动：先启动四个后端（各占一个 GPU 进程）
 
 ```bash

@@ -12,7 +12,7 @@
 ## 产物布局
 
 ```
-OGR_Regulation/cache/pregen/
+OGR_Regulation/OGR/pregen/
 ├── manifest.json                        # fasta/atac/ckpt sha256、window/hop、窗口清单
 ├── MH63RS3__SAM2_MH63_1_plus.bw         # ★ 最终:正链
 ├── MH63RS3__SAM2_MH63_1_minus.bw        # ★ 最终:负链

@@ -102,6 +102,7 @@ curl -s http://127.0.0.1:7001/health | python3 -m json.tool
 | `ATAC-seq_Source` | ⚠️ | string | 内置 ATAC 源 ID（如 `SAM2_MH63_1`） |
 | `uploaded_atac` | ⚠️ | string | ATAC bigWig 的**本机路径**（优先于 `ATAC-seq_Source`） |
 | `Format` | ❌ | string | `Full`（默认，数组）/ `Mean`（标量） |
+| `save_intermediate` | ❌ | bool | 是否保存中间 plus/minus bigWig 文件。**缺省 `false`（不保存）**：纯 API/curl 调用只返回数值结果（`values` 照常），`igv_payload.tracks` 仅含 ATAC 轨道（无预测轨道）；网页端显式传 `true` 以渲染 IGV 预测轨道 |
 | `fasta_path` | ❌ | string | 可选：懒注册自定义基因组 FASTA |
 | `gff_path` | ❌ | string | 可选：随 `fasta_path` 一并挂载 GFF |
 

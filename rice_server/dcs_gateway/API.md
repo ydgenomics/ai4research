@@ -230,6 +230,11 @@ curl -X POST ${GW}/OGR-Prediction/Prediction \
   }' | python3 -m json.tool
 ```
 
+> **中间文件开关**：curl/API 调用方缺省**不保存**中间文件（bigWig / figure / 磁盘缓存）——
+> `save_intermediate` 缺省 `false`，此时 `igv_payload.tracks` 为空、`figure_url` 为 null，
+> 但数值结果（`values` 等）照常完整返回；如需 IGV 可视化文件，请求体显式加
+> `"save_intermediate": true`（网页端即如此）。网关对该字段原样透传。
+
 ### 5.2 OGR-Prediction：SNV ref/mut 对比
 
 ```bash

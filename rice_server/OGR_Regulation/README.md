@@ -39,6 +39,10 @@ OGR_Regulation/
 ├── docs/
 │   ├── IMPLEMENTATION_PLAN.md # 执行方案与设计决策
 │   └── DEBUG_LOG.md           # Debug 记录与解决方案
+├── OGR/                     # 内置数据 + 运行时缓存
+│   ├── builtin/             # 参考基因组（MH63/NIP）+ ATAC bigWig
+│   ├── predictions/         # 预测 bigWig 缓存
+│   └── uploaded_atac/ uploaded_genomes/   # 上传缓存
 └── test/
     └── test_api.sh           # API 测试脚本
 ```
@@ -104,7 +108,7 @@ tail -f frontend/logs/frontend.nohup.log
 - `GENOME_*_FASTA` / `GENOME_*_FAI` / `GENOME_*_GFF`: 参考基因组文件（MH63 / NIP）
 - `ATAC_PATH_*`: 内置 ATAC bigWig 文件路径（`SAM2_MH63_1` / `SAM2_NIP_1`）
 - `TARGET_LEN`: 预测窗口长度（默认 32768）
-- `CACHE_MODE`: `true` = 懒加载 + 内容寻址缓存（相同窗口复用、跳过 GPU）；`false`（当前部署）= 每次重跑 GPU；两种模式中间 bigWig 均写 `BACKEND_PREDICTION_CACHE`，服务重启自动清空
+- `CACHE_MODE`: `true` = 懒加载 + 内容寻址缓存（相同窗口复用、跳过 GPU）；`false`（当前部署）= 每次重跑 GPU；两种模式中间 bigWig 均写 `BACKEND_PREDICTION_CACHE`，仅 **web 模式（`start_all.sh web`/`monitor-web`，`OGR_ENABLE_STARTUP_CLEAN=1`）** 启动时清空该目录；纯 API 模式（`start`/`monitor`）不清理（配合 `save_intermediate=false` 规避低权限部署删除失败）
 
 ## API 文档
 

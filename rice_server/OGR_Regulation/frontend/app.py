@@ -749,6 +749,9 @@ def _on_predict(
         "Chromosome": chromosome,
         "Start": int(start) if start else 1,
         "Format": "Full",
+        # The web frontend needs the predicted bigWig tracks for IGV rendering
+        # (curl callers omit this key → backend skips saving).
+        "save_intermediate": True,
     }
     if builtin_atac:
         req["ATAC-seq_Source"] = builtin_atac
@@ -1020,6 +1023,10 @@ if __name__ == "__main__":
     _BACKEND_UPSTREAM = BACKEND_API_URL.rstrip("/")
     _SKIP_REQ_HEADERS = {"host", "content-length", "connection"}
     _SKIP_RESP_HEADERS = {"content-length", "transfer-encoding", "connection"}
+    # 复用单个 AsyncClient（keep-alive 连接池）而不是每请求新建 —— IGV 会并发
+    # 加载 bigWig / GFF / FASTA 多个资源并带 Range 头，每请求新建连接容易瞬时
+    # 建连冲高 / 偶发 ConnectError，导致轨道（如 Genes 注释）加载失败不显示。
+    _BACKEND_CLIENT = httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0))
 
     @demo.app.api_route(
         "/backend/{path:path}",
@@ -1032,14 +1039,13 @@ if __name__ == "__main__":
             if k.lower() not in _SKIP_REQ_HEADERS
         }
         body = await request.body()
-        async with httpx.AsyncClient(timeout=600) as client:
-            upstream = await client.request(
-                request.method,
-                url,
-                params=request.query_params,
-                headers=headers,
-                content=body,
-            )
+        upstream = await _BACKEND_CLIENT.request(
+            request.method,
+            url,
+            params=request.query_params,
+            headers=headers,
+            content=body,
+        )
         resp_headers = {
             k: v for k, v in upstream.headers.items()
             if k.lower() not in _SKIP_RESP_HEADERS

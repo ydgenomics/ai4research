@@ -730,12 +730,15 @@ def build_ui():
             if not (api_key or "").strip():
                 yield "", t["err_need_api_key"]
                 return
-            # 与纯 API（curl）同一 DCS 子路径 / 同一方言：camelCase + 1-based
+            # 与纯 API（curl）同一 DCS 子路径 / 同一方言：camelCase + 1-based。
+            # save_intermediate=True：网页端需要磁盘缓存/重跑语义（curl 省略
+            # 该键 → 后端缺省不保存中间文件、跳过磁盘缓存）。
             payload = {
                 "Genome": genome,
                 "Chromosome": chromosome,
                 "Start": _parse_pos(start),
                 "End": _parse_pos(end),
+                "save_intermediate": True,
             }
             task: dict = {"done": False, "html": "", "msg": ""}
 
@@ -860,6 +863,10 @@ def _reverse_proxy(demo):
 
     _SKIP_REQ = {"host", "content-length", "connection"}
     _SKIP_RESP = {"content-length", "content-encoding", "transfer-encoding", "connection"}
+    # 复用单个 AsyncClient（keep-alive 连接池）而不是每请求新建 —— IGV 会并发
+    # 加载 bigWig / GFF / FASTA 多个资源并带 Range 头，每请求新建连接容易瞬时
+    # 建连冲高 / 偶发 ConnectError，导致轨道（如 Genes 注释）加载失败不显示。
+    _BACKEND_CLIENT = httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0))
 
     @demo.app.api_route("/backend/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
     async def proxy_backend(path: str, request: Request):
@@ -869,14 +876,13 @@ def _reverse_proxy(demo):
         headers = {
             k: v for k, v in request.headers.items() if k.lower() not in _SKIP_REQ
         }
-        async with httpx.AsyncClient(timeout=600) as client:
-            r = await client.request(
-                request.method,
-                url,
-                params=request.query_params,
-                headers=headers,
-                content=body,
-            )
+        r = await _BACKEND_CLIENT.request(
+            request.method,
+            url,
+            params=request.query_params,
+            headers=headers,
+            content=body,
+        )
         resp_headers = {
             k: v for k, v in r.headers.items() if k.lower() not in _SKIP_RESP
         }

@@ -127,6 +127,10 @@ class PredictRequest(BaseModel):
     biosample_names: Optional[list] = None
     # Optional matplotlib figure: png | svg | html | none (default none = skip)
     figure_format: str = "none"
+    # When False (default) skip writing intermediate bigWig / figure files —
+    # used by pure-API (curl) callers that only need numeric values.  The web
+    # frontend always passes True so IGV tracks are rendered.
+    save_intermediate: bool = False
 
 
 class SnvRequest(BaseModel):
@@ -137,6 +141,8 @@ class SnvRequest(BaseModel):
     biosample_names: Optional[list] = None
     snv_index: int
     snv_base: str
+    # Same semantics as PredictRequest.save_intermediate.
+    save_intermediate: bool = False
 
 
 class SnvStatRequest(BaseModel):
@@ -361,15 +367,29 @@ def _summarize_body(body: dict) -> dict:
 # ---------------------------------------------------------------------------
 #  Startup / shutdown
 # ---------------------------------------------------------------------------
+def _startup_clean_enabled() -> bool:
+    """startup 缓存清理开关。
+
+    仅当 start_all.sh 以 web / monitor-web(ENABLE_WEB=true)启动时后端才会
+    执行 startup 清理(rmtree + makedirs + 后台 TTL 清理线程),此时注入
+    OGR_ENABLE_STARTUP_CLEAN=1。纯 API 模式(start / monitor)注入 =0,
+    后端跳过所有删除与目录重建,以规避低权限部署下缓存目录不可删/只读导致
+    启动失败(纯 API 调用方默认不保存中间文件,见 save_intermediate)。
+    """
+    return str(os.getenv("OGR_ENABLE_STARTUP_CLEAN", "0")).strip() in ("1", "true", "yes", "on")
+
+
 @app.on_event("startup")
 def on_startup():
-    # Clean caches from previous runs: uploaded dirs are always service-owned,
-    # and the prediction bigWig dir is wiped on every start (both cache modes).
-    for d in (FASTA_CACHE_DIR_ABS, UPLOADED_GENOMES_DIR_ABS, PREDICTION_BW_DIR_ABS):
-        if os.path.isdir(d):
-            shutil.rmtree(d)
-            print(f"[startup] Cleaned cache: {d}")
-        os.makedirs(d, exist_ok=True)
+    # web 模式才清理旧缓存目录;纯 API 模式不删除、不重建(低权限部署兜底)。
+    if _startup_clean_enabled():
+        # Clean caches from previous runs: uploaded dirs are always service-owned,
+        # and the prediction bigWig dir is wiped on every start (both cache modes).
+        for d in (FASTA_CACHE_DIR_ABS, UPLOADED_GENOMES_DIR_ABS, PREDICTION_BW_DIR_ABS):
+            if os.path.isdir(d):
+                shutil.rmtree(d)
+                print(f"[startup] Cleaned cache: {d}")
+            os.makedirs(d, exist_ok=True)
 
     # Mount root filesystem so IGV.js can load local files via HTTP.
     static_mount_path = "/static-files"
@@ -388,16 +408,18 @@ def on_startup():
 
     # Background cleanup of stale prediction bigWig files (interval/TTL follow
     # the cache mode; lightweight mode cleans the temp dir aggressively).
-    bw_interval, bw_ttl = get_bigwig_cleanup_settings()
-    start_bigwig_cleanup(PREDICTION_BW_DIR_ABS,
-                         interval_seconds=bw_interval, ttl_seconds=bw_ttl)
+    # 清理线程同样只在 web 模式下启动(纯 API 不写 bigWig,无需清理)。
+    if _startup_clean_enabled():
+        bw_interval, bw_ttl = get_bigwig_cleanup_settings()
+        start_bigwig_cleanup(PREDICTION_BW_DIR_ABS,
+                             interval_seconds=bw_interval, ttl_seconds=bw_ttl)
 
-    # Runtime TTL cleanup of idle uploaded custom genomes (FASTA + .fai + GFF).
-    _genome_ttl = float(os.getenv("UPLOADED_GENOMES_TTL_HOURS", "0.5"))
-    _genome_interval = int(os.getenv("UPLOADED_GENOMES_CLEANUP_INTERVAL", "300"))
-    start_uploaded_genome_cleanup(
-        ttl_hours=_genome_ttl, interval_seconds=_genome_interval,
-    )
+        # Runtime TTL cleanup of idle uploaded custom genomes (FASTA + .fai + GFF).
+        _genome_ttl = float(os.getenv("UPLOADED_GENOMES_TTL_HOURS", "0.5"))
+        _genome_interval = int(os.getenv("UPLOADED_GENOMES_CLEANUP_INTERVAL", "300"))
+        start_uploaded_genome_cleanup(
+            ttl_hours=_genome_ttl, interval_seconds=_genome_interval,
+        )
 
 
 @app.on_event("shutdown")
@@ -718,9 +740,14 @@ def predict(req: PredictRequest):
         )
         chromosome, start, end = result["position"]
 
-        track_paths = save_prediction_bigwigs(
-            result["values"], chromosome, start, end, tag="ref"
-        )
+        # Pure-API (curl) callers default to save_intermediate=False → skip
+        # writing bigWig / figure files (values are still returned in full).
+        if req.save_intermediate:
+            track_paths = save_prediction_bigwigs(
+                result["values"], chromosome, start, end, tag="ref"
+            )
+        else:
+            track_paths = {}
         igv_payload = _build_payload(
             req.genome, chromosome, start, end,
             track_paths=track_paths, genome_config=genome_config,
@@ -745,12 +772,14 @@ def predict(req: PredictRequest):
             for k in list(_REF_CACHE)[: len(_REF_CACHE) - _CACHE_ARRAY_MAX]:
                 _REF_CACHE.pop(k, None)
 
-        figure_url = _render_figure(
-            ref_values=result["values"],
-            chromosome=chromosome, start=start, end=end,
-            genome_config=genome_config,
-            fmt=req.figure_format,
-        )
+        figure_url = None
+        if req.save_intermediate:
+            figure_url = _render_figure(
+                ref_values=result["values"],
+                chromosome=chromosome, start=start, end=end,
+                genome_config=genome_config,
+                fmt=req.figure_format,
+            )
 
         metadata = {
             "ref_id": ref_id,
@@ -758,7 +787,9 @@ def predict(req: PredictRequest):
             "window_start": start,
             "window_len": end - start,
         }
-        if CACHE_MODE and cache_key is not None:
+        # Only persist the content-addressed cache when intermediate files were
+        # actually written (an empty-payload entry would poison later web hits).
+        if CACHE_MODE and cache_key is not None and req.save_intermediate:
             prediction_cache.put(cache_key, ref_id, igv_payload, metadata, "ref")
 
         elapsed = time.time() - t0
@@ -884,12 +915,18 @@ def predict_snv(req: SnvRequest):
         )
         chromosome, start, end = result["position"]
 
-        ref_track_paths = save_prediction_bigwigs(
-            result["ref_values"], chromosome, start, end, tag="result1"
-        )
-        mut_track_paths = save_prediction_bigwigs(
-            result["mut_values"], chromosome, start, end, tag="result2"
-        )
+        # Pure-API (curl) callers default to save_intermediate=False → skip
+        # writing the result1/result2 bigWig files (values still returned).
+        if req.save_intermediate:
+            ref_track_paths = save_prediction_bigwigs(
+                result["ref_values"], chromosome, start, end, tag="result1"
+            )
+            mut_track_paths = save_prediction_bigwigs(
+                result["mut_values"], chromosome, start, end, tag="result2"
+            )
+        else:
+            ref_track_paths = {}
+            mut_track_paths = {}
         # 1-based display in the IGV track label (internal snv_index is 0-based)
         snv_note = f"@{result['ref_base']}{result['snv_index'] + 1}>{result['snv_base']}"
         igv_payload = _build_payload(
@@ -930,7 +967,9 @@ def predict_snv(req: SnvRequest):
             "window_len": result["window_len"],
             "window_start": start,
         }
-        if CACHE_MODE and cache_key is not None:
+        # Only persist the content-addressed cache when intermediate files were
+        # actually written (an empty-payload entry would poison later web hits).
+        if CACHE_MODE and cache_key is not None and req.save_intermediate:
             prediction_cache.put(cache_key, snv_id, igv_payload, metadata, "snv")
 
         elapsed = time.time() - t0
@@ -1182,6 +1221,9 @@ async def dcs_predict_ref(
 
         genome, chromosome, start_1, biosample_names, fmt = _parse_common(body)
         start_0 = max(0, start_1 - 1)
+        # save_intermediate defaults False for pure-API (curl) callers; the web
+        # frontend always passes True so IGV bigWig tracks are written.
+        save_intermediate = bool(body.get("save_intermediate", False))
         # Reuse the exact same core endpoint → same unified envelope.
         web_req = PredictRequest(
             genome=genome,
@@ -1190,6 +1232,7 @@ async def dcs_predict_ref(
             end=None,
             biosample_names=biosample_names,
             figure_format="none",
+            save_intermediate=save_intermediate,
         )
         resp: PredictResponse = predict(web_req)
     except RequestError as e:
@@ -1269,6 +1312,9 @@ async def dcs_predict_snv(
 
         start_0 = max(0, start_1 - 1)
         snv_0 = max(0, snv_1 - 1)
+        # save_intermediate defaults False for pure-API (curl) callers; the web
+        # frontend always passes True so IGV bigWig tracks are written.
+        save_intermediate = bool(body.get("save_intermediate", False))
         web_req = SnvRequest(
             genome=genome,
             chromosome=chromosome,
@@ -1277,6 +1323,7 @@ async def dcs_predict_snv(
             biosample_names=biosample_names,
             snv_index=snv_0,
             snv_base=snv_base,
+            save_intermediate=save_intermediate,
         )
         resp: PredictResponse = predict_snv(web_req)
     except RequestError as e:

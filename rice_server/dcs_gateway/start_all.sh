@@ -156,7 +156,19 @@ start_backend() {
     # (rice_mutation/main.py、rice_reg/main.py、rice_introgression/main.py =
     #  网页端与纯 API 同一进程)；仅 OGR_Base 仍为独立 dcs_adapter 进程。
     # setsid 使服务完全脱离终端会话/进程组: 终端 Ctrl-C / 关闭都影响不到服务。
-    ( cd "$ROOT/$dir" && BACKEND_PORT="$port" setsid "$py" "$entry" \
+    #
+    # startup 清理开关: 只有 web / monitor-web(ENABLE_WEB=true)才让后端执行
+    # startup 缓存清理(rmtree + makedirs + 后台 TTL 清理线程); 纯 API 模式
+    # (start / monitor)注入 OGR_ENABLE_STARTUP_CLEAN=0, 后端跳过所有删除,
+    # 以规避低权限部署下缓存目录不可删除/只读导致的启动失败。
+    # 注意: 环境变量赋值前缀不能经变量展开($clean_flag cmd), 必须用 env。
+    if [ "${ENABLE_WEB:-false}" = "true" ]; then
+        clean_val="1"
+    else
+        clean_val="0"
+    fi
+    ( cd "$ROOT/$dir" && BACKEND_PORT="$port" env OGR_ENABLE_STARTUP_CLEAN="$clean_val" \
+        setsid "$py" "$entry" \
         > "${LOGDIR}/${name}.log" 2>&1 < /dev/null & )
 }
 

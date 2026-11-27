@@ -49,7 +49,11 @@ start_backend() {
         return 0
     fi
     echo "==> 启动后端 (API, :$BACKEND_PORT) ..."
-    ( cd "$ROOT_DIR" && BACKEND_PORT="$BACKEND_PORT" nohup "$BACKEND_PYTHON_BIN" backend/rice_mutation/main.py \
+    # startup 清理开关: 纯 API(backend)模式注入 OGR_ENABLE_STARTUP_CLEAN=0,
+    # 后端跳过缓存目录删除/重建/清理线程(低权限部署兜底); all/restart(含前端)
+    # 默认 =1 保持原有清理语义。环境变量赋值前缀不能经变量展开, 必须用 env。
+    ( cd "$ROOT_DIR" && BACKEND_PORT="$BACKEND_PORT" env OGR_ENABLE_STARTUP_CLEAN="${STARTUP_CLEAN:-1}" \
+        nohup "$BACKEND_PYTHON_BIN" backend/rice_mutation/main.py \
         >> "$LOG_DIR/backend.nohup.log" 2>&1 & echo $! > "$LOG_DIR/backend.pid" )
     echo "    PID=$(cat "$LOG_DIR/backend.pid")，日志 $LOG_DIR/backend.nohup.log"
 }
@@ -107,7 +111,8 @@ case "${1:-all}" in
         echo "=============================================="
         ;;
     backend)
-        start_backend
+        # 纯 API 模式: 不拉前端, 后端跳过 startup 清理(不删缓存目录)
+        STARTUP_CLEAN=0 start_backend
         echo "后端(API)已启动: http://127.0.0.1:${BACKEND_PORT}/api/aigress/openai/OGR-Prediction/{Prediction,SNV}"
         ;;
     stop)

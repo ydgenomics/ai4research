@@ -1,0 +1,18 @@
+# ===== 运行时产物（不入库） =====
+OGR
+model_data
+
+# 服务运行日志 / PID / 临时文件
+logs/
+backend/logs/
+frontend/logs/
+*.pid
+*.nohup.log
+*.log
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 预生成 bigWig
+**/pregen/

@@ -1,6 +1,6 @@
 # Rice-Server — 水稻基因组学模型服务仓库
 
-基于 **Genos DNA 大模型**衍生的 1B 水稻基模，提供 **四个水稻基因组学服务**（共享 `source/` 模型/基因组数据），
+基于 **Genos DNA 大模型**衍生的 1B 水稻基模，提供 **四个水稻基因组学服务**（共享 `model_data/` 模型权重、`OGR/` 内置基因组/运行时缓存），
 通过 **DCS 平台统一网关** 以 OpenAI 风格对外提供 API。
 
 > **API 调用（唯一完整文档）**：[dcs_gateway/API.md](dcs_gateway/API.md)（四合一：统一入口 + 本机/DCS 测试代码 + 各服务参数表 + 错误排查 + fs 探查接口）
@@ -50,14 +50,22 @@ rice_server/
 │
 ├── docker/                  # 交付镜像（org_web / org_web-jupyter / push 脚本）
 │
-└── source/                  # ★ 模型 + 基因组数据（交付必带）
-    ├── OGR_Prediction/      #   rice_1B_stage2_8k_hf + csq-5_model.safetensors + osa1_r7（fa/gff3/fai/gvlfa）+ index_stat.json
-    ├── OGR_Regulation/      #   rice_1B_32k_hf + three_sam2.model.safetensors + genome（MH63/NIP）+ ATAC bigWig
-    └── OGR_Introgression/   #   渗入分析基因组（genome/）+ model.safetensors
+├── model_data/              # ★ 模型权重 + 模型启动相关文件（交付必带）
+│   ├── rice_1B_stage2_8k_hf/      #   OGR-Prediction / Introgression 基模 HF 目录
+│   ├── rice_1B_32k_hf/            #   OGR-Regulation 基模 HF 目录
+│   ├── csq-5_model.safetensors    #   Prediction 任务 checkpoint
+│   ├── introgression_model.safetensors  # Introgression 任务 checkpoint
+│   ├── three_sam2.model.safetensors     # Regulation 任务 checkpoint
+│   └── index_stat.json             #   Prediction 任务辅助（随模型）
+│
+└── OGR/                     # ★ 内置基因组数据 + 运行时缓存（替代原 cache/）
+    ├── OGR_Prediction/      #   builtin/（osa1_r7 fa/gff3/fai/gvlfa/mmi）+ predictions/uploaded_*
+    ├── OGR_Regulation/      #   builtin/（genome MH63/NIP + ATAC bigWig）+ predictions/uploaded_*
+    └── OGR_Introgression/   #   genome/（YF47）+ cache/uploaded_fasta + cache/predictions
 ```
 
 > 各服务内部结构一致：`backend/`（FastAPI 后端，**网页端与 DCS 子路径同一进程**）、`frontend/`（Gradio 前端 + IGV.js）、
-> `tools/startup_self_check.sh`（启动自检）、`test/`（API 冒烟测试）、`cache/`（运行时缓存）、`logs/`。
+> `tools/startup_self_check.sh`（启动自检）、`test/`（API 冒烟测试）、`OGR/`（内置数据 + 运行时缓存）、`logs/`。
 > OGR-Prediction/Regulation/Introgression 已删除独立 `dcs_adapter.py`（并入各自 `main.py`）；仅 OGR-Base 仍为独立 `dcs_adapter.py` 适配层（子路径 `OGR-Base/Embedding`、`OGR-Base/NTP`）。
 
 ---
@@ -107,7 +115,7 @@ curl -s http://127.0.0.1:4000/health | python3 -m json.tool   # 网关聚合健�
 ## 5. 部署注意事项
 
 1. **安全**：OGR-Prediction / Regulation 后端将根文件系统挂载为 `/static-files` 静态服务（IGV 加载 bigWig），**暴露公网前必须改白名单目录或加鉴权**。
-2. **数据必带**：`source/`（模型 + 基因组）无法从网络重取，打包交付必须包含；`cache/`、`logs/`、`*.pid` 为运行时产物，打包前删除。
+2. **数据必带**：`model_data/`（模型权重）+ `OGR/` 内 `builtin/`/`genome/`（内置基因组）无法从网络重取，打包交付必须包含；`OGR/` 内 `predictions/`、`uploaded_*`、`logs/`、`*.pid` 为运行时产物，打包前删除。
 3. **路径耦合**：`.env` 均为开发机绝对路径，部署机必须逐项修改（各服务 `.env.example` 有说明）。
 4. **版本锁定**：`requirements.txt` 用 `>=`，交付前建议 `pip freeze > requirements-lock.txt`。
 5. **fs 探查接口**（调试用）：`dcs_gateway/.env` 的 `EXPLORE_ENABLED=true` 可开放 `POST .../OGR/fs/{list,stat,find,cat}` 远程查看部署机文件（详见 [API.md §4.6](dcs_gateway/API.md)）；**排查完请关闭**。

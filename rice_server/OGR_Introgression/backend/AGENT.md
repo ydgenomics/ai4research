@@ -116,7 +116,7 @@ inject_genome_context                   附加全基因组骨架：chromosomes +
   - **未命中**：推理 → `put()`（内存 OrderedDict + 落盘 `<BACKEND_PREDICTION_CACHE>/<sanitized_key>.json`）。
   - **TTL / 上限**：`PREDICTION_CACHE_TTL_SECONDS`（默认 3600s）、`PREDICTION_CACHE_MAX_ENTRIES`（默认 512），LRU 淘汰时同步删盘；冷数据可回读磁盘。
 - **CACHE_MODE=false（懒加载部署）**：`prediction_cache` 磁盘目录置空、`run_introgression` 跳过读写——每次请求重跑 GPU，磁盘不积累。
-- **启动策略（三服务统一，固定行为）**：每次启动 `prediction_cache.clear()`（清空内存；CACHE_MODE=true 时同时删除磁盘全部 `*.json`/`*.tmp`），**不做预热**；上载目录 `cache/uploaded_fasta` 总是先清后建。
+- **启动策略（三服务统一，固定行为）**：**仅 web 模式（`start_all.sh web` / `monitor-web`，后端收到 `OGR_ENABLE_STARTUP_CLEAN=1`）** 才执行 `prediction_cache.clear()`（清空内存；CACHE_MODE=true 时同时删除磁盘全部 `*.json`/`*.tmp`），**不做预热**；上载目录 `cache/uploaded_fasta` 总是先清后建。**纯 API 模式（`start` / `monitor`，`OGR_ENABLE_STARTUP_CLEAN=0`）跳过所有删除与目录重建**——配合 `save_intermediate=false`（curl 缺省不存中间文件），规避低权限部署下缓存目录不可删/只读导致的启动失败。
 - **自定义基因组 .fai**：原生 `.fai` 缺失/过期时，**不**写用户目录，而是软链接 FASTA 到 `cache/uploaded_fasta/<时间戳ns>_<文件名>` 再在该目录建 `.fai`（规避原目录无写权限）；临时 id 统一 `<时间戳ns>_<文件名>`。`managed=False` 时清理只删 cache 软链接/索引，不删用户原始 FASTA。
 - 已见缓存示例：`cache/predictions/intro_chromosome_Chr01_end_256000_genome_YF47_start_0.json`。
 
@@ -134,7 +134,7 @@ inject_genome_context                   附加全基因组骨架：chromosomes +
 | `MAX_NUMBER_256W` | 单请求至多推理的 256k 窗口数上限；空=不限制，正整数 N=至多 N 个（start+end 都填取前 N 个；只填 start 恒 1 窗忽略本上限） |
 | `GENOME_<ID>_FASTA` | 内置基因组（多个 `GENOME_*_FASTA` 自动进下拉） |
 | `BACKEND_PREDICTION_CACHE` / `BACKEND_UPLOADED_FASTA` | 缓存目录（绝对路径） |
-| `CACHE_MODE` | 只控制懒加载+内容寻址缓存：`true`=启用内容寻址缓存（落盘+复用）；`false`=懒加载部署（不缓存每次重跑，自定义基因组按 path 懒注册零拷贝，TTL 不删外部文件）。两种模式重启都清空预测缓存 |
+| `CACHE_MODE` | 只控制懒加载+内容寻址缓存：`true`=启用内容寻址缓存（落盘+复用）；`false`=懒加载部署（不缓存每次重跑，自定义基因组按 path 懒注册零拷贝，TTL 不删外部文件）。重启清空预测缓存仅发生在 web 模式（`OGR_ENABLE_STARTUP_CLEAN=1`）；纯 API 模式不清理 |
 | `PREDICTION_CACHE_TTL_SECONDS` / `PREDICTION_CACHE_MAX_ENTRIES` | 预测缓存 TTL / 最大条目（默认 3600s / 512） |
 | `UPLOADED_GENOMES_TTL_HOURS` / `_CLEANUP_INTERVAL` | 上传基因组闲置清理（默认 1h / 300s） |
 | `DCS_API_KEY` | DCS 子路径鉴权（留空=不鉴权；配置后除 health 外需 `Authorization: Bearer <key>` / `X-API-Key`） |

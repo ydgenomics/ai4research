@@ -33,7 +33,9 @@ OGR_Introgression/
 │   ├── static/plotly.min.js   # 离线 Plotly.js（前端 iframe 用）
 │   └── logs/
 ├── tools/startup_self_check.sh
-└── cache/                 # 运行时缓存（上传 FASTA 等）
+└── OGR/                  # 内置基因组 + 运行时缓存（uploaded_fasta / predictions）
+    ├── genome/           # YF47 参考基因组（FASTA + .fai）
+    └── cache/            # 上传 FASTA / 预测缓存
 ```
 
 ## 快速开始

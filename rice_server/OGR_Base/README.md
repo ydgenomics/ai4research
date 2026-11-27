@@ -44,13 +44,13 @@ OGR_Base/
 
 ```bash
 # ---- 水稻 1B 基模 (OGR_Prediction: stage2 8k) ----
-MODEL_1B_8k_PATH=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/rice_1B_stage2_8k_hf
+MODEL_1B_8k_PATH=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/model_data/rice_1B_stage2_8k_hf
 MODEL_1B_8k_TYPE=flash
 MODEL_1B_8k_MAX_LEN=131072
 MODEL_1B_8k_SPECIAL=0
 
 # ---- 水稻 1B 基模 (OGR_Regulation: 32k) —— 本部署默认注释，仅 OGR-Base 用 1B_8k ----
-# MODEL_1B_32k_PATH=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/rice_1B_32k_hf
+# MODEL_1B_32k_PATH=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/model_data/rice_1B_32k_hf
 # MODEL_1B_32k_TYPE=flash
 # MODEL_1B_32k_MAX_LEN=32678
 # MODEL_1B_32k_SPECIAL=0

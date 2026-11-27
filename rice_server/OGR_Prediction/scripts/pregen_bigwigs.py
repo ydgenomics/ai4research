@@ -10,7 +10,7 @@ At query time the backend reads the region directly from the merged .bw
 (see backend/rice_mutation/pregen_bigwigs.py) — NO model call.  SNV prediction
 and uploaded custom genomes still run the model as before.
 
-Layout (under <pregen-dir>, default rice_mut/cache/pregen/osa1_r7):
+Layout (under <pregen-dir>, default OGR/pregen/osa1_r7):
 
     manifest.json                       # index + genome FASTA / ckpt hashes
     <Track>.bw                          # merged genome-wide file (query target)
@@ -74,7 +74,7 @@ logger = logging.getLogger("pregen_bigwigs")
 
 DEFAULT_WINDOW = 32768
 DEFAULT_HOP = 16384  # 50% overlap
-DEFAULT_PREGEN_DIR = _ROOT / "cache" / "pregen" / "osa1_r7"
+DEFAULT_PREGEN_DIR = _ROOT / "OGR" / "pregen" / "osa1_r7"
 
 
 # ---------------------------------------------------------------------------

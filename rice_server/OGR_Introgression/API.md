@@ -88,6 +88,7 @@ curl -s -X POST http://127.0.0.1:5001/api/aigress/openai/OGR-Introgression/healt
 | `Chromosome` | ❌ | string | 染色体（默认 `Chr01`；FASTA 实际命名，不归一化） |
 | `Start` | ✅ | int | **1-based inclusive** 起始坐标（必填） |
 | `End` | ❌ | int | 1-based inclusive 结束坐标（可选） |
+| `save_intermediate` | ❌ | bool | 是否使用/写入磁盘内容寻址缓存。**缺省 `false`**：纯 API/curl 调用每次重跑推理、不写磁盘缓存（不污染网页端命中）；网页端显式传 `true` 以启用缓存（相同窗口复用 GPU 结果）。数值结果（`segments`/`windows`/`regions`）两种模式都完整返回 |
 
 **窗口选择语义**（start 锚定，取消网格吸附；受 `.env` `MAX_NUMBER_256W` 限制）：
 

@@ -41,8 +41,11 @@ OGR_Prediction/
 │   ├── run_frontend.sh / stop_frontend.sh
 │   └── static/igv.min.js        # IGV.js 静态资源
 ├── tools/startup_self_check.sh  # 启动自检
-├── cache/predictions/           # 预测 bigWig 缓存
-└── test/test_api.sh             # API 测试
+├── OGR/                     # 内置数据 + 运行时缓存
+│   ├── builtin/             # osa1_r7 参考基因组（fa/fai/gff3/gvlfa/mmi）
+│   ├── predictions/         # 预测 bigWig 缓存
+│   └── uploaded_fasta/ uploaded_genomes/   # 上传缓存
+└── test/test_api.sh         # API 测试
 ```
 
 ## 快速开始
@@ -61,7 +64,7 @@ cp .env.example .env
 
 | 模式 | 上传自定义基因组 | 预测 bigWig | 内容寻址缓存 |
 |---|---|---|---|
-| `CACHE_MODE=true`（默认，全量缓存） | 复制到 `cache/uploaded_fasta`（服务托管，TTL 可清理） | 持久写入 `BACKEND_PREDICTION_CACHE`（长 TTL） | 开启：相同 (genome, window, SNV) 请求直接命中，跳过 GPU |
+| `CACHE_MODE=true`（默认，全量缓存） | 复制到 `OGR/OGR_Prediction/uploaded_fasta`（服务托管，TTL 可清理） | 持久写入 `BACKEND_PREDICTION_CACHE`（长 TTL） | 开启：相同 (genome, window, SNV) 请求直接命中，跳过 GPU |
 | `CACHE_MODE=false`（轻量，推荐部署） | **只注册本机路径，不复制**（前端会把 Gradio 临时文件路径传给后端，后端原地注册） | 写入临时目录 `BACKEND_PREDICTION_TMP`（默认 `/tmp/rice_prediction_tmp`，短 TTL 自动清理） | 关闭：每次预测重跑 GPU |
 
 > - 轻量模式下上传文件**零拷贝**（前端/后端同机时前端直接把文件路径发给后端注册），预测 bigWig 仍会生成（IGV 渲染必需）但落在临时目录、由后台线程按 `TMP_BIGWIG_TTL_SECONDS`（默认 900s）自动清理，不长期占用磁盘。
@@ -134,7 +137,7 @@ tail -f logs/frontend.nohup.log
 > 提示:若先填 GFF 而 FASTA 尚未填好**不会报错** —— GFF 会排队等待,FASTA 注册成功后自动附加。
 >
 > 提示(`CACHE_MODE=false` 轻量模式):两个自定义文件列均为**路径文本框(非文件上传)**,后端把该路径直接注册为自定义基因组(零拷贝)。请确保路径在后端机器上存在且可读;如需长期稳定引用,建议使用部署机上的固定目录。
-> 若使用 `CACHE_MODE=true` 全量模式,则为真正的文件上传(上传后复制到 `cache/uploaded_fasta`,由服务托管并可按 TTL 清理)。
+> 若使用 `CACHE_MODE=true` 全量模式,则为真正的文件上传(上传后复制到 `OGR/OGR_Prediction/uploaded_fasta`,由服务托管并可按 TTL 清理)。
 
 #### 上传文件要求(命名 / 内容)
 

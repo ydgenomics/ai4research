@@ -575,6 +575,7 @@ def run_prediction_core(
     atac_path: str,
     fasta_path: str,
     genome_config: dict,
+    save_bigwigs: bool = True,
 ) -> Dict[str, Any]:
     """Run the full prediction pipeline for a single genomic window.
 
@@ -584,6 +585,11 @@ def run_prediction_core(
         3. Build IGV payload from predicted values.
         4. Save prediction bigWig files to cache.
         5. Return IGV payload dict.
+
+    ``save_bigwigs=False`` (pure-API / curl callers) skips writing the
+    intermediate plus/minus bigWig files; the returned ``igv_payload`` then
+    carries only the ATAC track (no predicted tracks) and the numeric
+    ``values`` are still fully returned.
 
     Returns:
         Dict with keys ``igv_payload``, ``plus_bw_path``, ``minus_bw_path``.
@@ -614,20 +620,22 @@ def run_prediction_core(
     pred_minus = result["values"]["RNA-seq_-"]
     pos_chrom, pos_start, pos_end = result["position"]
 
-    # --- Save prediction bigWigs ---
-    cache_dir = os.getenv(
-        "BACKEND_PREDICTION_CACHE",
-        os.path.join(os.path.dirname(__file__), "..", "..", "cache", "predictions"),
-    )
-    os.makedirs(cache_dir, exist_ok=True)
+    # --- Save prediction bigWigs (skipped for pure-API / curl callers) ---
+    plus_bw_path, minus_bw_path = "", ""
+    if save_bigwigs:
+        cache_dir = os.getenv(
+            "BACKEND_PREDICTION_CACHE",
+            os.path.join(os.path.dirname(__file__), "..", "..", "cache", "predictions"),
+        )
+        os.makedirs(cache_dir, exist_ok=True)
 
-    safe_chrom = chromosome.replace(" ", "_")
-    timestamp = time.time_ns()
-    plus_bw_path = os.path.join(cache_dir, f"{safe_chrom}_{pos_start}_{pos_end}_plus_{timestamp}.bw")
-    minus_bw_path = os.path.join(cache_dir, f"{safe_chrom}_{pos_start}_{pos_end}_minus_{timestamp}.bw")
+        safe_chrom = chromosome.replace(" ", "_")
+        timestamp = time.time_ns()
+        plus_bw_path = os.path.join(cache_dir, f"{safe_chrom}_{pos_start}_{pos_end}_plus_{timestamp}.bw")
+        minus_bw_path = os.path.join(cache_dir, f"{safe_chrom}_{pos_start}_{pos_end}_minus_{timestamp}.bw")
 
-    _array_to_bigwig(pred_plus, chromosome, pos_start, pos_end, plus_bw_path)
-    _array_to_bigwig(pred_minus, chromosome, pos_start, pos_end, minus_bw_path)
+        _array_to_bigwig(pred_plus, chromosome, pos_start, pos_end, plus_bw_path)
+        _array_to_bigwig(pred_minus, chromosome, pos_start, pos_end, minus_bw_path)
 
     # --- Build IGV payload ---
     igv_payload = build_prediction_payload(

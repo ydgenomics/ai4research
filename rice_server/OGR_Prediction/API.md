@@ -111,6 +111,7 @@ curl -s http://127.0.0.1:8001/health | python3 -m json.tool
 | `Start` | ✅ | int | **1-based** 起始坐标；后端居中到 32768 bp 窗口 |
 | `Format` | ❌ | string | `Full`（默认，逐碱基数组）/ `Mean`（每轨道标量均值） |
 | `biosample_names` | ❌ | string/array | 逗号分隔字符串或数组；缺省全部 |
+| `save_intermediate` | ❌ | bool | 是否保存中间 bigWig / figure 文件。**缺省 `false`（不保存）**：纯 API/curl 调用只返回数值结果（`values` 照常），`igv_payload.tracks` 为空、`figure_url` 为 null，也不写内容寻址缓存；网页端显式传 `true` 以渲染 IGV 轨道 |
 | `fasta_path` | ❌ | string | 可选：按本机路径懒注册自定义基因组 FASTA（见 §8） |
 | `gff_path` | ❌ | string | 可选：随 `fasta_path` 一起挂载 GFF 注释 |
 
@@ -136,7 +137,7 @@ curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/OGR-Prediction/Predicti
     "Genome": "osa1_r7",
     "Chromosome": "chr01",
     "Start": 20716774,
-    "fasta_path": "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/genome/MH63RS2.fa",
+    "fasta_path": "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR/OGR_Regulation/builtin/genome/MH63RS2.fa",
     "Format": "Mean"
   }' | python3 -m json.tool
 ```
@@ -202,6 +203,8 @@ Full 模式下 `result` 额外包含：
 |---|---|---|---|
 | `SNV_position` | ✅ | int | **1-based** 变异位点 |
 | `SNV_base` | ✅ | string | 变异碱基 `A`/`C`/`G`/`T` |
+
+> `save_intermediate` 与参考预测（§5.1）语义相同：缺省 `false` 时不写 result1/result2 bigWig（数值 `ref_values`/`mut_values` 照常返回，`igv_payload.tracks` 为空）；网页端显式传 `true`。
 
 > **自定义基因组：直接传路径即可（懒注册）**。SNV 与参考预测一样，请求里可直接携带 `fasta_path`（可选 `gff_path`），后端会就地注册该 FASTA 并用它做预测，**不需要先单独调用 RegisterGenome**。已注册的自定义基因组则照常传 `Genome` 即可。网页端选中自定义基因组后，预测时也会自动携带注册时记录的 `fasta_path`/`gff_path`。
 

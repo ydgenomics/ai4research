@@ -385,8 +385,14 @@ def run_introgression(
     chromosome: str,
     start: Optional[int] = None,
     end: Optional[int] = None,
+    save_cache: bool = True,
 ) -> dict:
-    """核心入口：按用户输入计算（滑动窗口对齐后的）渗入分析结果。"""
+    """核心入口：按用户输入计算（滑动窗口对齐后的）渗入分析结果。
+
+    ``save_cache=False``（纯 API / curl 调用方）时不写磁盘内容寻址缓存——
+    每次请求都重跑推理，避免把「未存任何中间文件」的结果塞进缓存污染后续
+    网页端命中。数值结果（segments/windows/regions）照常完整返回。
+    """
     params = analysis_params_from_env()
     seg = params.segment_size
     genome_config = resolve_genome_config(genome)
@@ -453,8 +459,10 @@ def run_introgression(
     region_end = min(region_end, chrom_len)
 
     # 2. 缓存命中检查（仅 CACHE_MODE=true；轻量模式每次重跑 GPU）
+    #    save_cache=False（纯 API/curl 调用方）跳过缓存读+写：不命中旧缓存、
+    #    也不写入（避免污染网页端）。
     cache_key = None
-    if CACHE_MODE:
+    if CACHE_MODE and save_cache:
         cache_key = prediction_cache.build_key(
             "intro",
             genome=genome,
@@ -600,7 +608,7 @@ def run_introgression(
         "cached": False,
     }
     progress_tracker.finish("推理完成")
-    if CACHE_MODE and cache_key is not None:
+    if CACHE_MODE and cache_key is not None and save_cache:
         prediction_cache.put(cache_key, {"payload": payload})
     return payload
 

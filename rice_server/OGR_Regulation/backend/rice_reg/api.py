@@ -111,6 +111,10 @@ class PredictRequest(BaseModel):
     end: Optional[int] = None
     atac_source: Optional[str] = None
     uploaded_atac: Optional[str] = None
+    # When False (default) skip writing the intermediate plus/minus bigWig
+    # files — used by pure-API (curl) callers that only need numeric values.
+    # The web frontend always passes True so IGV tracks are rendered.
+    save_intermediate: bool = False
 
 
 class PredictResponse(BaseModel):
@@ -129,27 +133,41 @@ class PredictResponse(BaseModel):
 # ---------------------------------------------------------------------------
 #  Startup event — initialise predictor
 # ---------------------------------------------------------------------------
+def _startup_clean_enabled() -> bool:
+    """startup 缓存清理开关。
+
+    仅当 start_all.sh 以 web / monitor-web(ENABLE_WEB=true)启动时后端才会
+    执行 startup 清理(rmtree + makedirs + 后台 TTL 清理线程),此时注入
+    OGR_ENABLE_STARTUP_CLEAN=1。纯 API 模式(start / monitor)注入 =0,
+    后端跳过所有删除与目录重建,以规避低权限部署下缓存目录不可删/只读导致
+    启动失败(纯 API 调用方默认不保存中间文件,见 save_intermediate)。
+    """
+    return str(os.getenv("OGR_ENABLE_STARTUP_CLEAN", "0")).strip() in ("1", "true", "yes", "on")
+
+
 @app.on_event("startup")
 def on_startup():
-    # Clean prediction cache from previous runs
-    if os.path.isdir(PREDICTION_CACHE_DIR_ABS):
-        shutil.rmtree(PREDICTION_CACHE_DIR_ABS)
-        print(f"[startup] Cleaned prediction cache: {PREDICTION_CACHE_DIR_ABS}")
+    # web 模式才清理旧缓存目录;纯 API 模式不删除、不重建(低权限部署兜底)。
+    if _startup_clean_enabled():
+        # Clean prediction cache from previous runs
+        if os.path.isdir(PREDICTION_CACHE_DIR_ABS):
+            shutil.rmtree(PREDICTION_CACHE_DIR_ABS)
+            print(f"[startup] Cleaned prediction cache: {PREDICTION_CACHE_DIR_ABS}")
 
-    # Clean uploaded ATAC cache from previous runs
-    if os.path.isdir(ATAC_CACHE_DIR_ABS):
-        shutil.rmtree(ATAC_CACHE_DIR_ABS)
-        print(f"[startup] Cleaned upload cache: {ATAC_CACHE_DIR_ABS}")
+        # Clean uploaded ATAC cache from previous runs
+        if os.path.isdir(ATAC_CACHE_DIR_ABS):
+            shutil.rmtree(ATAC_CACHE_DIR_ABS)
+            print(f"[startup] Cleaned upload cache: {ATAC_CACHE_DIR_ABS}")
 
-    # Clean uploaded custom genomes from previous runs (registry is in-memory)
-    if os.path.isdir(UPLOADED_GENOMES_DIR_ABS):
-        shutil.rmtree(UPLOADED_GENOMES_DIR_ABS)
-        print(f"[startup] Cleaned uploaded genomes: {UPLOADED_GENOMES_DIR_ABS}")
+        # Clean uploaded custom genomes from previous runs (registry is in-memory)
+        if os.path.isdir(UPLOADED_GENOMES_DIR_ABS):
+            shutil.rmtree(UPLOADED_GENOMES_DIR_ABS)
+            print(f"[startup] Cleaned uploaded genomes: {UPLOADED_GENOMES_DIR_ABS}")
 
-    # Recreate cache directories
-    os.makedirs(ATAC_CACHE_DIR_ABS, exist_ok=True)
-    os.makedirs(PREDICTION_CACHE_DIR_ABS, exist_ok=True)
-    os.makedirs(UPLOADED_GENOMES_DIR_ABS, exist_ok=True)
+        # Recreate cache directories
+        os.makedirs(ATAC_CACHE_DIR_ABS, exist_ok=True)
+        os.makedirs(PREDICTION_CACHE_DIR_ABS, exist_ok=True)
+        os.makedirs(UPLOADED_GENOMES_DIR_ABS, exist_ok=True)
 
     # Mount static file serving for IGV.js to access local files via HTTP.
     # We mount the root filesystem at /static-files/ so that any absolute path
@@ -162,14 +180,16 @@ def on_startup():
     init_predictor()
 
     # Background cleanup of stale prediction bigWig files (shared across users).
-    start_bigwig_cleanup(PREDICTION_CACHE_DIR_ABS)
+    # 清理线程同样只在 web 模式下启动(纯 API 不写 bigWig,无需清理)。
+    if _startup_clean_enabled():
+        start_bigwig_cleanup(PREDICTION_CACHE_DIR_ABS)
 
-    # Runtime TTL cleanup of idle uploaded custom genomes (FASTA + .fai + GFF).
-    _genome_ttl = float(os.getenv("UPLOADED_GENOMES_TTL_HOURS", "0.5"))
-    _genome_interval = int(os.getenv("UPLOADED_GENOMES_CLEANUP_INTERVAL", "300"))
-    start_uploaded_genome_cleanup(
-        ttl_hours=_genome_ttl, interval_seconds=_genome_interval,
-    )
+        # Runtime TTL cleanup of idle uploaded custom genomes (FASTA + .fai + GFF).
+        _genome_ttl = float(os.getenv("UPLOADED_GENOMES_TTL_HOURS", "0.5"))
+        _genome_interval = int(os.getenv("UPLOADED_GENOMES_CLEANUP_INTERVAL", "300"))
+        start_uploaded_genome_cleanup(
+            ttl_hours=_genome_ttl, interval_seconds=_genome_interval,
+        )
 
 
 @app.on_event("shutdown")
@@ -563,6 +583,9 @@ async def dcs_predict(
         atac_path = resolve_atac_path(atac_source=atac_source, uploaded_atac=uploaded_atac)
 
         start_0 = max(0, start_1 - 1)
+        # save_intermediate defaults False for pure-API (curl) callers; the web
+        # frontend always passes True so IGV bigWig tracks are written.
+        save_intermediate = bool(body.get("save_intermediate", False))
         core = run_prediction_core(
             genome=genome,
             chromosome=chromosome,
@@ -571,6 +594,7 @@ async def dcs_predict(
             atac_path=atac_path,
             fasta_path=genome_config["fasta"],
             genome_config=genome_config,
+            save_bigwigs=save_intermediate,
         )
     except RequestError as e:
         return JSONResponse(
@@ -725,6 +749,7 @@ def predict_rice_reg(req: PredictRequest):
             start=norm_start,
             end=norm_end,
             atac=atac_path,
+            save=req.save_intermediate,
         )
 
         def _compute() -> dict:
@@ -738,6 +763,9 @@ def predict_rice_reg(req: PredictRequest):
                 atac_path=atac_path,
                 fasta_path=genome_config["fasta"],
                 genome_config=genome_config,
+                # Pure-API (curl) callers default to save_intermediate=False →
+                # skip writing plus/minus bigWig files (values still returned).
+                save_bigwigs=req.save_intermediate,
             )
             return result["igv_payload"]
 

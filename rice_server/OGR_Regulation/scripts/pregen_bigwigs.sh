@@ -82,4 +82,4 @@ fi
 
 echo ""
 echo ">> Done. Merged genome-wide files under:"
-echo "   $ROOT_DIR/cache/pregen/<Genome>__<Atac>_{plus,minus}.bw"
+echo "   $ROOT_DIR/OGR/pregen/<Genome>__<Atac>_{plus,minus}.bw"

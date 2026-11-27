@@ -236,23 +236,40 @@ class AnalyzeWindowRequest(BaseModel):
 # ---------------------------------------------------------------------------
 #  Startup / shutdown
 # ---------------------------------------------------------------------------
+def _startup_clean_enabled() -> bool:
+    """startup 缓存清理开关。
+
+    仅当 start_all.sh 以 web / monitor-web(ENABLE_WEB=true)启动时后端才会
+    执行 startup 清理(rmtree + makedirs + prediction_cache.clear + 后台 TTL
+    清理线程),此时注入 OGR_ENABLE_STARTUP_CLEAN=1。纯 API 模式(start /
+    monitor)注入 =0,后端跳过所有删除与目录重建,以规避低权限部署下缓存目录
+    不可删/只读导致启动失败(纯 API 调用方默认不保存中间文件,见
+    save_intermediate / save_cache=False)。
+    """
+    return str(os.getenv("OGR_ENABLE_STARTUP_CLEAN", "0")).strip() in ("1", "true", "yes", "on")
+
+
 @app.on_event("startup")
 def on_startup():
-    upload_dir = UPLOADED_GENOMES_DIR_ABS
-    if os.path.isdir(upload_dir):
-        shutil.rmtree(upload_dir)
-    os.makedirs(upload_dir, exist_ok=True)
+    # web 模式才清理旧缓存目录;纯 API 模式不删除、不重建(低权限部署兜底)。
+    if _startup_clean_enabled():
+        upload_dir = UPLOADED_GENOMES_DIR_ABS
+        if os.path.isdir(upload_dir):
+            shutil.rmtree(upload_dir)
+        os.makedirs(upload_dir, exist_ok=True)
 
-    # 统一语义：服务重启时自动清空预测缓存（内存 + 磁盘），不做预热。
-    n = len(prediction_cache)
-    prediction_cache.clear()
-    logger.info("Startup: cleared prediction cache (%d in-memory entries before)", n)
+        # 统一语义：服务重启时自动清空预测缓存（内存 + 磁盘），不做预热。
+        n = len(prediction_cache)
+        prediction_cache.clear()
+        logger.info("Startup: cleared prediction cache (%d in-memory entries before)", n)
 
     init_predictor()
 
-    ttl = float(os.getenv("UPLOADED_GENOMES_TTL_HOURS", "1.0"))
-    interval = int(os.getenv("UPLOADED_GENOMES_CLEANUP_INTERVAL", "300"))
-    start_uploaded_genome_cleanup(ttl_hours=ttl, interval_seconds=interval)
+    # 后台 TTL 清理线程同样只在 web 模式下启动(纯 API 不写缓存,无需清理)。
+    if _startup_clean_enabled():
+        ttl = float(os.getenv("UPLOADED_GENOMES_TTL_HOURS", "1.0"))
+        interval = int(os.getenv("UPLOADED_GENOMES_CLEANUP_INTERVAL", "300"))
+        start_uploaded_genome_cleanup(ttl_hours=ttl, interval_seconds=interval)
 
 
 @app.on_event("shutdown")
@@ -590,11 +607,15 @@ async def dcs_predict(
         end_0 = int(end_1) if end_1 is not None else None
 
         resolve_genome_config(genome)  # 未知基因组尽早报 400
+        # save_intermediate 缺省 False（纯 API / curl）：跳过磁盘内容寻址缓存
+        # 的读写；网页端显式传 True 启用缓存。
+        save_intermediate = bool(body.get("save_intermediate", False))
         payload = run_introgression(
             genome=genome,
             chromosome=chromosome,
             start=start_0,
             end=end_0,
+            save_cache=save_intermediate,
         )
     except RequestError as e:
         return JSONResponse(_param_err(f"Introgression prediction failed: {e}", body), status_code=400)
