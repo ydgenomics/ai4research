@@ -1,28 +1,26 @@
-# Rice-Mutation DCS Adapter API 测试指南
+# OGR-Prediction API 测试指南
 
-启动 `dcs_adapter.py` 后不需要网页前端，直接通过 curl 即可调用 API 推理。模型加载完（约 30s）health 返回 `ok` 即可调用。
+统一后端 `backend/rice_mutation/main.py`（:8001）同时承载网页内部端点与 DCS 子路径，
+模型加载完（约 30–60s）`/health` 返回 `ok` 即可调用；无需网页前端，直接 curl 即可。
 
 ---
 
 ## 1. 启动服务
 
 ```bash
-cd /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_mut
-BACKEND_PORT=8001 python backend/dcs_adapter.py
-
-BACKEND_PORT=8001 /root/miniconda3/envs/vllm/bin/python backend/dcs_adapter.py
+cd /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction
+/root/miniconda3/envs/vllm/bin/python backend/rice_mutation/main.py      # :8001
+# 或一键（含网关）：bash ../dcs_gateway/start_all.sh ogr_prediction
 ```
 
-dcs
+### 1.1 DCS 平台冒烟
+
 ```bash
-curl -s -X POST https://www.dcs.cloud/api/aigress/openai/health \
-  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx"
-  
-curl -X POST https://www.dcs.cloud/api/aigress/openai/health
-curl -X POST "https://www.dcs.cloud/api/aigress/openai/rice_mut" \
+curl -s -X POST https://www.dcs.cloud/api/aigress/openai/OGR/health | python3 -m json.tool
+curl -s -X POST "https://www.dcs.cloud/api/aigress/openai/OGR/OGR-Prediction/Prediction" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-zkXF-2J2-qwcSMgGh5KGPlZGw1HyTROJv70o2bJ5Uch5H5fx" \
-  -d '{"model":"rice_mut","genome":"osa1_r7","chromosome":"chr01","start":20716775,"end":20749542,"output_format":"mean"}'
+  -H "Authorization: Bearer <YOUR_API_KEY>" \
+  -d '{"Genome":"osa1_r7","Chromosome":"chr01","Start":20716774,"Format":"Mean"}'
 ```
 
 > 若提示 `address already in use`，说明 8001 已有服务，先 `kill $(cat backend/logs/backend.pid)` 或用 `fuser -k 8001/tcp` 清理。
@@ -32,7 +30,7 @@ curl -X POST "https://www.dcs.cloud/api/aigress/openai/rice_mut" \
 ## 2. 健康检查
 
 ```bash
-curl -s http://127.0.0.1:8001/api/aigress/openai/health | python3 -m json.tool
+curl -s http://127.0.0.1:8001/health | python3 -m json.tool
 ```
 
 返回示例：
@@ -48,57 +46,58 @@ curl -s http://127.0.0.1:8001/api/aigress/openai/health | python3 -m json.tool
 
 ## 3. 参考序列表达预测（核心推理）
 
-### 3.1 full 格式（逐碱基数组，约 286KB 响应）
+### 3.1 Full 格式（逐碱基数组，默认）
 
 ```bash
-curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/rice_mut \
+curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/OGR-Prediction/Prediction \
   -H "Content-Type: application/json" \
-  -d '{"model":"rice_mut","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541}' | python3 -m json.tool | head -30
+  -d '{"Genome":"osa1_r7","Chromosome":"chr01","Start":20716774}' | python3 -m json.tool | head -30
 ```
 
-### 3.2 mean 格式（每轨道标量均值，响应最小、最常用）
+### 3.2 Mean 格式（每轨道标量均值，响应最小、最常用）
 
 ```bash
-curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/rice_mut \
+curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/OGR-Prediction/Prediction \
   -H "Content-Type: application/json" \
-  -d '{"model":"rice_mut","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541,"output_format":"mean"}' | python3 -m json.tool
+  -d '{"Genome":"osa1_r7","Chromosome":"chr01","Start":20716774,"Format":"Mean"}' | python3 -m json.tool
 ```
 
-实测响应：
+实测响应（节选）：
 ```json
 {
-    "usage": {"prompt_tokens": 32768, "completion_tokens": 32768},
+    "model_name": "OGR",
+    "usage": {"prompt_tokens": 32768, "completion_tokens": 1},
+    "token_cnt": 32769,
     "status": 200,
-    "message": "参考序列表达预测成功",
+    "message": "Prediction completed in 2.7s",
     "result": {
-        "model": "rice_mut",
-        "genome": "osa1_r7",
-        "chromosome": "Chr1",
-        "position_1based": {"start": 20716774, "end": 20749541},
+        "model": "OGR-Prediction",
+        "Genome": "osa1_r7",
+        "Chromosome": "Chr1",
+        "Start": 20716774,
+        "window_start": 20716773,
         "window_len": 32768,
-        "output_format": "mean",
-        "values": {"RNA-seq": {"Leaf": 0.599956}}
+        "Format": "Mean",
+        "values": {"RNA-seq": {"Leaf": 0.599956}},
+        "igv_payload": {"...": "..."},
+        "ref_id": "ref_1730000000000"
     }
 }
 ```
 
-### 3.3 downsample 格式（均匀降采样到指定点数）
-
-```bash
-curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/rice_mut \
-  -H "Content-Type: application/json" \
-  -d '{"model":"rice_mut","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541,"output_format":"downsample","max_points":1024}' | python3 -m json.tool | head -30
-```
+> 不再有 `downsample` / `end` 参数：窗口由 `Start` 居中到 32768 bp；`Format` 仅 `Full` / `Mean`。
 
 ---
 
 ## 4. SNV 变异预测（双轨对比）
 
 ```bash
-curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/rice_mut/snv \
+curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/OGR-Prediction/SNV \
   -H "Content-Type: application/json" \
-  -d '{"model":"rice_mut","genome":"osa1_r7","chromosome":"chr01","start":20716774,"end":20749541,"snv_index":20731844,"snv_base":"T"}' | python3 -m json.tool | head -50
+  -d '{"Genome":"osa1_r7","Chromosome":"chr01","Start":20716774,"SNV_position":20731844,"SNV_base":"T","Format":"Mean"}' | python3 -m json.tool | head -50
 ```
+
+> 响应 `result` 含 `ref_values` / `mut_values` 双轨 + `SNV_position` / `ref_base` / `SNV_base` / `snv_id`。
 
 ---
 
@@ -106,27 +105,29 @@ curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/rice_mut/snv \
 
 ```json
 {
+    "model_name": "OGR",
     "usage": {
         "prompt_tokens": 32768,      // 计费用：输入窗口碱基数
         "completion_tokens": 32768   // 计费用：输出数组元素总数
     },
+    "token_cnt": 65536,              // prompt + completion
     "status": 200,
-    "message": "参考序列表达预测成功",
+    "message": "Prediction completed in 2.7s",
     "result": {
-        "model": "rice_mut",
-        "genome": "osa1_r7",
-        "chromosome": "Chr1",
-        "position_1based": {
-            "start": 20716774,       // 1-based inclusive
-            "end": 20749541          // 1-based inclusive
-        },
+        "model": "OGR-Prediction",
+        "Genome": "osa1_r7",
+        "Chromosome": "Chr1",
+        "Start": 20716774,           // 1-based
+        "window_start": 20716773,    // 0-based
         "window_len": 32768,
-        "output_format": "full",     // full | mean | downsample
+        "Format": "Full",           // Full | Mean
         "values": {
             "RNA-seq": {
-                "Leaf": [0.008057, 0.007874, ...]  // 逐碱基预测值（full 格式）
+                "Leaf": [0.008057, 0.007874, ...]  // Full 为逐碱基数组；Mean 为标量
             }
-        }
+        },
+        "igv_payload": {"...": "..."},
+        "ref_id": "ref_1730000000000"
     }
 }
 ```
@@ -135,35 +136,37 @@ curl -s -X POST http://127.0.0.1:8001/api/aigress/openai/rice_mut/snv \
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `start` | ✅ | 1-based 起始位点（缺失返回 400） |
-| `end` | ❌ | 缺省自动取 32768 窗口 |
-| `chromosome` | ❌ | 默认 `chr01`，`chr01`/`Chr1`/`1` 均可 |
-| `genome` | ❌ | 默认唯一基因组 `osa1_r7` |
-| `output_format` | ❌ | `full`（默认）/ `mean` / `downsample` |
-| `max_points` | ❌ | downsample 目标点数，默认 1024 |
-| `snv_index` | SNV 时 ✅ | 1-based 变异位点（须在窗口内） |
-| `snv_base` | SNV 时 ✅ | 目标碱基 `A`/`C`/`G`/`T` |
+| `Start` | ✅ | 1-based 起始位点（缺失返回 400），后端居中到 32768 bp 窗口 |
+| `Format` | ❌ | `Full`（默认）/ `Mean` |
+| `Chromosome` | ❌ | 默认 `chr01`，`chr01`/`Chr1`/`1` 均可（自动通配 FASTA 实际名） |
+| `Genome` | ❌ | 默认唯一基因组 `osa1_r7` |
+| `biosample_names` | ❌ | 逗号分隔或数组；须用**内部名**（如 `NIP_leaf`），非展示名 |
+| `fasta_path` / `gff_path` | ❌ | 自定义基因组：传本机绝对路径即时懒注册（无需先 RegisterGenome） |
+| `SNV_position` | SNV 时 ✅ | 1-based 变异位点（须在窗口内） |
+| `SNV_base` | SNV 时 ✅ | 目标碱基 `A`/`C`/`G`/`T` |
 
-**错误语义**：参数校验错误 → **400**；未知基因组/执行错误 → **500**。
+**错误语义**：参数校验错误 → **400**（英文 usage）；鉴权失败 → **401**；文件不存在 → **404**；执行错误 → **500**。
 
 ---
 
 ## 7. 运行自动化测试
 
-项目附带完整的 API 自动化测试脚本：
+项目附带 API 自动化测试脚本：
 
 ```bash
-# 测试常规 API 端点（18 项测试）
+# 网页/后端内部端点测试（/health、/genomes、/predict、/predict/snv、/predict/bar 等）
 bash test/test_api.sh
 
-# 测试 DCS 适配层 API（18 项测试）
-bash test/test_dcs_api.sh
-
-# 测试前端
+# 前端测试
 bash test/test_frontend.sh
 
 # 运行全部测试
 bash test/run_all_tests.sh
 ```
 
-> **注意**：路由命名使用**下划线** `rice_mut`，而非连字符 `rice-mut`。代码中 `dcs_adapter.py` 定义的路由为 `/api/aigress/openai/rice_mut` 和 `/api/aigress/openai/rice_mut/snv`。
+> **注意**：统一后端（`backend/rice_mutation/main.py`，默认 `:8001`）同时承载网页内部端点与 DCS 子路径。
+> DCS 风格端点为 `/api/aigress/openai/OGR-Prediction/{Prediction,SNV,Genome,Chromosome,RegisterGenome}`（camelCase、1-based）。
+>
+> `test_dcs_api.sh` / `test_dcs_adapter.py` 针对**已废弃**的独立 `backend/dcs_adapter.py`（旧 `rice-mut` 路由），
+> 仅作历史参考、不再适用于当前服务；如需验证 DCS 子路径，请直接使用 [API.md](../API.md) 或
+> [dcs_gateway/API.md](../../dcs_gateway/API.md) 中的 curl 示例。

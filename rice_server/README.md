@@ -13,10 +13,10 @@
 
 | 服务 | 能力 | 基础模型 | 输入 | 输出 | DCS 子路径 |
 |---|---|---|---|---|---|
-| **OGR-Prediction** | DNA → 多组学表达预测（**参考 vs SNV 变异对比**） | `rice_1B_stage2_8k_hf` | DNA 序列 | assay×biosample 多维表达 + bigWig | `Prediction` / `SNV` |
-| **OGR-Regulation** | DNA + **ATAC** → RNA-seq 表达预测 | `rice_1B_32k_hf` | DNA + ATAC bigWig | RNA-seq ± 两通道 + bigWig | `Genome` / `Chromosome` / `Prediction` |
-| **OGR-Introgression** | 粳/籼血缘渗入分析 | — | DNA 区域 | 渗入窗口分组（Jap/Ind/uncertain） | `predict` |
-| **OGR-Base**（**缺省**） | **embedding 提取 / 下游碱基预测** | 注册表（`1B_8k` 等） | DNA 序列 | 1024 维向量 / 预测碱基 | `Embedding` / `NTP` |
+| **OGR-Prediction** | DNA → 多组学表达预测（**参考 vs SNV 变异对比**） | `rice_1B_stage2_8k_hf` | DNA 序列 | assay×biosample 多维表达 + bigWig | `Prediction` / `SNV` / `RegisterGenome` |
+| **OGR-Regulation** | DNA + **ATAC** → RNA-seq 表达预测 | `rice_1B_32k_hf` | DNA + ATAC bigWig | RNA-seq ± 两通道 + bigWig | `Genome` / `Chromosome` / `Prediction` / `RegisterGenome` |
+| **OGR-Introgression** | 粳/籼血缘渗入分析 | LoRA + 头 | DNA 区域 | 渗入窗口分组（Jap/Ind/uncertain） | `Prediction`（兼容 `predict`）/ `Genome` / `Chromosome` / `RegisterGenome` |
+| **OGR-Base**（**缺省**） | **embedding 提取 / 下游碱基预测** | 注册表（固定 `1B_8k`） | DNA 序列 | 1024 维向量 / 预测碱基 | `Embedding` / `NTP` |
 
 **统一入口（DCS 平台只配一个地址）**：`POST .../api/aigress/openai/OGR/{model_sub}[/{subpath}]`
 （URL 路径路由，推荐；或 body `model_sub` 字段路由，兼容旧式）。网关 `dcs_gateway/` 单端口（默认 4000）收口四服务，**不加载模型**。
@@ -36,9 +36,9 @@ rice_server/
 ├── README.md                # 本文档（索引导航）
 ├── OGR_Applications_Call_Guide_private.md  # 调用速查（网页端 + DCS API 端）
 │
-├── OGR_Prediction/          # 服务一：变异对比表达预测（网页 :8000 / DCS 适配 :8001）
-├── OGR_Regulation/          # 服务二：ATAC 条件表达预测（网页 :7000 / DCS 适配 :7001）
-├── OGR_Introgression/       # 服务三：粳/籼血缘渗入分析（网页 :5000 / DCS 适配 :5001）
+├── OGR_Prediction/          # 服务一：变异对比表达预测（网页 :8000 / API 后端 :8001，同一进程）
+├── OGR_Regulation/          # 服务二：ATAC 条件表达预测（网页 :7000 / API 后端 :7001，同一进程）
+├── OGR_Introgression/       # 服务三：粳/籼血缘渗入分析（网页 :5000 / API 后端 :5001，同一进程）
 ├── OGR_Base/                # 服务四：embedding / 碱基预测（纯 API，DCS 适配 :6001）
 │
 ├── dcs_gateway/            # ★ 统一网关：单端口收口四服务的 DCS API
@@ -51,13 +51,14 @@ rice_server/
 ├── docker/                  # 交付镜像（org_web / org_web-jupyter / push 脚本）
 │
 └── source/                  # ★ 模型 + 基因组数据（交付必带）
-    ├── OGR_Prediction/      #   rice_1B_stage2_8k_hf + csq-5 checkpoint + osa1_r7
-    ├── OGR_Regulation/      #   rice_1B_32k_hf + three_sam2 checkpoint + MH63/NIP + ATAC
-    └── OGR_Introgression/   #   渗入分析基因组（YF47 等）
+    ├── OGR_Prediction/      #   rice_1B_stage2_8k_hf + csq-5_model.safetensors + osa1_r7（fa/gff3/fai/gvlfa）+ index_stat.json
+    ├── OGR_Regulation/      #   rice_1B_32k_hf + three_sam2.model.safetensors + genome（MH63/NIP）+ ATAC bigWig
+    └── OGR_Introgression/   #   渗入分析基因组（genome/）+ model.safetensors
 ```
 
-> 各服务内部结构一致：`backend/`（FastAPI 后端 + `dcs_adapter.py` DCS 适配层）、`frontend/`（Gradio 前端 + IGV.js）、
+> 各服务内部结构一致：`backend/`（FastAPI 后端，**网页端与 DCS 子路径同一进程**）、`frontend/`（Gradio 前端 + IGV.js）、
 > `tools/startup_self_check.sh`（启动自检）、`test/`（API 冒烟测试）、`cache/`（运行时缓存）、`logs/`。
+> OGR-Prediction/Regulation/Introgression 已删除独立 `dcs_adapter.py`（并入各自 `main.py`）；仅 OGR-Base 仍为独立 `dcs_adapter.py` 适配层（子路径 `OGR-Base/Embedding`、`OGR-Base/NTP`）。
 
 ---
 
@@ -76,15 +77,17 @@ bash start_all.sh ogr_prediction ogr_regulation   # 只启动指定后端 + 网�
 ### 3.2 手动启动
 
 ```bash
-# 各后端 DCS 适配层（每服务独立进程，加载模型）
-cd ../OGR_Prediction/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py   # :8001
-cd ../OGR_Regulation/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py   # :7001
-cd ../OGR_Introgression/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py  # :5001
-cd ../OGR_Base && BACKEND_PORT=6001 /root/miniconda3/envs/vllm/bin/python dcs_adapter.py  # :6001（默认 8001，必须覆盖）
+# 各后端统一服务（网页端 + DCS 子路径同一进程，加载模型）
+cd ../OGR_Prediction/backend && /root/miniconda3/envs/vllm/bin/python rice_mutation/main.py   # :8001
+cd ../OGR_Regulation/backend && /root/miniconda3/envs/vllm/bin/python rice_reg/main.py          # :7001
+cd ../OGR_Introgression/backend && /root/miniconda3/envs/vllm/bin/python rice_introgression/main.py  # :5001
+cd ../OGR_Base && BACKEND_PORT=6001 /root/miniconda3/envs/vllm/bin/python dcs_adapter.py  # :6001（默认 8001，必须覆盖为网关期望的 6001）
 
 # 网关
 cd dcs_gateway && bash run_gateway.sh      # 加载 .env，监听 GATEWAY_PORT（默认 4000；DCS 平台注入 PORT 优先）
 ```
+
+> 网关 `start_all.sh` 启动时统一以 `BACKEND_PORT=<端口>` 环境变量覆盖各后端端口（OGR_Base 由 `RICE_OGR_PORT` 决定，默认 6001）。
 
 > 各服务完整说明（网页版启动、配置 .env、模型路径）见各自 `README.md`。
 

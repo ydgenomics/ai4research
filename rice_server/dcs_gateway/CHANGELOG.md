@@ -1,5 +1,61 @@
 # CHANGELOG — dcs_gateway 统一网关
 
+## [0.4.2] - 2026-11-26
+
+### 变更：OGR-Introgression 网页端与 API 端统一走同一 DCS 子路径（前端 = 填好参数的 curl）
+
+对齐 OGR-Prediction 架构：网页端不再用内部端点 `/analyze`，而是直接调用
+`POST …/OGR-Introgression/Prediction`（camelCase + 1-based，与 curl 同方言、同返回信封），
+**Plotly 渲染数据完全来自该 API 返回值**。
+
+**后端（`OGR_Introgression/backend/rice_introgression/api.py`）**：
+- `Prediction` 子路径在 `run_introgression` 后追加 `inject_genome_context(payload)`，
+  并附带 `elapsed_seconds` / `success`；`_predict_payload_to_result` 补全绘图字段：
+  `chromosomes` / `chromosome_lengths`（12 条染色体车道骨架）、`regions[].chromosome`、
+  `segments`、`message`、`cached`、`elapsed_seconds`。
+- 网页内部端点 `/analyze`、`/analyze-genome` 保留但不再是网页预测入口。
+
+**前端（`OGR_Introgression/frontend/app.py`）**：
+- `_predict()` 改调 `…/Prediction` 并读信封 `result`（不再 POST `/analyze`）；
+- 辅助查询仍走内部端点（`/genomes`、`/progress`），自定义基因组注册走 DCS `RegisterGenome`。
+
+**文档**：README / API.md / backend/AGENT.md / start.sh 注释同步；返回结构示例补
+`chromosomes`/`chromosome_lengths`/`regions.chromosome`/`cached`/`elapsed_seconds`。
+
+**验证**：`py_compile` 通过；`_predict_payload_to_result` 字段完整性断言通过（渲染字段全部就位）。
+
+---
+
+## [0.4.1] - 2026-11-26
+
+### 文档：全仓文档与代码对齐（无网关代码变更）
+
+- **顶层 README.md**：四服务子路径表补齐（Prediction 增 `RegisterGenome`，并注明 `Genome`/`Chromosome` 仅后端直连/网页端；Introgression 改 `Prediction`（兼容 `predict`）并补 `Genome`/`Chromosome`）；
+  `source/` 目录内容与各服务 `.env` 端口更新；手动启动命令改为统一后端入口，并注明 `start_all.sh` 以 `BACKEND_PORT` 覆盖各后端端口。
+- **dcs_gateway/README.md**：路由目标由「各后端 `dcs_adapter` 进程」更正为「各后端统一服务进程」；
+  手动启动命令改为 `rice_mutation/main.py` / `rice_reg/main.py` / `rice_introgression/main.py`（仅 OGR-Base 仍为 `dcs_adapter.py`）；
+  补充 `start_all.sh` 的 `web` / `monitor` / `monitor-web` / `stop` 动作与 `setsid` 后台启动说明；停止方式改为精确命令行匹配。
+- **dcs_gateway/API.md**：OGR-Introgression 子路径统一为 `Prediction`（兼容旧 `predict`）并补齐 `Genome`/`Chromosome`；
+  删除已废弃的「整条染色体模式」示例，明确 **`Start` 必填**（缺 400）与 start 锚定窗口语义；
+  OGR-Base 明确 **无 `model_name`/`mode`**（模型固定 `1B_8k`，功能由子路径决定）；参数命名说明补充 OGR-Base 小写键与 Introgression `Start` 必填。
+- **OGR_Base**：`README.md` / `API.md` / `ref_genos.md` 全面重写——适配层与 Sanic 原生服务均已改为
+  `OGR-Base/{Embedding,NTP}` 子路径、取消 `mode`/`model_name`、模型固定 `1B_8k`；模型路径更正为
+  `source/OGR_Prediction/rice_1B_stage2_8k_hf`；`MODEL_1B_8k_MAX_LEN` 更正为 `131072`（128k）；
+  补充容错预加载（`_INIT_ERROR` → 503）、端口 6001 约定与 `BACKEND_PORT=8001` 冲突提示。
+- **OGR_Regulation/README.md**：目录结构（`rice_reg/cache_service.py` 等）、`CACHE_MODE` 说明、接口一览
+  改为 DCS 子路径、前端 API Key 必填与网页端 `_call_dcs()` 说明。
+- **OGR_Introgression/README.md**：目录根名 `rice_intro` → `OGR_Introgression`，补 `progress.py` / `scripts/`。
+- **OGR_Applications_Call_Guide_private.md**：Introgression 更正为 **start 锚定**（`Start` 必填、取消网格匹配与整条模式、
+  坐标 1-based inclusive）；Prediction/Regulation 自定义基因组在 `CACHE_MODE=false` 下为**路径文本框**（零拷贝注册）；
+  OGR-Base 长度上限更正为 `131072`。
+- **OGR_Prediction**：`test/README.md` 更新端点命名并标注 `test_dcs_api.sh` / `test_dcs_adapter.py` 为 legacy
+  （独立 `dcs_adapter.py` 已删除）；`scripts/README.md` 路径更正为 `OGR_Prediction`。
+
+**验证**：仅文档变更；已核对 `rice_mutation/api.py`、`rice_reg/api.py`、`rice_introgression/api.py`、
+`OGR_Base/dcs_adapter.py`、`OGR_Base/dna_embedding.py`、`dcs_gateway/app.py` 与 `start_all.sh` 的实际路由/端口/启动方式。
+
+---
+
 ## [0.4.0] - 2026-11-25
 
 ### 新增：文件系统探查接口（排查部署机文件/数据结构用）

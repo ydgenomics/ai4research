@@ -10,7 +10,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import json
 import os
-import re
 from pathlib import Path
 from typing import Optional
 from urllib import request, error
@@ -65,17 +64,10 @@ ALLOWED_FASTA_SUFFIXES = (".fa", ".fasta", ".fna", ".FA", ".FASTA")
 # reach the backend port (e.g. 10.200.124.17:8001).
 set_static_base_url("/backend/static-files")
 
-# Backend responses embed static-file URLs that are absolute
-# (http://<host>:<port>/static-files/...) or relative (/static-files/...) — both
-# depend on how the backend is configured and are NOT reachable from the
-# browser.  Rewrite every one of them to the frontend same-origin proxy path so
-# the browser always loads IGV tracks through the frontend port.  This keeps the
-# whole setup portable: it works on any machine regardless of the backend
-# host/port.
-_STATIC_URL_RE = re.compile(r"(?:https?://[^/]+)?/static-files/")
-
-# Default window
-DEFAULT_WINDOW = 32768
+# The backend also returns track URLs as frontend same-origin relative paths
+# (/backend/static-files/<abs path>), so the payload can be consumed as-is:
+# the browser resolves them against the frontend port and the /backend/*
+# reverse proxy streams the files from the backend.  No URL rewriting is needed.
 
 # Unified font stack — consistent Latin/CJK rendering across the page and iframes.
 FONT_STACK = "Inter, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif"
@@ -95,8 +87,10 @@ I18N = {
         "start": "Start (prediction window: 32 kb, e.g. 20716773)",
         "custom_genome_option": "📤 Custom Genome",
         "custom_genome_sec": "### 📤 Custom Genome",
-        "upload_genome_fasta": "Upload Genome FASTA (.fa/.fasta/.fna)",
-        "upload_gff": "Upload Annotation GFF (.gff/.gff3/.gtf)",
+        "upload_genome_fasta": "Genome FASTA path (.fa/.fasta/.fna)",
+        "upload_gff": "Annotation GFF path (.gff/.gff3/.gtf)",
+        "upload_fasta_ph": "/abs/path/to/xxx.fa",
+        "upload_gff_ph": "/abs/path/to/xxx.gff3",
         "upload_status_idle": "Select “Custom Genome” and upload a FASTA to register a new genome.",
         "upload_status_fasta_ok": "Genome “{gid}” registered ({n} chromosomes). You can now attach a GFF.",
         "upload_status_gff_ok": "GFF attached to “{gid}”. A Genes track will appear in IGV.",
@@ -107,6 +101,8 @@ I18N = {
         "upload_err_gff": "GFF upload failed: {msg}",
         "upload_need_fasta": "Upload a FASTA first, then a GFF can be attached.",
         "predict": "🚀 Predict",
+        "api_key": "API Key (required)",
+        "api_key_ph": "sk-... (required — enter your DCS API key)",
         "snv_section": "### Single-nucleotide variant (optional)",
         "snv_hint": "Fill in both fields to run an SNV comparison; leave them empty for a reference-only prediction.",
         "snv_pos": "SNV_position (e.g. 20731844)",
@@ -141,8 +137,10 @@ I18N = {
         "start": "起始位置（预测窗口：32 kb，如 20716773）",
         "custom_genome_option": "📤 自定义基因组",
         "custom_genome_sec": "### 📤 自定义基因组",
-        "upload_genome_fasta": "上传基因组 FASTA (.fa/.fasta/.fna)",
-        "upload_gff": "上传注释 GFF (.gff/.gff3/.gtf)",
+        "upload_genome_fasta": "基因组 FASTA 文件路径 (.fa/.fasta/.fna)",
+        "upload_gff": "注释 GFF 文件路径 (.gff/.gff3/.gtf)",
+        "upload_fasta_ph": "/abs/path/to/xxx.fa",
+        "upload_gff_ph": "/abs/path/to/xxx.gff3",
         "upload_status_idle": "选择「自定义基因组」并上传 FASTA 以注册新基因组。",
         "upload_status_fasta_ok": "基因组「{gid}」已注册（{n} 条染色体）。现在可附加 GFF。",
         "upload_status_gff_ok": "GFF 已附加到「{gid}」。IGV 将显示 Genes 轨道。",
@@ -153,6 +151,8 @@ I18N = {
         "upload_err_gff": "GFF 上传失败：{msg}",
         "upload_need_fasta": "请先上传 FASTA，之后才能附加 GFF。",
         "predict": "🚀 预测",
+        "api_key": "API Key（必填）",
+        "api_key_ph": "sk-...（必填——请输入你的 DCS API Key）",
         "snv_section": "### 单核苷酸变异（可选）",
         "snv_hint": "填写这两个字段将运行 SNV 对比；留空则仅做参考预测。",
         "snv_pos": "SNV 位置（如 20731844）",
@@ -257,14 +257,26 @@ def _genome_options() -> list:
     return list(GENOME_CONFIGS.keys())
 
 
-def _call_backend_api(endpoint: str, data: dict) -> dict:
-    """Call the backend FastAPI endpoint and return the JSON response."""
+def _call_backend_api(endpoint: str, data: dict, api_key: str = None) -> dict:
+    """Call the backend FastAPI endpoint and return the JSON response.
+
+    Auth: only the per-request ``api_key`` from the UI input box is used.  An
+    empty value sends no ``Authorization`` header (the backend then decides —
+    if it has a ``DCS_API_KEY`` configured it replies 401, otherwise it
+    accepts the request).  The frontend deliberately does NOT read .env's
+    ``DCS_API_KEY`` — that key belongs to the backend's validation side and
+    would make the input box meaningless.
+    """
     url = f"{BACKEND_API_URL}{endpoint}"
     payload = json.dumps(data).encode("utf-8")
+    key = (api_key or "").strip()
+    headers = {"Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
     req = request.Request(
         url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -277,75 +289,75 @@ def _call_backend_api(endpoint: str, data: dict) -> dict:
         raise RuntimeError(f"Cannot reach backend at {url}: {e}")
 
 
+def _call_dcs(subpath: str, data: dict, api_key: str = None) -> dict:
+    """Call a DCS-style sub-path endpoint on the unified backend and return
+    the *result* envelope.
+
+    The web frontend and the pure-API (curl) callers now share the **exact
+    same request dialect**: camelCase keys (``Genome`` / ``Chromosome`` /
+    ``Start`` / ``SNV_position`` / ``SNV_base`` / ``Format``), 1-based
+    coordinates, and the same DCS sub-path URLs.  All 1-based → 0-based
+    conversion happens inside the backend, so the frontend no longer does any
+    coordinate math.  The response is the unified envelope
+    ``{model_name, usage, token_cnt, status, message, result}``; this helper
+    returns ``result`` (and raises on non-200 status).
+    """
+    endpoint = f"/api/aigress/openai/OGR-Prediction/{subpath}"
+    resp = _call_backend_api(endpoint, data, api_key=api_key)
+    status = resp.get("status", 200)
+    if status != 200:
+        msg = resp.get("message", "DCS call failed")
+        detail = resp.get("detail")
+        if detail:
+            msg = f"{msg} ({detail})"
+        raise RuntimeError(msg)
+    return resp.get("result") or {}
+
+
 def _upload_genome_to_backend(file_path: str) -> dict:
-    """Upload a genome FASTA to the backend; returns the full JSON response
-    (genome id, chromosomes, file path)."""
-    import http.client
+    """Register a genome FASTA with the backend via the DCS ``RegisterGenome``
+    sub-path.
 
-    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
-    filename = os.path.basename(file_path)
-
-    with open(file_path, "rb") as f:
-        file_data = f.read()
-
-    body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-        f"Content-Type: application/octet-stream\r\n\r\n"
-    ).encode("utf-8") + file_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
-
-    url = f"{BACKEND_API_URL}/uploadFasta"
-    from urllib.parse import urlparse as _urlparse
-
-    parsed = _urlparse(url)
-    conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=300)
-    headers = {
-        "Content-Type": f"multipart/form-data; boundary={boundary}",
-        "Content-Length": str(len(body)),
+    Sends the **local path** (``fasta_path``) — the frontend and backend share
+    the same machine, so the backend registers the file in place (managed=False,
+    zero-copy, auto-builds the .fai index) instead of transferring bytes.
+    Returns the UI-shaped dict the caller expects (``genome`` / ``chromosomes`` /
+    ``success`` / ``message``).
+    """
+    try:
+        result = _call_dcs("RegisterGenome", {"fasta_path": file_path})
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+    genome_id = result.get("Genome") or result.get("genome") or ""
+    chroms = result.get("chromosomes") or []
+    return {
+        "success": True,
+        "genome": genome_id,
+        "chromosomes": chroms,
+        "fasta_path": result.get("fasta_path", ""),
+        "gff_path": result.get("gff_path", ""),
+        "message": result.get("message", "genome registered"),
     }
-    conn.request("POST", parsed.path, body=body, headers=headers)
-    resp = conn.getresponse()
-    resp_body = resp.read().decode("utf-8")
-    if resp.status != 200:
-        raise RuntimeError(f"Upload failed ({resp.status}): {resp_body}")
-    result = json.loads(resp_body)
-    return result
 
 
 def _upload_gff_to_backend(file_path: str, genome_id: str) -> dict:
-    """Attach an annotation GFF to an uploaded custom genome via /uploadGff."""
-    import http.client
-
-    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
-    filename = os.path.basename(file_path)
-
-    with open(file_path, "rb") as f:
-        file_data = f.read()
-
-    body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="genome"\r\n\r\n'
-        f"{genome_id}\r\n"
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-        f"Content-Type: application/octet-stream\r\n\r\n"
-    ).encode("utf-8") + file_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
-
-    url = f"{BACKEND_API_URL}/uploadGff"
-    from urllib.parse import urlparse as _urlparse
-
-    parsed = _urlparse(url)
-    conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=300)
-    headers = {
-        "Content-Type": f"multipart/form-data; boundary={boundary}",
-        "Content-Length": str(len(body)),
+    """Attach an annotation GFF to an uploaded custom genome via the DCS
+    ``RegisterGenome`` sub-path (same zero-copy local-path semantics)."""
+    try:
+        result = _call_dcs("RegisterGenome", {
+            "fasta_path": "",          # unused by re-register; keep explicit
+            "genome_id": genome_id,
+            "gff_path": file_path,
+        })
+    except Exception as e:
+        return {"success": False, "detail": str(e)}
+    return {
+        "success": True,
+        "genome": result.get("Genome") or genome_id,
+        "fasta_path": result.get("fasta_path", ""),
+        "gff_path": result.get("gff_path", ""),
+        "detail": result.get("message", "gff attached"),
     }
-    conn.request("POST", parsed.path, body=body, headers=headers)
-    resp = conn.getresponse()
-    resp_body = resp.read().decode("utf-8")
-    if resp.status != 200:
-        raise RuntimeError(f"GFF upload failed ({resp.status}): {resp_body}")
-    return json.loads(resp_body)
 
 
 def _uploaded_file_path(file) -> Optional[str]:
@@ -419,11 +431,13 @@ def _igv_html(
     if ref is None:
         return "<p style='color:red;'>Unknown genome. Check .env configuration.</p>"
 
-    ref_json = _STATIC_URL_RE.sub("/backend/static-files/", json.dumps(ref))
-    tracks_json = _STATIC_URL_RE.sub(
-        "/backend/static-files/",
-        json.dumps(igv_payload.get("tracks", [])) if igv_payload else "[]",
-    )
+    # The backend already returns frontend same-origin relative URLs
+    # (/backend/static-files/<abs path>), so the payload is used as-is — the
+    # browser resolves them against the frontend port and the frontend
+    # /backend/* reverse proxy streams the files from the backend.  No URL
+    # rewriting is needed here.
+    ref_json = json.dumps(ref)
+    tracks_json = json.dumps(igv_payload.get("tracks", [])) if igv_payload else "[]"
     locus_str = igv_payload.get("locus", locus) if igv_payload else locus
 
     pred_id_json = json.dumps(prediction_id or "")
@@ -680,12 +694,15 @@ def _bar_plot_html(lang: str = DEFAULT_LANG) -> str:
           showMsg({json.dumps(t['bar_err_http'])}.replace("{{code}}", d.httpError).replace("{{detail}}", d.detail ? ": " + fmtDetail(d.detail) : ""));
           return;
         }}
-        if (!d || !d.success || !d.overlap || !d.values.length) return;
-        var hasMut = d.values.some(function(v) {{ return v.result2 != null; }});
-        var labels = d.values.map(function(v) {{ return v.biosample + " · " + v.assay; }});
+        // Unified envelope: data lives under d.result (pure API style); keep a
+        // fallback to the legacy top-level fields for robustness.
+        var data = (d && d.result) ? d.result : d;
+        if (!data || !data.success || !data.overlap || !data.values || !data.values.length) return;
+        var hasMut = data.values.some(function(v) {{ return v.result2 != null; }});
+        var labels = data.values.map(function(v) {{ return v.biosample + " · " + v.assay; }});
         var traces = [{{
           x: labels,
-          y: d.values.map(function(v) {{ return v.result1; }}),
+          y: data.values.map(function(v) {{ return v.result1; }}),
           name: {json.dumps(t['bar_r1'])},
           type: "bar",
           marker: {{color: "#6b7280"}},
@@ -693,7 +710,7 @@ def _bar_plot_html(lang: str = DEFAULT_LANG) -> str:
         if (hasMut) {{
           traces.push({{
             x: labels,
-            y: d.values.map(function(v) {{ return v.result2; }}),
+            y: data.values.map(function(v) {{ return v.result2; }}),
             name: {json.dumps(t['bar_r2'])},
             type: "bar",
             marker: {{color: "#d62728"}},
@@ -769,9 +786,10 @@ def _on_lang_toggle(lang: str, current_genome=None):
         gr.update(value=t["snv_hint"]),
         gr.update(label=t["snv_pos"]),
         gr.update(label=t["snv_base"]),
+        gr.update(label=t["api_key"], placeholder=t["api_key_ph"]),
         gr.update(value=t["predict"]),
-        gr.update(label=t["upload_genome_fasta"]),
-        gr.update(label=t["upload_gff"]),
+        gr.update(label=t["upload_genome_fasta"], placeholder=t["upload_fasta_ph"]),
+        gr.update(label=t["upload_gff"], placeholder=t["upload_gff_ph"]),
         gr.update(value=_bar_plot_html(lang)),
         gr.update(value=_igv_placeholder_html(lang)),
         gr.update(value=_get_track_legend_md(lang)),
@@ -796,6 +814,7 @@ def _on_predict(
     snv_index,
     snv_base,
     lang: str = DEFAULT_LANG,
+    api_key: str = None,
 ) -> str:
     """Unified Predict button — runs an SNV comparison when the SNV inputs are
     filled in, otherwise a reference-only prediction."""
@@ -810,8 +829,8 @@ def _on_predict(
             return _error_html(t["err_bad_snv_pair"])
         if not has_base or str(snv_base).strip().upper() not in ("A", "C", "G", "T"):
             return _error_html(t["err_bad_snv_base"])
-        return _predict_snv(genome, chromosome, start, snv_index, snv_base, lang)
-    return _predict_reference(genome, chromosome, start, lang)
+        return _predict_snv(genome, chromosome, start, snv_index, snv_base, lang, api_key)
+    return _predict_reference(genome, chromosome, start, lang, api_key)
 
 
 def _predict_reference(
@@ -819,43 +838,52 @@ def _predict_reference(
     chromosome: str,
     start: int,
     lang: str = DEFAULT_LANG,
+    api_key: str = None,
 ) -> str:
     """Reference prediction -> IGV HTML.  Inputs are 1-based coordinates.
 
-    Window length is fixed to ``DEFAULT_WINDOW`` (32768 bp); end is auto-derived.
+    Calls the same DCS sub-path as a pure-API (curl) caller — camelCase keys,
+    1-based ``Start`` — and the backend converts to 0-based internally.  The
+    window length (32768 bp) is derived by the backend; the frontend no longer
+    computes ``end``.
+
+    For a custom (uploaded) genome the registered ``fasta_path``/``gff_path``
+    are carried in the request, so the backend lazy-registers them in place
+    instead of requiring a separate RegisterGenome call.
     """
     t = I18N.get(lang, I18N[DEFAULT_LANG])
     if not chromosome:
         return _error_html(t["err_no_chromosome"])
 
-    # Convert 1-based user input to a 0-based half-open window of fixed length.
-    start_1 = int(start) if start else 1
-    start_0 = max(0, start_1 - 1)
-    end_0 = start_0 + DEFAULT_WINDOW
+    # 1-based input, same keys as the curl API.  No -1 conversion here.
     req = {
-        "genome": genome,
-        "chromosome": chromosome,
-        "start": start_0,
-        "end": end_0,
+        "Genome": genome,
+        "Chromosome": chromosome,
+        "Start": int(start) if start else 1,
+        "Format": "Full",
     }
+    entry = _UPLOADED_GENOMES_FE.get(genome)
+    if entry:
+        if entry.get("fasta_path"):
+            req["fasta_path"] = entry["fasta_path"]
+        if entry.get("gff_path"):
+            req["gff_path"] = entry["gff_path"]
 
     try:
-        result = _call_backend_api("/predict", req)
+        data = _call_dcs("Prediction", req, api_key=api_key)
     except Exception as e:
         return _error_html(f"{t['err_predict']}: {e}")
 
-    if not result.get("success"):
-        return _error_html(f"{t['err_predict']}: {result.get('message', '')}")
-
-    meta = result.get("metadata") or {}
-    igv_payload = result.get("igv_payload", {})
-    locus = igv_payload.get("locus", f"{chromosome}:{start_1:,}-{end_0:,}")
+    igv_payload = data.get("igv_payload") or {}
+    locus = igv_payload.get("locus", f"{chromosome}:{req['Start']:,}-{req['Start'] + 32767:,}")
+    win_start = data.get("window_start") or 0
+    win_len = data.get("window_len") or 0
     return _igv_html(
         genome, locus, igv_payload,
-        prediction_id=meta.get("ref_id", ""),
+        prediction_id=data.get("ref_id", ""),
         kind="ref",
-        win_start=meta.get("window_start") or 0,
-        win_len=meta.get("window_len") or 0,
+        win_start=win_start,
+        win_len=win_len,
     )
 
 
@@ -869,10 +897,17 @@ def _predict_snv(
     snv_index,
     snv_base,
     lang: str = DEFAULT_LANG,
+    api_key: str = None,
 ) -> str:
     """Single-nucleotide variant prediction -> IGV HTML.  Inputs are 1-based.
 
-    Window length is fixed to ``DEFAULT_WINDOW`` (32768 bp); end is auto-derived.
+    Calls the same DCS sub-path as a pure-API (curl) caller — camelCase keys,
+    1-based ``Start`` and ``SNV_position`` — and the backend converts to
+    0-based internally.
+
+    For a custom (uploaded) genome the registered ``fasta_path``/``gff_path``
+    are carried in the request, so the backend lazy-registers them in place
+    instead of requiring a separate RegisterGenome call.
     """
     t = I18N.get(lang, I18N[DEFAULT_LANG])
     if not chromosome:
@@ -882,46 +917,43 @@ def _predict_snv(
     if not snv_base or str(snv_base).strip().upper() not in ("A", "C", "G", "T"):
         return _error_html(t["err_bad_snv_base"])
 
-    # Convert 1-based user input to a 0-based half-open window & SNV_position.
-    start_1 = int(start) if start else 1
-    start_0 = max(0, start_1 - 1)
-    end_0 = start_0 + DEFAULT_WINDOW
-    snv_1 = int(snv_index)
+    # 1-based input, same keys as the curl API.  No -1 conversion here.
     req = {
-        "genome": genome,
-        "chromosome": chromosome,
-        "start": start_0,
-        "end": end_0,
-        "snv_index": max(0, snv_1 - 1),
-        "snv_base": str(snv_base).strip().upper(),
+        "Genome": genome,
+        "Chromosome": chromosome,
+        "Start": int(start) if start else 1,
+        "SNV_position": int(snv_index),
+        "SNV_base": str(snv_base).strip().upper(),
+        "Format": "Full",
     }
+    entry = _UPLOADED_GENOMES_FE.get(genome)
+    if entry:
+        if entry.get("fasta_path"):
+            req["fasta_path"] = entry["fasta_path"]
+        if entry.get("gff_path"):
+            req["gff_path"] = entry["gff_path"]
 
     try:
-        result = _call_backend_api("/predict/snv", req)
+        data = _call_dcs("SNV", req, api_key=api_key)
     except Exception as e:
         return _error_html(f"{t['err_snv_predict']}: {e}")
 
-    if not result.get("success"):
-        return _error_html(f"{t['err_snv_predict']}: {result.get('message', '')}")
-
-    meta = result.get("metadata") or {}
-    igv_payload = result.get("igv_payload", {})
-    locus = igv_payload.get("locus", f"{chromosome}:{start_1:,}-{end_0:,}")
-    win_start = meta.get("window_start") or 0
-    win_len = meta.get("window_len") or 0
-    # Backend metadata is 0-based; show 1-based to the user.
-    snv_1based = (meta.get("snv_index") or 0) + 1
+    igv_payload = data.get("igv_payload") or {}
+    locus = igv_payload.get("locus", f"{chromosome}:{req['Start']:,}-{req['Start'] + 32767:,}")
+    win_start = data.get("window_start") or 0
+    win_len = data.get("window_len") or 0
+    snv_1based = int(data.get("SNV_position") or 0) or 0
     snv_info = t["snv_info"].format(
-        ref=meta.get("ref_base", "?"),
+        ref=data.get("ref_base", "?"),
         pos=snv_1based,
-        alt=meta.get("snv_base", "?"),
+        alt=data.get("SNV_base", "?"),
         ws=win_start + 1,
         we=win_start + win_len,
     )
     info = f"<p style='color:gray;font-size:12px;'>{snv_info}</p>"
     return info + _igv_html(
         genome, locus, igv_payload,
-        prediction_id=meta.get("snv_id", ""),
+        prediction_id=data.get("snv_id", ""),
         kind="snv",
         win_start=win_start,
         win_len=win_len,
@@ -954,24 +986,24 @@ def _genome_options_all(lang: str = DEFAULT_LANG) -> list:
 def _sync_uploaded_genomes_from_backend() -> None:
     """Populate the frontend uploaded-genome registry from the backend on
     startup, so custom genomes survive a frontend restart (the backend keeps
-    its in-memory registry).  Silently degrades if the backend is unreachable."""
+    its in-memory registry).  Silently degrades if the backend is unreachable.
+
+    Uses the same DCS sub-paths as the pure API (``Genome`` / ``Chromosome``)
+    so the frontend and curl callers share one dialect.
+    """
     global _UPLOADED_GENOMES_FE
     try:
-        with request.urlopen(f"{BACKEND_API_URL}/genomes", timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = _call_dcs("Genome", {})
     except Exception:
         return
     synced: dict = {}
-    for gid in (data.get("genomes") or []):
+    for gid in (data.get("Genome") or []):
         if gid in GENOME_CONFIGS or gid == CUSTOM_GENOME_VALUE:
             continue
         chroms: list = []
         try:
-            with request.urlopen(
-                f"{BACKEND_API_URL}/genomes/{gid}/chromosomes", timeout=10
-            ) as resp:
-                cdata = json.loads(resp.read().decode("utf-8"))
-            chroms = cdata.get("chromosomes") or []
+            cdata = _call_dcs("Chromosome", {"Genome": gid})
+            chroms = cdata.get("Chromosome") or []
         except Exception:
             pass
         if not chroms:
@@ -997,8 +1029,8 @@ def _on_genome_change(genome, lang: str = DEFAULT_LANG) -> tuple:
             gr.update(scale=1),
             gr.update(visible=True, scale=1),
             gr.update(visible=True, scale=1),
-            gr.update(value=None),
-            gr.update(value=None),
+            gr.update(value=""),
+            gr.update(value=""),
             gr.update(visible=True, value=_fmt_upload_status(t, "idle")),
             gr.update(choices=[], value=None, interactive=False),
         )
@@ -1010,8 +1042,8 @@ def _on_genome_change(genome, lang: str = DEFAULT_LANG) -> tuple:
             gr.update(scale=1),
             gr.update(visible=True, scale=1),
             gr.update(visible=True, scale=1),
-            gr.update(value=None),
-            gr.update(value=None),
+            gr.update(value=""),
+            gr.update(value=""),
             gr.update(visible=True, value=_fmt_upload_status(t, "fasta_ok", gid=genome, n=len(chroms))),
             gr.update(choices=chroms, value=None, interactive=True),
         )
@@ -1021,24 +1053,26 @@ def _on_genome_change(genome, lang: str = DEFAULT_LANG) -> tuple:
         gr.update(scale=3),
         gr.update(visible=False, scale=1),
         gr.update(visible=False, scale=1),
-        gr.update(value=None),
-        gr.update(value=None),
+        gr.update(value=""),
+        gr.update(value=""),
         gr.update(visible=False, value=""),
         gr.update(choices=CHROMOSOME_OPTIONS, value=None, interactive=True),
     )
 
 
-def _on_upload_genome(file, lang: str = DEFAULT_LANG) -> tuple:
-    """Upload a custom genome FASTA; register it and auto-select the new id.
+def _on_upload_genome(fasta_path, lang: str = DEFAULT_LANG) -> tuple:
+    """Register a custom genome FASTA by its local path (CACHE_MODE=false:
+    front/back end share the machine, so the user pastes the absolute path and
+    the backend registers it in place — zero-copy).
 
-    If a GFF was selected before the FASTA finished uploading (race: small GFF
-    finishes first), it is queued in ``_PENDING_GFF_PATH`` and auto-attached
-    here once the custom genome is registered.
+    If a GFF path was entered before the FASTA finished registering (race:
+    small GFF finishes first), it is queued in ``_PENDING_GFF_PATH`` and
+    auto-attached here once the custom genome is registered.
     """
     global _PENDING_GFF_PATH, _FASTA_UPLOAD_IN_PROGRESS
     t = I18N.get(lang, I18N[DEFAULT_LANG])
     _FASTA_UPLOAD_IN_PROGRESS = True
-    local_path = _uploaded_file_path(file)
+    local_path = _uploaded_file_path(fasta_path)
     if not local_path or not os.path.exists(local_path):
         _FASTA_UPLOAD_IN_PROGRESS = False
         return (gr.update(), gr.update(), gr.update(), gr.update())
@@ -1058,9 +1092,14 @@ def _on_upload_genome(file, lang: str = DEFAULT_LANG) -> tuple:
     _FASTA_UPLOAD_IN_PROGRESS = False
     genome_id = result.get("genome", "")
     chromosomes = result.get("chromosomes") or []
-    _UPLOADED_GENOMES_FE[genome_id] = {"chromosomes": chromosomes}
+    # Remember the paths so a later prediction can lazy-register them directly.
+    _UPLOADED_GENOMES_FE[genome_id] = {
+        "chromosomes": chromosomes,
+        "fasta_path": result.get("fasta_path", ""),
+        "gff_path": result.get("gff_path", ""),
+    }
 
-    # Auto-attach a GFF that was queued while the FASTA was still uploading.
+    # Auto-attach a GFF that was queued while the FASTA was still registering.
     status_key = "fasta_ok"
     status_kwargs: dict = {"gid": genome_id, "n": len(chromosomes)}
     if _PENDING_GFF_PATH:
@@ -1083,16 +1122,16 @@ def _on_upload_genome(file, lang: str = DEFAULT_LANG) -> tuple:
     return (
         gr.update(choices=_genome_options_all(lang), value=genome_id),
         gr.update(choices=chrom_choices, value=chrom_choices[0] if chrom_choices else None, interactive=True),
-        gr.update(value=None),
+        gr.update(value=""),
         gr.update(visible=True, value=_fmt_upload_status(t, status_key, **status_kwargs)),
     )
 
 
-def _on_upload_gff(file, genome, lang: str = DEFAULT_LANG) -> dict:
-    """Attach an annotation GFF to the currently selected custom genome.
+def _on_upload_gff(gff_path, genome, lang: str = DEFAULT_LANG) -> dict:
+    """Attach an annotation GFF (by local path) to the selected custom genome.
 
     If no custom genome is registered yet (e.g. the small GFF arrives before
-    the large FASTA finishes uploading), the GFF is queued in
+    the large FASTA finishes registering), the GFF is queued in
     ``_PENDING_GFF_PATH`` and auto-attached once a custom genome is registered
     (or selected), instead of showing a misleading error.
 
@@ -1105,7 +1144,7 @@ def _on_upload_gff(file, genome, lang: str = DEFAULT_LANG) -> dict:
     """
     global _PENDING_GFF_PATH
     t = I18N.get(lang, I18N[DEFAULT_LANG])
-    local_path = _uploaded_file_path(file)
+    local_path = _uploaded_file_path(gff_path)
     if not local_path or not os.path.exists(local_path):
         return gr.update()
 
@@ -1117,9 +1156,10 @@ def _on_upload_gff(file, genome, lang: str = DEFAULT_LANG) -> dict:
             return gr.update(visible=True, value=_fmt_upload_status(t, "err_gff", msg=str(e)))
         if not result.get("success"):
             return gr.update(visible=True, value=_fmt_upload_status(t, "err_gff", msg=result.get("detail", "?")))
+        _UPLOADED_GENOMES_FE[genome]["gff_path"] = result.get("gff_path", "") or local_path
         return gr.update(visible=True, value=_fmt_upload_status(t, "gff_ok", gid=genome))
 
-    # No custom genome ready yet (FASTA may still be uploading) → queue the GFF
+    # No custom genome ready yet (FASTA may still be registering) → queue the GFF
     # and auto-attach once a custom genome is registered/selected.
     _PENDING_GFF_PATH = local_path
     return gr.update(visible=True, value=_fmt_upload_status(t, "gff_wait"))
@@ -1220,18 +1260,21 @@ with gr.Blocks(
                         label=I18N[DEFAULT_LANG]["genome"], interactive=True,
                     )
                 with gr.Column(visible=False, scale=1, min_width=0, elem_id="fasta-col") as fasta_col:
-                    genome_fasta_upload = gr.File(
-                        file_count="single",
+                    # CACHE_MODE=false: 前后端同机，直接填 FASTA 文件的本机绝对路径
+                    # （后端 RegisterGenome 按路径注册，零拷贝）。
+                    genome_fasta_upload = gr.Textbox(
+                        value="",
                         label=I18N[DEFAULT_LANG]["upload_genome_fasta"],
-                        file_types=[".fa", ".fasta", ".fna"],
+                        placeholder=I18N[DEFAULT_LANG]["upload_fasta_ph"],
                         interactive=True,
                         elem_id="genome-upload",
                     )
                 with gr.Column(visible=False, scale=1, min_width=0, elem_id="gff-col") as gff_col:
-                    gff_upload = gr.File(
-                        file_count="single",
+                    gff_upload = gr.Textbox(
+                        value="",
                         label=I18N[DEFAULT_LANG]["upload_gff"],
-                        file_types=[".gff", ".gff3", ".gtf", ".gz"],
+                        placeholder=I18N[DEFAULT_LANG]["upload_gff_ph"],
+                        interactive=True,
                         elem_id="gff-upload",
                     )
             # Upload status — full width, shown only when a custom genome is active
@@ -1263,6 +1306,11 @@ with gr.Blocks(
                     choices=["A", "C", "G", "T"], value=None,
                     label=I18N[DEFAULT_LANG]["snv_base"], interactive=True, scale=1,
                 )
+            api_key_input = gr.Textbox(
+                value="", label=I18N[DEFAULT_LANG]["api_key"],
+                placeholder=I18N[DEFAULT_LANG]["api_key_ph"],
+                interactive=True, show_label=True,
+            )
             predict_btn = gr.Button(
                 I18N[DEFAULT_LANG]["predict"], variant="primary", elem_id="predict-btn",
             )
@@ -1295,6 +1343,7 @@ with gr.Blocks(
             snv_hint_md,
             snv_index_input,
             snv_base_dd,
+            api_key_input,
             predict_btn,
             genome_fasta_upload,
             gff_upload,
@@ -1321,6 +1370,7 @@ with gr.Blocks(
             snv_hint_md,
             snv_index_input,
             snv_base_dd,
+            api_key_input,
             predict_btn,
             genome_fasta_upload,
             gff_upload,
@@ -1346,7 +1396,7 @@ with gr.Blocks(
     # Single Predict button (reference or SNV, decided by the SNV inputs)
     predict_btn.click(
         fn=_on_predict,
-        inputs=[genome_dd, chromosome_dd, start_input, snv_index_input, snv_base_dd, cur_lang],
+        inputs=[genome_dd, chromosome_dd, start_input, snv_index_input, snv_base_dd, cur_lang, api_key_input],
         outputs=[igv_html_component],
     )
 

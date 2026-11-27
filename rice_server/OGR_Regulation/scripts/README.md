@@ -12,7 +12,7 @@
 ## 产物布局
 
 ```
-rice_reg/cache/pregen/
+OGR_Regulation/cache/pregen/
 ├── manifest.json                        # fasta/atac/ckpt sha256、window/hop、窗口清单
 ├── MH63RS3__SAM2_MH63_1_plus.bw         # ★ 最终:正链
 ├── MH63RS3__SAM2_MH63_1_minus.bw        # ★ 最终:负链
@@ -27,7 +27,7 @@ rice_reg/cache/pregen/
 
 ## 使用
 
-模型/基因组/ATAC 路径从 `rice_reg/.env` 读取(与后端一致)。
+模型/基因组/ATAC 路径从 `OGR_Regulation/.env` 读取(与后端一致)。
 
 ```bash
 # 跑 MH63RS3 全基因组(默认 workers = 检测到的 GPU 数)

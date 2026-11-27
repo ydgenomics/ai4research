@@ -23,9 +23,9 @@ POST {host}/api/aigress/openai/OGR/{model_sub}[/{subpath}]
 - **`model_sub` 路径段**选服务：`OGR-Prediction` / `OGR-Regulation` / `OGR-Introgression` / `OGR-Base`
   （大小写与连字符不敏感；缺省默认 `OGR-Base`，即主服务 embedding/碱基预测）。
 - **`subpath` 路径段**选服务内功能（四个后端均为**纯子路径路由，无 body `mode`**）：
-  - `/OGR/OGR-Prediction/{Prediction,SNV,RegisterGenome}`
+  - `/OGR/OGR-Prediction/{Prediction,SNV,RegisterGenome}`（直接调后端 :8001 另有 `Genome`/`Chromosome`，仅供网页端）
   - `/OGR/OGR-Regulation/{Genome,Chromosome,Prediction,RegisterGenome}`
-  - `/OGR/OGR-Introgression/{predict,RegisterGenome}`
+  - `/OGR/OGR-Introgression/{Prediction,Genome,Chromosome,RegisterGenome}`（兼容旧短路径 `predict`）
   - `/OGR/OGR-Base/{Embedding,NTP}`
   - `/OGR/{sub}/health` 返回网关聚合健康状态。
 - 路径段只用于路由，**不传给后端**；其余字段（`Genome`/`Chromosome`/`Start`/`sequence`/…）与
@@ -35,6 +35,8 @@ POST {host}/api/aigress/openai/OGR/{model_sub}[/{subpath}]
 
 > **参数命名说明**：四个后端请求体均使用大写驼峰参数（`Genome`/`Chromosome`/`Start`/`Format`/`SNV_position`/`SNV_base` 等），
 > 不使用 `mode`/`end`/`max_points`/`output_format` 等旧键；`model` 字段可省略（网关与后端都不依赖它）。
+> **OGR-Base 例外**：参数为小写 `sequence` / `pooling_method` / `predict_length`，且**不接受** `model_name` / `model`（模型固定 `1B_8k`）。
+> **OGR-Introgression `Start` 必填**（1-based），不再支持整条染色体模式。
 
 ---
 
@@ -44,7 +46,7 @@ POST {host}/api/aigress/openai/OGR/{model_sub}[/{subpath}]
 |---|---|---|---|
 | `OGR-Prediction` | OGR-Prediction（变异对比表达预测） | `127.0.0.1:8001` | `Prediction` / `SNV` / `RegisterGenome` |
 | `OGR-Regulation` | OGR-Regulation（ATAC 条件表达预测） | `127.0.0.1:7001` | `Genome` / `Chromosome` / `Prediction` / `RegisterGenome` |
-| `OGR-Introgression` | OGR-Introgression（粳/籼血缘渗入分析） | `127.0.0.1:5001` | `predict` / `RegisterGenome` |
+| `OGR-Introgression` | OGR-Introgression（粳/籼血缘渗入分析） | `127.0.0.1:5001` | `Prediction`（兼容 `predict`）/ `Genome` / `Chromosome` / `RegisterGenome` |
 | `OGR-Base`（**缺省**） | OGR-Base（embedding / 碱基预测） | `127.0.0.1:6001`（`.env` 可改） | `Embedding` / `NTP` |
 
 > 端口以 `dcs_gateway/.env` 的 `RICE_*_PORT` 为准；默认 OGR-Prediction=8001、OGR-Regulation=7001、OGR-Introgression=5001、OGR-Base=6001。
@@ -264,8 +266,11 @@ curl -X POST ${GW}/OGR-Regulation/Chromosome  -H "Content-Type: application/json
 
 ### 5.4 OGR-Introgression：粳/籼血缘渗入分析
 
+> **`Start` 必填**（1-based inclusive）；`End` 可空：只填 `Start` → 恒 1 个窗口 `[Start, Start+256k)`；
+> `Start + End` → 重叠滑窗（step 64k，受 `MAX_NUMBER_256W` 限制）。**不再支持整条染色体模式**（缺 `Start` 返回 400）。
+
 ```bash
-curl -X POST ${GW}/OGR-Introgression/predict \
+curl -X POST ${GW}/OGR-Introgression/Prediction \
   -H "Authorization: Bearer ${api_key}" -H "Content-Type: application/json" \
   -d '{
     "Genome": "YF47",
@@ -273,13 +278,21 @@ curl -X POST ${GW}/OGR-Introgression/predict \
     "Start": 100001,
     "End": 356001
   }' | python3 -m json.tool
-# 整条模式（窗口数受后端 MAX_NUMBER_256W 限制）
-curl -X POST ${GW}/OGR-Introgression/predict \
+
+# 只填 Start：恒 1 个 256k 窗口
+curl -X POST ${GW}/OGR-Introgression/Prediction \
   -H "Authorization: Bearer ${api_key}" -H "Content-Type: application/json" \
-  -d '{"Genome": "YF47", "Chromosome": "Chr01"}' | python3 -m json.tool
+  -d '{"Genome": "YF47", "Chromosome": "Chr01", "Start": 100001}' | python3 -m json.tool
+
+# 辅助查询
+curl -X POST ${GW}/OGR-Introgression/Genome -H "Content-Type: application/json" | python3 -m json.tool
+curl -X POST ${GW}/OGR-Introgression/Chromosome \
+  -H "Content-Type: application/json" -d '{"Genome":"YF47"}' | python3 -m json.tool
 ```
 
 ### 5.5 OGR-Base：embedding（model_sub 缺省即 OGR-Base）
+
+> **无 `model_name` / `mode` 参数**：模型固定为注册表 `1B_8k`，功能由子路径（`Embedding` / `NTP`）决定。
 
 ```bash
 curl -X POST ${GW}/OGR-Base/Embedding \
@@ -376,7 +389,7 @@ curl -X POST ${dcs_host}${dcs_entry}/OGR-Regulation/Prediction \
 ### 6.5 OGR-Introgression：粳/籼血缘渗入分析
 
 ```bash
-curl -X POST ${dcs_host}${dcs_entry}/OGR-Introgression/predict \
+curl -X POST ${dcs_host}${dcs_entry}/OGR-Introgression/Prediction \
   -H "Authorization: Bearer ${dcs_api_key}" -H "Content-Type: application/json" \
   -d '{
     "Genome": "YF47",

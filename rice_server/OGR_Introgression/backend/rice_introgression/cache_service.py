@@ -200,6 +200,10 @@ _DEFAULT_DISK_DIR = os.getenv(
     "",
 ).strip()
 
+# CACHE_MODE=false（轻量模式）时不做内容寻址缓存：磁盘目录置空，避免落盘堆积
+if os.getenv("CACHE_MODE", "true").strip().lower() in ("false", "0", "no", "off"):
+    _DEFAULT_DISK_DIR = ""
+
 _CACHE_MAX_ENTRIES = int(os.getenv("PREDICTION_CACHE_MAX_ENTRIES", "512"))
 _CACHE_TTL_SECONDS = float(os.getenv("PREDICTION_CACHE_TTL_SECONDS", "3600.0"))
 
@@ -211,5 +215,8 @@ prediction_cache = PredictionResultCache(
 
 
 def warm_prediction_cache() -> int:
-    """启动预热：从磁盘加载已推理窗口，返回加载条数。"""
+    """（可选）手动预热：从磁盘加载已推理窗口，返回加载条数。
+
+    统一语义下服务启动会清空预测缓存、不再自动预热；此函数仅保留给离线/脚本工具。
+    """
     return prediction_cache.load()

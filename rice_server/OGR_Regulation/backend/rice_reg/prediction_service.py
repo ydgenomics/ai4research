@@ -17,6 +17,7 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 import pyBigWig
+import pyfaidx
 import torch
 
 from rice_reg.core import RiceRegPredictor
@@ -179,9 +180,13 @@ def _touch_uploaded_genome(genome: str) -> None:
 def cleanup_expired_uploaded_genomes(ttl_hours: float) -> int:
     """Delete uploaded genomes whose last use is older than ``ttl_hours``.
 
-    Removes the in-memory registry entry together with the on-disk FASTA /
-    .fai / GFF files (all are per-upload temporary files).  Returns the number
-    of genomes removed.
+    Removes the in-memory registry entry and the on-disk files this service
+    owns:
+      - ``managed=True`` (byte upload copy)  → delete the uploaded FASTA/.fai/GFF
+      - ``is_link=True`` (external FASTA indexed via a cache symlink) → delete
+        only the cache symlink + generated .fai
+    The user's original FASTA (``real_fasta``) is never removed.  Returns the
+    number of genomes removed.
     """
     cutoff = time.time() - float(ttl_hours) * 3600
     expired: list = []
@@ -193,15 +198,20 @@ def cleanup_expired_uploaded_genomes(ttl_hours: float) -> int:
             _UPLOADED_GENOMES.pop(gid, None)
 
     for gid, cfg in expired:
-        for key in ("fasta", "fai", "gff"):
-            path = cfg.get(key) or ""
-            if path and os.path.isfile(path):
+        managed = cfg.get("managed", True)
+        is_link = cfg.get("is_link", False)
+        if managed or is_link:
+            for key in ("fasta", "fai", "gff"):
+                path = cfg.get(key) or ""
+                if not path or not os.path.lexists(path):
+                    continue
                 try:
                     os.remove(path)
                 except OSError as e:
                     logger.warning("Failed to remove %s: %s", path, e)
         logger.info(
-            "Cleaned up expired uploaded genome '%s' (TTL %.1fh)", gid, ttl_hours
+            "Cleaned up expired uploaded genome '%s' (TTL %.1fh, managed=%s, link=%s)",
+            gid, ttl_hours, managed, is_link,
         )
     return len(expired)
 
@@ -259,12 +269,91 @@ def get_genome_chromosomes(genome: str, genome_config: Optional[dict] = None) ->
     real_names = _load_fai_chroms(cfg.get("fai", ""))
     if not real_names and cfg.get("fasta"):
         try:
-            import pyfaidx
-            fa = pyfaidx.Fasta(cfg["fasta"])
-            real_names = list(fa.keys())
+            _eff, fai_path, _is_link = _ensure_fai_link(cfg["fasta"])
+            real_names = _load_fai_chroms(fai_path)
         except Exception as e:
             logger.warning("Could not index FASTA %s: %s", cfg.get("fasta"), e)
     return [display_chromosome(n) for n in real_names]
+
+
+# ---------------------------------------------------------------------------
+#  .fai index handling (symlink into the cache dir before indexing)
+# ---------------------------------------------------------------------------
+def _upload_link_dir() -> str:
+    """Directory used for cache-dir FASTA symlinks (used to build .fai safely)."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.abspath(os.getenv(
+        "BACKEND_UPLOADED_GENOMES",
+        os.path.join(root, "cache", "uploaded_genomes"),
+    ))
+
+
+def _fai_is_valid(fasta_path: str) -> bool:
+    """A .fai is usable only if it exists and is not older than the FASTA."""
+    fai = fasta_path + ".fai"
+    if not os.path.isfile(fai):
+        return False
+    try:
+        return os.path.getmtime(fai) >= os.path.getmtime(fasta_path)
+    except OSError:
+        return False
+
+
+def _ensure_fai_link(fasta_path: str, link_dir: str = "") -> tuple:
+    """Ensure ``fasta_path`` has an up-to-date ``<fasta>.fai`` index.
+
+    When the native ``<fasta>.fai`` is missing or older than the FASTA we do
+    **not** write into the user's directory (it may be read-only).  Instead the
+    FASTA is symlinked into a service-owned cache directory and the index is
+    built there; the symlinked path is returned so callers read the cached index.
+
+    Returns ``(effective_fasta, fai_path, is_link)``.
+    """
+    fasta_abs = os.path.abspath(fasta_path)
+    if not os.path.isfile(fasta_abs):
+        raise FileNotFoundError(f"FASTA not found: {fasta_abs}")
+
+    link_dir = os.path.abspath(link_dir or _upload_link_dir())
+
+    # 1) FASTA already inside our cache dir (byte-uploaded copy) → index in place.
+    if os.path.dirname(fasta_abs) == link_dir:
+        if not _fai_is_valid(fasta_abs):
+            pyfaidx.Fasta(fasta_abs)
+        return fasta_abs, fasta_abs + ".fai", False
+
+    # 2) Native .fai present and fresh → use it directly.
+    if _fai_is_valid(fasta_abs):
+        return fasta_abs, fasta_abs + ".fai", False
+
+    # 3) Missing/stale native .fai → symlink into cache and index there.
+    try:
+        os.makedirs(link_dir, exist_ok=True)
+    except OSError as e:
+        logger.warning("Cannot create link dir %s: %s", link_dir, e)
+    fname = os.path.basename(fasta_abs) or "custom.fa"
+    link_fasta = os.path.join(link_dir, f"{time.time_ns()}_{fname}")
+    link_fai = link_fasta + ".fai"
+    try:
+        if os.path.lexists(link_fasta):
+            os.remove(link_fasta)
+        os.symlink(fasta_abs, link_fasta)
+    except OSError as e:
+        logger.warning(
+            "Cannot symlink %s -> %s (%s); indexing in place", link_fasta, fasta_abs, e,
+        )
+        pyfaidx.Fasta(fasta_abs)
+        return fasta_abs, fasta_abs + ".fai", False
+
+    try:
+        pyfaidx.Fasta(link_fasta)  # builds <link_fasta>.fai inside the cache dir
+    except Exception as e:
+        try:
+            os.remove(link_fasta)
+        except OSError:
+            pass
+        raise ValueError(f"Failed to index FASTA {fasta_abs}: {e}")
+    logger.info("Built .fai via cache symlink: %s", link_fai)
+    return link_fasta, link_fai, True
 
 
 def resolve_genome_config(genome: str) -> dict:
@@ -290,39 +379,56 @@ def resolve_genome_config(genome: str) -> dict:
     }
 
 
-def register_uploaded_genome(fasta_path: str, genome_id: str = "") -> Dict[str, str]:
+def register_uploaded_genome(fasta_path: str, genome_id: str = "",
+                             managed: bool = True, link_dir: str = "") -> Dict[str, str]:
     """Register an uploaded FASTA as a usable genome (priority over built-in).
 
-    - Builds the .fai index automatically if missing (pyfaidx).
+    - Ensures a usable ``.fai`` index.  When the native ``.fai`` is missing or
+      stale it is built on a cache-dir symlink (never in the user's own dir),
+      so a read-only genome directory cannot break registration.
     - Stores the config in the in-memory registry.
+
+    ``managed=True`` (default) marks the file as a service-owned copy that TTL
+    cleanup may delete; ``managed=False`` means an external/user FASTA (lazy
+    path registration) — cleanup only drops the registry entry plus any cache
+    symlink/index it created, never the user's original file.
+
+    The default ``genome_id`` (when not supplied) is ``<time_ns>_<file name>``.
+
+    Returns the genome config dict (includes the final ``id``).
     """
-    fasta_path = os.path.abspath(fasta_path)
-    if not os.path.isfile(fasta_path):
-        raise FileNotFoundError(f"FASTA not found: {fasta_path}")
-    fai_path = fasta_path + ".fai"
-    if not os.path.isfile(fai_path):
-        import pyfaidx
-        fa = pyfaidx.Fasta(fasta_path)
-        names = list(fa.keys())
-    else:
-        names = _load_fai_chroms(fai_path)
+    fasta_abs = os.path.abspath(fasta_path)
+    if not os.path.isfile(fasta_abs):
+        raise FileNotFoundError(f"FASTA not found: {fasta_abs}")
+
+    effective_fasta, fai_path, is_link = _ensure_fai_link(fasta_abs, link_dir)
+    names = _load_fai_chroms(fai_path)
     if not names:
-        raise ValueError(f"No sequence records found in FASTA: {fasta_path}")
+        raise ValueError(f"No sequence records found in FASTA: {fasta_abs}")
 
     with _REGISTRY_LOCK:
         if not genome_id:
-            genome_id = f"custom_{int(time.time())}"
+            genome_id = f"{time.time_ns()}_{os.path.basename(fasta_abs) or 'custom.fa'}"
         # avoid clobbering an existing id
         while genome_id in _UPLOADED_GENOMES or genome_id in _builtin_genome_ids():
-            genome_id = f"custom_{int(time.time())}_{len(_UPLOADED_GENOMES)}"
+            genome_id = (
+                f"{time.time_ns()}_{os.path.basename(fasta_abs) or 'custom.fa'}"
+                f"_{len(_UPLOADED_GENOMES)}"
+            )
 
-        cfg = {"fasta": fasta_path, "fai": fai_path, "gff": "", "last_used": time.time()}
+        cfg = {
+            "id": genome_id,
+            "fasta": effective_fasta,   # path used for reading (symlink or native)
+            "real_fasta": fasta_abs,    # user's original absolute path
+            "fai": fai_path, "gff": "",
+            "last_used": time.time(), "managed": managed, "is_link": is_link,
+        }
         _UPLOADED_GENOMES[genome_id] = cfg
     logger.info(
-        "Registered uploaded genome '%s' (%d chromosomes): %s",
-        genome_id, len(names), fasta_path,
+        "Registered uploaded genome '%s' (%d chromosomes, managed=%s, link=%s): %s",
+        genome_id, len(names), managed, is_link, fasta_abs,
     )
-    return cfg
+    return dict(cfg)
 
 
 def attach_uploaded_gff(genome_id: str, gff_path: str) -> Dict[str, str]:
@@ -339,6 +445,7 @@ def attach_uploaded_gff(genome_id: str, gff_path: str) -> Dict[str, str]:
             )
         cfg["gff"] = gff_path
         cfg["last_used"] = time.time()
+        cfg.setdefault("managed", True)
         _UPLOADED_GENOMES[genome_id] = cfg
     logger.info("Attached GFF to uploaded genome '%s': %s", genome_id, gff_path)
     return dict(cfg)
@@ -538,6 +645,10 @@ def run_prediction_core(
         "igv_payload": igv_payload,
         "plus_bw_path": plus_bw_path,
         "minus_bw_path": minus_bw_path,
+        # Raw numeric arrays + actual window, so the DCS API route can return
+        # both values (Full/Mean) and igv_payload from a single inference run.
+        "values": {"RNA-seq_+": pred_plus, "RNA-seq_-": pred_minus},
+        "position": (chromosome, pos_start, pos_end),
     }
 
 

@@ -1,0 +1,245 @@
+INFO:     Started server process [1636446]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:38372 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49562 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49562 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49572 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49572 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49552 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49552 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33950 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33960 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56310 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56318 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49222 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57574 - "POST /api/aigress/openai/rice_intro HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55564 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:55580 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55596 - "POST /api/aigress/openai/OGR-Introgression/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52600 - "POST /api/aigress/openai/OGR-Introgression/Chromosome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52616 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45124 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52616 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39880 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39284 - "GET /health HTTP/1.1" 200 OK
+INFO:     Started server process [1651457]
+INFO:     Waiting for application startup.
+INFO:     127.0.0.1:48186 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48186 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 5001): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     127.0.0.1:38740 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40072 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60730 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43810 - "GET /health HTTP/1.1" 200 OK
+INFO:     Started server process [1653148]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 5001): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     127.0.0.1:39442 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39458 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42712 - "GET /health HTTP/1.1" 200 OK
+INFO:     Started server process [1654154]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:43506 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37434 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40982 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 200 OK
+INFO:     Started server process [1656569]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:58630 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40918 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:40922 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35208 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35208 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35374 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50328 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52520 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Introgression/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56076 - "POST /api/aigress/openai/OGR-Introgression/RegisterGenome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56076 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56076 - "GET /genomes/custom_1795685024/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60456 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60456 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60456 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60456 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60456 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60456 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60456 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60464 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37162 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55324 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37140 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37140 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56812 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48602 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48602 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48602 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48602 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48602 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48602 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48602 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48610 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42046 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34094 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:34104 - "POST /api/aigress/openai/OGR-Introgression/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34110 - "POST /api/aigress/openai/OGR-Introgression/Chromosome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34124 - "POST /api/aigress/openai/OGR-Introgression/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34134 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59204 - "POST /api/aigress/openai/OGR-Introgression/RegisterGenome HTTP/1.1" 200 OK
+INFO:     Started server process [1666984]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:48128 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35252 - "POST /api/aigress/openai/OGR-Introgression/RegisterGenome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35260 - "POST /api/aigress/openai/OGR-Introgression/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40962 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40978 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40978 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40978 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40978 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40978 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40978 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40978 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40962 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60736 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60736 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59164 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58178 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58178 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58178 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58178 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58178 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58178 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58180 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49418 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49418 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49418 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49426 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46516 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46516 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53106 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52160 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52174 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55284 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49776 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54986 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54986 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54986 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54994 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49656 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49656 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58152 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43404 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43404 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43404 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43394 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55412 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55426 - "POST /analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50308 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37112 - "GET /genomes/YF47/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43506 - "POST /api/aigress/openai/OGR-Introgression/RegisterGenome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43506 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43506 - "GET /genomes/custom_1795688852/chromosomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /progress HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42896 - "POST /analyze HTTP/1.1" 200 OK

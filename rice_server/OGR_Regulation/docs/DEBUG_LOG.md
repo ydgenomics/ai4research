@@ -2,6 +2,9 @@
 
 本文件记录项目开发过程中遇到的问题和解决方案，供后续参考。
 
+> **注（2026-11-26）**：部分条目描述的目录/进程结构可能已变化；当前运行方式与接口以
+> [../README.md](../README.md) / [../API.md](../API.md) 为准。
+
 ---
 
 ## 1. ModuleNotFoundError: No module named 'rice_reg'

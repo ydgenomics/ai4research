@@ -1,0 +1,18 @@
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Introgression/frontend/app.py:501: DeprecationWarning: The 'theme' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'theme' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Introgression/frontend/app.py:501: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Introgression/frontend/app.py:515: DeprecationWarning: The 'theme' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'theme' to Blocks.launch() instead.
+  with gr.Blocks(
+/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Introgression/frontend/app.py:515: DeprecationWarning: The 'css' parameter in the Blocks constructor will be removed in Gradio 6.0. You will need to pass 'css' to Blocks.launch() instead.
+  with gr.Blocks(
+Traceback (most recent call last):
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Introgression/frontend/app.py", line 858, in <module>
+    main()
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Introgression/frontend/app.py", line 844, in main
+    demo.queue().launch(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/blocks.py", line 2720, in launch
+    ) = http_server.start_server(
+  File "/root/miniconda3/envs/rice_reg/lib/python3.10/site-packages/gradio/http_server.py", line 157, in start_server
+    raise OSError(
+OSError: Cannot find empty port in range: 5000-5000. You can specify a different port by setting the GRADIO_SERVER_PORT environment variable or passing the `server_port` parameter to `launch()`.

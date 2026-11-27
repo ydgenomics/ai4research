@@ -24,6 +24,29 @@ from src.dataset import load_fasta_sequence
 
 logger = logging.getLogger(__name__)
 
+
+def _load_env_file(path: str) -> None:
+    """Load a .env file into os.environ without overriding existing values."""
+    if not path or not os.path.isfile(path):
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
+    except OSError:
+        pass
+
+
+# Load the project .env so CACHE_MODE / dirs resolve even when this module is
+# imported directly (uvicorn api:app, unit tests, notebooks).  main.py loads it
+# too, but setdefault keeps already-injected shell/env values authoritative.
+_PRED_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_load_env_file(os.path.join(_PRED_ROOT, ".env"))
+
 # ---------------------------------------------------------------------------
 #  Chromosome normalization cache
 # ---------------------------------------------------------------------------
@@ -128,6 +151,41 @@ def normalize_chromosome(
 
 
 # ---------------------------------------------------------------------------
+#  Cache mode (CACHE_MODE=false: lightweight / lazy-load deployment)
+# ---------------------------------------------------------------------------
+# CACHE_MODE only controls **lazy loading + the content-addressed cache**:
+#   true  = enable the content-addressed prediction cache (identical windows
+#           reuse the previous result and skip GPU inference) + uploaded files
+#           are copied into the cache directory.
+#   false = lazy-load deployment: no content-addressed cache (every request
+#           re-runs inference) + custom genomes are registered by path only
+#           (managed=False, zero-copy).
+# In BOTH modes the intermediate prediction bigWig files are written into the
+# configured BACKEND_PREDICTION_CACHE directory, which is wiped on server start.
+CACHE_MODE = os.getenv("CACHE_MODE", "true").strip().lower() in ("1", "true", "yes", "on")
+
+
+def get_prediction_cache_dir() -> str:
+    """Return the bigWig output directory (same for both cache modes).
+
+    Intermediate bigWig files always live under BACKEND_PREDICTION_CACHE and are
+    cleared on server start (see api.on_startup).
+    """
+    return os.path.abspath(os.getenv(
+        "BACKEND_PREDICTION_CACHE",
+        os.path.join(os.path.dirname(__file__), "..", "..", "cache", "predictions"),
+    ))
+
+
+def get_bigwig_cleanup_settings() -> tuple:
+    """Return (interval_seconds, ttl_seconds) for the bigWig cleanup thread."""
+    return (
+        int(os.getenv("PREDICTION_CACHE_CLEANUP_INTERVAL", "600")),
+        float(os.getenv("PREDICTION_CACHE_TTL_SECONDS", "1800")),
+    )
+
+
+# ---------------------------------------------------------------------------
 #  Uploaded (custom) genome registry + FASTA cache
 # ---------------------------------------------------------------------------
 # genome_id -> {"fasta": abs_path, "fai": abs_path, "gff": "", "last_used": epoch}
@@ -155,8 +213,11 @@ def cleanup_expired_uploaded_genomes(ttl_hours: float) -> int:
     """Delete uploaded genomes whose last use is older than ``ttl_hours``.
 
     Removes the in-memory registry entry, closes the cached ``pyfaidx.Fasta``
-    handle, and deletes the on-disk FASTA / .fai / GFF files (all are
-    per-upload temporary files).  Returns the number of genomes removed.
+    handle, and deletes the on-disk FASTA / .fai / GFF files when the genome
+    is *managed* (i.e. the files were copied into our cache dir by this
+    service).  Genomes registered in place (``managed=False``, lightweight
+    mode / DCS ``fasta_path``) only drop the registry entry — the underlying
+    user files are left untouched.  Returns the number of genomes removed.
     """
     cutoff = time.time() - float(ttl_hours) * 3600
     expired: list = []
@@ -174,15 +235,23 @@ def cleanup_expired_uploaded_genomes(ttl_hours: float) -> int:
                     pass
 
     for gid, cfg in expired:
-        for key in ("fasta", "fai", "gff"):
-            path = cfg.get(key) or ""
-            if path and os.path.isfile(path):
+        managed = cfg.get("managed", True)
+        is_link = cfg.get("is_link", False)
+        # managed  -> delete the uploaded copy in the cache dir
+        # is_link  -> delete only the cache symlink + generated .fai
+        # (never touch the user's original FASTA, recorded as real_fasta)
+        if managed or is_link:
+            for key in ("fasta", "fai", "gff"):
+                path = cfg.get(key) or ""
+                if not path or not os.path.lexists(path):
+                    continue
                 try:
                     os.remove(path)
                 except OSError as e:
                     logger.warning("Failed to remove %s: %s", path, e)
         logger.info(
-            "Cleaned up expired uploaded genome '%s' (TTL %.1fh)", gid, ttl_hours
+            "Cleaned up expired uploaded genome '%s' (TTL %.1fh, managed=%s, link=%s)",
+            gid, ttl_hours, managed, is_link,
         )
     return len(expired)
 
@@ -228,49 +297,146 @@ def get_genome_chromosomes(genome: str, genome_config: Optional[dict] = None) ->
     cfg = genome_config or resolve_genome_config(genome)
     real_names = _load_fai_chroms(cfg.get("fai", ""))
     if not real_names and cfg.get("fasta"):
-        # No .fai yet — build it via pyfaidx (also writes the .fai file).
+        # No usable .fai yet — build it on a cache-dir symlink (never in the
+        # user's own directory, which may be read-only).
         try:
-            fa = pyfaidx.Fasta(cfg["fasta"])
-            real_names = list(fa.keys())
+            _eff, fai_path, _is_link = _ensure_fai_link(cfg["fasta"])
+            real_names = _load_fai_chroms(fai_path)
         except Exception as e:
             logger.warning("Could not index FASTA %s: %s", cfg.get("fasta"), e)
     return [display_chromosome(n) for n in real_names]
 
 
-def register_uploaded_genome(fasta_path: str, genome_id: str = "") -> Dict[str, str]:
+# ---------------------------------------------------------------------------
+#  .fai index handling (symlink into the cache dir before indexing)
+# ---------------------------------------------------------------------------
+def _upload_link_dir() -> str:
+    """Directory used for cache-dir FASTA symlinks (used to build .fai safely)."""
+    return os.path.abspath(os.getenv(
+        "BACKEND_UPLOADED_GENOMES",
+        os.path.join(_PRED_ROOT, "cache", "uploaded_genomes"),
+    ))
+
+
+def _fai_is_valid(fasta_path: str) -> bool:
+    """A .fai is usable only if it exists and is not older than the FASTA."""
+    fai = fasta_path + ".fai"
+    if not os.path.isfile(fai):
+        return False
+    try:
+        return os.path.getmtime(fai) >= os.path.getmtime(fasta_path)
+    except OSError:
+        return False
+
+
+def _ensure_fai_link(fasta_path: str, link_dir: str = "") -> tuple:
+    """Ensure ``fasta_path`` has an up-to-date ``<fasta>.fai`` index.
+
+    When the native ``<fasta>.fai`` is missing or older than the FASTA we do
+    **not** write into the user's directory (it may be read-only).  Instead the
+    FASTA is symlinked into a service-owned cache directory and the index is
+    built there; the symlinked path is returned so callers read the cached index.
+
+    Returns ``(effective_fasta, fai_path, is_link)``.
+    """
+    fasta_abs = os.path.abspath(fasta_path)
+    if not os.path.isfile(fasta_abs):
+        raise FileNotFoundError(f"FASTA not found: {fasta_abs}")
+
+    link_dir = os.path.abspath(link_dir or _upload_link_dir())
+
+    # 1) FASTA already inside our cache dir (byte-uploaded copy) → index in place.
+    if os.path.dirname(fasta_abs) == link_dir:
+        if not _fai_is_valid(fasta_abs):
+            pyfaidx.Fasta(fasta_abs)  # writes <fasta>.fai next to it
+        return fasta_abs, fasta_abs + ".fai", False
+
+    # 2) Native .fai present and fresh → use it directly (no copy, no writes).
+    if _fai_is_valid(fasta_abs):
+        return fasta_abs, fasta_abs + ".fai", False
+
+    # 3) Missing/stale native .fai → symlink into cache and index there.
+    try:
+        os.makedirs(link_dir, exist_ok=True)
+    except OSError as e:
+        logger.warning("Cannot create link dir %s: %s", link_dir, e)
+    fname = os.path.basename(fasta_abs) or "custom.fa"
+    link_fasta = os.path.join(link_dir, f"{time.time_ns()}_{fname}")
+    link_fai = link_fasta + ".fai"
+    try:
+        if os.path.lexists(link_fasta):
+            os.remove(link_fasta)
+        os.symlink(fasta_abs, link_fasta)
+    except OSError as e:
+        logger.warning(
+            "Cannot symlink %s -> %s (%s); indexing in place", link_fasta, fasta_abs, e,
+        )
+        pyfaidx.Fasta(fasta_abs)
+        return fasta_abs, fasta_abs + ".fai", False
+
+    try:
+        pyfaidx.Fasta(link_fasta)  # builds <link_fasta>.fai inside the cache dir
+    except Exception as e:
+        try:
+            os.remove(link_fasta)
+        except OSError:
+            pass
+        raise ValueError(f"Failed to index FASTA {fasta_abs}: {e}")
+    logger.info("Built .fai via cache symlink: %s", link_fai)
+    return link_fasta, link_fai, True
+
+
+def register_uploaded_genome(fasta_path: str, genome_id: str = "",
+                             managed: bool = True, link_dir: str = "") -> Dict[str, str]:
     """Register an uploaded FASTA as a usable genome (priority over built-in).
 
-    - Builds the .fai index automatically if missing (pyfaidx).
+    - Ensures a usable ``.fai`` index.  When the native ``.fai`` is missing or
+      stale it is built on a cache-dir symlink (never in the user's own dir),
+      so a read-only genome directory cannot break registration.
     - Validates the file and reads chromosome names.
     - Stores the config in the in-memory registry.
 
+    ``managed=True`` (default) marks the file as a service-owned copy (byte
+    upload into the cache dir) that TTL cleanup may delete; ``managed=False``
+    means the FASTA is an external/user file (lazy path registration) — cleanup
+    only drops the registry entry plus any cache symlink/index it created, never
+    the user's original file.
+
+    The default ``genome_id`` (when not supplied) is ``<time_ns>_<file name>``,
+    matching the uploaded-copy naming used everywhere else.
+
     Returns the genome config dict.
     """
-    fasta_path = os.path.abspath(fasta_path)
-    if not os.path.isfile(fasta_path):
-        raise FileNotFoundError(f"FASTA not found: {fasta_path}")
-    fai_path = fasta_path + ".fai"
-    if not os.path.isfile(fai_path):
-        # Build the index (pyfaidx writes the .fai next to the file).
-        fa = pyfaidx.Fasta(fasta_path)
-        names = list(fa.keys())
-    else:
-        names = _load_fai_chroms(fai_path)
+    fasta_abs = os.path.abspath(fasta_path)
+    if not os.path.isfile(fasta_abs):
+        raise FileNotFoundError(f"FASTA not found: {fasta_abs}")
+
+    effective_fasta, fai_path, is_link = _ensure_fai_link(fasta_abs, link_dir)
+    names = _load_fai_chroms(fai_path)
     if not names:
-        raise ValueError(f"No sequence records found in FASTA: {fasta_path}")
+        raise ValueError(f"No sequence records found in FASTA: {fasta_abs}")
 
     if not genome_id:
-        genome_id = f"custom_{int(time.time())}"
+        genome_id = f"{time.time_ns()}_{os.path.basename(fasta_abs) or 'custom.fa'}"
     # avoid clobbering an existing id
     while genome_id in _UPLOADED_GENOMES or genome_id in _builtin_genome_ids():
-        genome_id = f"custom_{int(time.time())}_{len(_UPLOADED_GENOMES)}"
+        genome_id = (
+            f"{time.time_ns()}_{os.path.basename(fasta_abs) or 'custom.fa'}"
+            f"_{len(_UPLOADED_GENOMES)}"
+        )
 
     with _REGISTRY_LOCK:
-        cfg = {"fasta": fasta_path, "fai": fai_path, "gff": "", "last_used": time.time()}
+        cfg = {
+            "id": genome_id,
+            "fasta": effective_fasta,   # path used for reading (symlink or native)
+            "real_fasta": fasta_abs,    # user's original absolute path
+            "fai": fai_path, "gff": "",
+            "last_used": time.time(), "managed": managed, "is_link": is_link,
+        }
         _UPLOADED_GENOMES[genome_id] = cfg
     logger.info(
-        "Registered uploaded genome '%s' (%d chromosomes): %s",
-        genome_id, len(names), fasta_path,
+        "Registered uploaded genome '%s' (%d chromosomes, managed=%s, link=%s): %s",
+        genome_id, len(names), managed, is_link, fasta_abs,
     )
     return cfg
 
@@ -294,6 +460,7 @@ def attach_uploaded_gff(genome_id: str, gff_path: str) -> Dict[str, str]:
     with _REGISTRY_LOCK:
         cfg["gff"] = gff_path
         cfg["last_used"] = time.time()
+        cfg.setdefault("managed", True)
         _UPLOADED_GENOMES[genome_id] = cfg
     logger.info("Attached GFF to uploaded genome '%s': %s", genome_id, gff_path)
     return dict(cfg)
@@ -727,12 +894,12 @@ def save_prediction_bigwigs(
 ) -> Dict[str, str]:
     """Write all (assay, biosample) tracks to bigWig files.
 
+    The output directory follows the cache mode: persistent prediction cache
+    (CACHE_MODE=true) or a temp dir (CACHE_MODE=false, short TTL cleanup).
+
     Returns a dict ``{(assay, biosample, tag): path}``.
     """
-    cache_dir = os.path.abspath(os.getenv(
-        "BACKEND_PREDICTION_CACHE",
-        os.path.join(os.path.dirname(__file__), "..", "..", "cache", "predictions"),
-    ))
+    cache_dir = get_prediction_cache_dir()
     os.makedirs(cache_dir, exist_ok=True)
 
     timestamp = int(time.time())

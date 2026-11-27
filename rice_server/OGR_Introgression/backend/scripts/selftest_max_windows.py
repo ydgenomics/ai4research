@@ -1,4 +1,4 @@
-"""MAX_NUMBER_256W 逻辑自测（不加载模型）：验证 select_windows 各组合。
+"""select_windows 逻辑自测（不加载模型）：验证「start 锚定窗口 + 超限/MAX」各组合。
 
 运行: /root/miniconda3/envs/vllm/bin/python scripts/selftest_max_windows.py
 """
@@ -35,7 +35,7 @@ def show(title, wins):
     print(f"{title}: {tuple(wins)}")
 
 
-# 1) 整条模式 + 无限制 => 全部网格起点（0, 64k, 128k, ... 步进 64k）
+# 1) 整条模式 + 无限制 => 全部网格起点（0, 64k, 128k, ... 步进 64k）[保留，与离线一致]
 wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, None, None, None)
 show("整条/无限制(前5)", wins[:5])
 assert wins[0] == 0 and wins[1] == 64000 and wins[2] == 128000
@@ -49,34 +49,52 @@ wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, None, None, 3)
 show("整条/MAX=3", wins)
 assert wins == [0, 64000, 128000]
 
-# 3) 窗口模式 start=100k,end=800k + MAX=3
-#    （覆盖 [100k,800k)，各候选窗口与区间的重叠）=> 取覆盖最大的 3 个
-wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 100_000, 800_000, 3)
-show("start=100k end=800k MAX=3", wins)
-# 完全落在 [100k,800k) 内的窗口（重叠=满窗口256k）起点为 128k..512k（7个）；
-# 平局取起点更早者 → 前 3 个 = [128k, 192k, 256k]
-expected = [128000, 192000, 256000]
-assert wins == expected, f"got {wins}"
-
-# 4) 窗口模式只有 start（无 end）+ MAX=2 => 默认只推 1 个覆盖度最大的窗口
+# 3) 窗口模式只有 start（无 end）=> 恒 1 个窗口 [start, start+256k)，MAX 不参与
+wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 50_000, None, None)
+show("start=50k(无end) no-MAX", wins)
+assert wins == [50000], f"got {wins}"
 wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 50_000, None, 2)
 show("start=50k(无end) MAX=2", wins)
-# user_end=50k+256k=306k。候选：
-#   A[0,256k] 重叠 min(256k,306k)-50k = 206k
-#   B[64k,320k] 重叠 min(320k,306k)-64k = 306k-64k=242k
-#   C[128k,384k] 重叠 min(384k,306k)-128k=178k
-# 只填 start（end 空）→ 始终单窗（忽略 MAX）→ 最大覆盖单窗 = B(242k) → [64000]
-assert wins == [64000], f"got {wins}"
+assert wins == [50000], f"got {wins}"
 
-# 5) 窗口模式完全在染色体外（用户区间 > chrom_len）+ MAX=3
-#    => 无正重叠，兜底前 3 个网格起点
-wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 50_000_000, 51_000_000, 3)
-show("超出染色体 end MAX=3", wins)
-assert wins == [0, 64000, 128000], f"got {wins}"
+# 4) 窗口模式 start+end：重叠滑窗（起点=start, step=64k），尾部>end 的最后一个保留
+#    start=100k, end=800k：起点 100k,164k,...,772k（100k+64k*i ≤ 800k → i≤10 → 11 个）；
+#    最后一个 [772k, 1028k) 尾部>end 保留；MAX=3 → 前 3 个
+wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 100_000, 800_000, 3)
+show("start=100k end=800k MAX=3", wins)
+assert wins == [100000, 164000, 228000], f"got {wins}"
 
-# 6) max_windows=None 窗口模式 => 单窗，最大覆盖网格窗口（旧版 behavior）
+# 5) 无 MAX：起点≤end 全部输出（含尾部>end 的最后一个）
+#    start=100k, end=800k：起点 100k+64k*i ≤ 800k → i=0..10（11 个，最后 740k）；
+#    最后一个 [740k, 996k) 尾部>end 保留
 wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 100_000, 800_000, None)
-show("窗口/no-MAX (单窗)", wins)
-assert len(wins) == 1
+show("start=100k end=800k no-MAX", wins)
+assert wins[0] == 100000
+assert wins[-1] == 740000, f"last={wins[-1]}"
+assert wins == [100000 + i * 64000 for i in range(11)], f"got {wins}"
+
+# 6) 第 1 个窗口尾部>chrom_len => 整体空
+wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, CHROM_LEN - 10_000, None, None)
+show("start 靠近末端(第1窗超限)", wins)
+assert wins == [], f"got {wins}"
+# 有 end 也一样：第一个窗口就超 chrom_len → 空
+wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, CHROM_LEN - 10_000, CHROM_LEN, 3)
+show("start 靠近末端(有end)", wins)
+assert wins == [], f"got {wins}"
+
+# 7) 后续窗口尾部>chrom_len => 丢弃+break，保留前面的（第 1 个不超）
+#    start=43.5M：窗口 [43500000, 43756000) OK；... 直到某起点 s 使 s+256k > 43.9M → break
+wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 43_500_000, CHROM_LEN, None)
+show("start=43.5M end=末端 no-MAX", wins)
+assert wins and wins[-1] + 256000 <= CHROM_LEN, f"last overflow: {wins[-1] + 256000}"
+if wins:
+    nxt = wins[-1] + 64000
+    assert nxt + 256000 > CHROM_LEN, f"break 应发生在 {nxt}"
+
+# 8) 有 end 但窗口尾部只超 end（不超 chrom_len）：该窗口保留
+#    start=890k, end=900k：唯一窗口 [890000, 1146000) 尾部>end 但 ≤ chrom_len → 输出 1 个
+wins = ps.select_windows(params, CHROM_LEN, trim_start, n_seg, 890_000, 900_000, None)
+show("start=890k end=900k (尾部超end)", wins)
+assert wins == [890000], f"got {wins}"
 
 print("\nALL LOGIC TESTS PASSED")

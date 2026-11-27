@@ -40,6 +40,34 @@ from rice_introgression.predictor import (
 
 logger = logging.getLogger(__name__)
 
+
+def _load_env_file(path: str) -> None:
+    """把 .env 加载进 os.environ（不覆盖已有变量）。"""
+    if not path or not os.path.isfile(path):
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
+    except OSError:
+        pass
+
+
+# 直接 import 本模块时也自动加载项目 .env，保证 CACHE_MODE / 目录配置可解析
+# （main.py 启动时也会加载；setdefault 保持 shell/环境变量权威）。
+_PRJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_load_env_file(os.path.join(_PRJ_ROOT, ".env"))
+
+# 缓存模式：
+#   true  = 全量缓存（默认）：内容寻址预测缓存（磁盘+内存）+ 上传文件复制到 cache 目录
+#   false = 轻量模式（推荐部署）：不做内容寻址缓存（每次重跑 GPU），上传文件按本地路径
+#           懒注册（managed=False，零拷贝，TTL 只移注册表不删外部文件）
+CACHE_MODE = os.getenv("CACHE_MODE", "true").strip().lower() in ("1", "true", "yes", "on")
+
 # 染色体级 trim 偏移缓存：{ (fasta_path, chrom): (trim_start, trim_end) }
 _TRIM_CACHE: dict[tuple[str, str], tuple[int, int]] = {}
 
@@ -155,36 +183,10 @@ def _existing_grid_starts(
     trim_start: int,
     n_segments: Optional[int],
 ) -> list[int]:
-    """标准窗口网格起点（与 match_window_to_grid 内部一致，避免重复实现）。"""
+    """标准窗口网格起点（仅整条模式使用，与离线一致）。"""
     return ana.standard_window_starts(
         params, chrom_len, trim_start=trim_start, n_segments=n_segments
     )
-
-
-def _select_max_region_starts(
-    wins: list[int], user_start: int, user_end: int, max_n: int, window_size: int
-) -> list[int]:
-    """从候选起点中选与用户区间 [user_start, user_end) 重叠最大的至多 max_n 个起点。
-
-    - 覆盖度：overlap = min(gs+window_size, user_end) - max(gs, user_start)；
-      必须用 window_size（窗口宽，通常 256k）而非窗口网格步长（64k）计算。
-    - 负/0 重叠取 0；平局取起点更早者（确定性，与 match_window_to_grid 一致）。
-    - 不足 max_n 时返回全部；没有正重叠时兜底返回前 max_n 个（确定性）。
-    """
-    if not wins:
-        return []
-    scored = [
-        (
-            max(0, min(gs + int(window_size), user_end) - max(gs, user_start)),
-            -int(gs),
-            gs,
-        )
-        for gs in wins
-    ]
-    ranked = sorted(scored, key=lambda t: (t[0], t[1]), reverse=True)
-    if ranked[0][0] <= 0:
-        return wins[:max_n]
-    return [int(t[2]) for t in ranked[:max_n]]
 
 
 def select_windows(
@@ -196,47 +198,62 @@ def select_windows(
     end: Optional[int],
     max_windows: Optional[int],
 ) -> list[int]:
-    """决定本次请求实际计算的 256k 窗口起点列表（绝对坐标，网格起点）。
+    """决定本次请求实际计算的 256k 窗口起点列表（绝对坐标）。
 
-    语义（与离线标准窗口网格一致；max_windows=None 时行为与旧版逐位一致）：
-    - 整条模式（start/end 都空）：
-        max_windows is None -> 全部网格窗口（离线 aggregate_windows_for_chrom）
-        max_windows = N      -> 只取前 N 个网格窗口（染色体 5' 端）
-    - 窗口模式（给了 start 或 end）：
-        只填 start（end 空）-> 始终 1 个「最大覆盖度」网格窗口（start 即用户
-                              显式指定目标位点，忽略 MAX_NUMBER_256W）
-        start/end 都填：
-            max_windows is None -> 1 个「最大覆盖度」网格窗口（旧版 match_window_to_grid）
-            max_windows = N      -> 覆盖度最大的 N 个网格窗口
+    「取消网格吸附」语义（2026-11 重构，用户确认）：
+    - 窗口模式（给了 start 或 end）：窗口起点 = 用户 start 本身（0-based），
+      不再吸附到标准网格（match_window_to_grid / _select_max_region_starts 不再使用）。
+      * 只填 start（end 空）-> 恒 1 个窗口 [start, start+256k)（MAX_NUMBER_256W 不参与）
+      * start/end 都填 -> 重叠滑窗起点 = start, start+64k, start+128k, ...
+        生成规则：起点 > end 停止；最后一个起点 ≤ end 的窗口即使尾部 > end
+        也保留输出（"若窗口>end，则输出一个"）。
+    - 整条模式（start/end 都空）：保留标准网格窗口（与离线一致）——
+      max_windows is None -> 全部网格窗口；max_windows = N -> 前 N 个网格窗口。
+    - 超限语义（用户确认）：
+      * chrom_len 硬界限：逐窗口检查尾部 > chrom_len——
+        第 1 个窗口就超 -> 整体返回空 []；后续窗口超 -> 丢弃该窗口及之后（break）。
+      * MAX_NUMBER_256W：窗口数 > max_windows -> 取前 max_windows 个。
     """
-    seg = int(params.segment_size)
-    grid_starts = _existing_grid_starts(params, chrom_len, trim_start, n_seg)
+    ws = int(params.window_size)
+    step = int(params.window_step)
 
     if start is None and end is None:
+        # 整条模式：标准网格（与离线一致），MAX 取前 N 个
+        grid_starts = _existing_grid_starts(params, chrom_len, trim_start, n_seg)
         if max_windows is None:
             return list(grid_starts)
         return list(grid_starts[:max_windows])
 
-    # 窗口模式
-    ws = int(params.window_size)
-    user_start = int(start) if start is not None else 0
-    user_end = int(end) if end is not None else user_start + ws
-    if user_end <= user_start:
-        user_end = user_start + ws
+    # 窗口模式：起点 = 用户 start，重叠滑窗
+    si = int(start) if start is not None else 0
+    if si < 0 or si >= chrom_len:
+        return []
 
-    # 只填 start（end 空）：start 即用户显式指定的目标位点 → 默认只推 1 个
-    # 覆盖度最大的 256k 窗口（无论 MAX_NUMBER_256W 是否设置）
-    if end is None or max_windows is None:
-        matched = ana.match_window_to_grid(
-            params, chrom_len, user_start, user_end,
-            trim_start=trim_start, n_segments=n_seg,
-        )
-        return [int(matched[0])]
+    if end is None:
+        # 只填 start：恒 1 个窗口
+        if si + ws > chrom_len:
+            return []
+        return [si]
 
-    return _select_max_region_starts(
-        grid_starts, user_start, user_end, int(max_windows),
-        window_size=int(params.window_size),
-    )
+    # start/end 都填：重叠滑窗
+    user_end = int(end)
+    if user_end <= si:
+        user_end = si + ws
+
+    wins: list[int] = []
+    cur = si
+    while cur <= user_end:
+        if cur + ws > chrom_len:
+            # 超 chrom_len 硬界限：第 1 个窗口就超 -> 整体空；后续超 -> 丢弃并停止
+            if not wins:
+                return []
+            break
+        wins.append(cur)
+        cur += step
+
+    if max_windows is not None and len(wins) > max_windows:
+        wins = wins[:max_windows]
+    return wins
 
 
 def _predict_segments(
@@ -317,6 +334,52 @@ def _aggregate_window_slice(
     }
 
 
+def _empty_introgression_payload(
+    *,
+    genome: str,
+    chromosome: str,
+    chrom_len: int,
+    query_start: int,
+    query_end: int,
+    trim_start: int,
+    trim_end: int,
+    params: ana.AnalysisParams,
+    message: str,
+) -> dict:
+    """空结果 payload（200，不报错）：第 1 个窗口就超出染色体末端时返回。
+
+    结构上与正常 payload 对齐（windows/regions 为空、mode="window"），
+    前端据此显示骨架图 + 提示；DCS 适配层也能照常解析。
+    坐标与正常 payload 一致：query_start 为 1-based inclusive。
+    """
+    return {
+        "genome": genome,
+        "chromosome": chromosome,
+        "chrom_len": int(chrom_len),
+        "query_start": int(query_start) + 1,
+        "query_end": int(query_end),
+        "mode": "window",
+        "win_start": None,
+        "win_end": None,
+        "trim_start": int(trim_start),
+        "trim_end": int(trim_end),
+        "segments": [],
+        "windows": [],
+        "regions": {g: [] for g in ana.GROUP_ORDER},
+        "params": {
+            "segment_size": params.segment_size,
+            "window_size": params.window_size,
+            "window_step": params.window_step,
+            "top_k": params.top_k,
+            "threshold_jap": params.threshold_jap,
+            "threshold_ind": params.threshold_ind,
+        },
+        "threshold_rule": ana.threshold_rule_text(params),
+        "message": message,
+        "cached": False,
+    }
+
+
 def run_introgression(
     genome: str,
     chromosome: str,
@@ -346,6 +409,7 @@ def run_introgression(
         raise ValueError(f"Invalid start/end: start={start!r}, end={end!r}")
 
     if start is None and end is None:
+        # 整条染色体模式：保留标准网格窗口（与离线一致），MAX 取前 N 个
         if max_windows is not None:
             mode = "window"
         wins = select_windows(
@@ -358,20 +422,29 @@ def run_introgression(
             # 整条模式 + max_windows：region = 所选窗口覆盖的区间（不许超末端）
             region_start, region_end = wins[0], wins[-1] + params.window_size
     else:
+        # 窗口模式：起点 = 用户 start（取消网格吸附），重叠滑窗
         mode = "window"
         wins = select_windows(
             params, chrom_len, trim_start, n_seg,
             start=start, end=end, max_windows=max_windows,
         )
-        if max_windows is None:
-            # 旧版行为：单窗口（match_window_to_grid 结果）
-            win_start, win_end = wins[0], wins[0] + params.window_size
-            region_start, region_end = win_start, win_end
-        else:
-            if not wins:
-                # 用户区间完全在染色体外或无可匹配窗口：回退到坐标 0
-                wins = [0]
-            region_start, region_end = wins[0], wins[-1] + params.window_size
+        if not wins:
+            # 第 1 个窗口就超出染色体末端 -> 整体返回空（200，不报 400）
+            return _empty_introgression_payload(
+                genome=genome,
+                chromosome=chromosome,
+                chrom_len=chrom_len,
+                query_start=query_start,
+                query_end=query_end,
+                trim_start=trim_start,
+                trim_end=trim_end,
+                params=params,
+                message=(
+                    f"Start exceeds chromosome length: start={query_start}, "
+                    f"chrom_len={chrom_len}"
+                ),
+            )
+        region_start, region_end = wins[0], wins[-1] + params.window_size
 
     if any(w >= chrom_len for w in wins):
         raise ValueError(
@@ -379,19 +452,21 @@ def run_introgression(
         )
     region_end = min(region_end, chrom_len)
 
-    # 2. 缓存命中检查
-    cache_key = prediction_cache.build_key(
-        "intro",
-        genome=genome,
-        chromosome=chromosome,
-        start=region_start,
-        end=region_end,
-    )
-    hit = prediction_cache.get(cache_key)
-    if hit is not None:
-        payload = dict(hit["payload"])
-        payload["cached"] = True
-        return payload
+    # 2. 缓存命中检查（仅 CACHE_MODE=true；轻量模式每次重跑 GPU）
+    cache_key = None
+    if CACHE_MODE:
+        cache_key = prediction_cache.build_key(
+            "intro",
+            genome=genome,
+            chromosome=chromosome,
+            start=region_start,
+            end=region_end,
+        )
+        hit = prediction_cache.get(cache_key)
+        if hit is not None:
+            payload = dict(hit["payload"])
+            payload["cached"] = True
+            return payload
 
     # 2.5 初始化进度任务（供 /progress 轮询；缓存命中无需进度）
     from rice_introgression.progress import progress_tracker
@@ -421,45 +496,32 @@ def run_introgression(
     # 3. 切片段 + 推理
     try:
         if mode == "window":
-            # 窗口模式（单窗或多窗）：只推理所选窗口内的片段，窗口各自聚合
-            win_segments: list[pd.DataFrame] = []
+            # 窗口模式（单窗或多窗）：逐窗口读区段 -> 按绝对坐标切 8k -> 推理 -> 聚合
             all_segs: list[dict] = []
-            # 单窗（max_windows is None）：保持旧版 payload 语义（1 个窗口）
-            if max_windows is None:
-                segs = _segments_window_grid(fasta_path, chromosome, region_start, region_end, seg)
-                segs_df = _predict_segments(segs, progress_key=progress_key)
-                all_segs = segs_df.to_dict("records")
-                agg = _aggregate_window_slice(segs_df, params, region_start)
-                if agg is not None:
-                    windows_df = pd.DataFrame([agg])
-                else:
-                    windows_df = pd.DataFrame(columns=[
-                        "chr_id", "win_start", "win_end", "center", "n_segments",
-                        "topk_mean_jap", "topk_mean_ind", "group",
-                    ])
-            else:
-                # 多窗：逐窗口读区段（含 N 补齐）→ 按绝对坐标网格切 8k → 推理 → 聚合
-                all_segs = []
-                win_frames: list[pd.DataFrame] = []
-                for w in wins:
-                    wseg = _segments_window_grid(fasta_path, chromosome, w, w + params.window_size, seg)
-                    if not wseg:
-                        continue
-                    # 窗口级推理（进度累计到同一 progress_key）
-                    wdf = _predict_segments(wseg, progress_key=progress_key)
-                    agg = _aggregate_window_slice(wdf, params, w)
-                    all_segs.extend(wdf.to_dict("records"))
-                    if agg is not None:
-                        win_frames.append(pd.DataFrame([agg]))
-                windows_df = (
-                    pd.concat(win_frames, ignore_index=True)
-                    if win_frames
-                    else pd.DataFrame(columns=[
-                        "chr_id", "win_start", "win_end", "center", "n_segments",
-                        "topk_mean_jap", "topk_mean_ind", "group",
-                    ])
+            win_frames: list[pd.DataFrame] = []
+            for w in wins:
+                # 窗口尾部可能超出 end（"若窗口>end，则输出一个"），但绝不超过
+                # chrom_len（select_windows 已按硬界限剔除），故无需 N 补齐
+                wseg = _segments_window_grid(
+                    fasta_path, chromosome, w, w + params.window_size, seg
                 )
-                segs_df = pd.DataFrame(all_segs)
+                if not wseg:
+                    continue
+                # 窗口级推理（进度累计到同一 progress_key）
+                wdf = _predict_segments(wseg, progress_key=progress_key)
+                agg = _aggregate_window_slice(wdf, params, w)
+                all_segs.extend(wdf.to_dict("records"))
+                if agg is not None:
+                    win_frames.append(pd.DataFrame([agg]))
+            windows_df = (
+                pd.concat(win_frames, ignore_index=True)
+                if win_frames
+                else pd.DataFrame(columns=[
+                    "chr_id", "win_start", "win_end", "center", "n_segments",
+                    "topk_mean_jap", "topk_mean_ind", "group",
+                ])
+            )
+            segs_df = pd.DataFrame(all_segs)
         else:
             segs, _ = _segments_chromosome(fasta_path, chromosome, chrom_len, seg)
             segs_df = _predict_segments(segs, progress_key=progress_key)
@@ -481,22 +543,45 @@ def run_introgression(
     else:
         group_regions = ana.call_group_regions(windows_df)
 
-    # 5. 组装 payload
-    seg_list = segs_df[["start", "end", "prob_jap", "prob_ind"]].to_dict("records")
-    win_list = windows_df.to_dict("records") if not windows_df.empty else []
-    regions_out = {
-        g: group_regions[g].to_dict("records") if not group_regions[g].empty else []
-        for g in ana.GROUP_ORDER
-    }
+    # 5. 组装 payload（坐标统一转 1-based inclusive 展示：
+    #    start_1b = start_0b + 1；end_1b = end_0b（0-based half-open 末尾 == 1-based 闭区间末尾）
+    #    内部计算（select_windows / 切片段 / 缓存键）保持 0-based 不变）
+    seg_list = []
+    for r in segs_df[["start", "end", "prob_jap", "prob_ind"]].to_dict("records"):
+        seg_list.append({
+            "start": int(r["start"]) + 1,
+            "end": int(r["end"]),
+            "prob_jap": float(r["prob_jap"]),
+            "prob_ind": float(r["prob_ind"]),
+        })
+    win_list = []
+    for w in (windows_df.to_dict("records") if not windows_df.empty else []):
+        win_list.append({
+            **w,
+            "win_start": int(w["win_start"]) + 1,
+            "win_end": int(w["win_end"]),
+            "center": int(w["center"]) + 1,
+        })
+    regions_out = {}
+    for g in ana.GROUP_ORDER:
+        recs = group_regions[g].to_dict("records") if not group_regions[g].empty else []
+        out = []
+        for r in recs:
+            out.append({
+                **r,
+                "start": int(r["start"]) + 1,
+                "end": int(r["end"]),
+            })
+        regions_out[g] = out
 
     payload = {
         "genome": genome,
         "chromosome": chromosome,
         "chrom_len": int(chrom_len),
-        "query_start": int(query_start),
+        "query_start": int(query_start) + 1,
         "query_end": int(query_end),
         "mode": mode,
-        "win_start": int(region_start) if mode == "window" else None,
+        "win_start": int(region_start) + 1 if mode == "window" else None,
         "win_end": int(region_end) if mode == "window" else None,
         "trim_start": int(trim_start),
         "trim_end": int(trim_end),
@@ -515,7 +600,8 @@ def run_introgression(
         "cached": False,
     }
     progress_tracker.finish("推理完成")
-    prediction_cache.put(cache_key, {"payload": payload})
+    if CACHE_MODE and cache_key is not None:
+        prediction_cache.put(cache_key, {"payload": payload})
     return payload
 
 

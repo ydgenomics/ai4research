@@ -7,30 +7,28 @@
 ## 项目结构
 
 ```
-rice-reg-server2/
-├── .env                    # 环境配置（基因组、ATAC、模型路径等）
+OGR_Regulation/
+├── .env                    # 环境配置（基因组、ATAC、模型路径、端口、CACHE_MODE）
 ├── .env.example            # 环境配置模板
 ├── requirements.txt        # 统一依赖清单（前后端共用）
 ├── README.md               # 本文档
 ├── API.md                  # ★ API 调用文档（本机 + DCS 测试代码）
 ├── backend/
-│   ├── main.py             # FastAPI 应用入口
-│   ├── api.py              # API 路由定义（网页版）
-│   ├── dcs_adapter.py      # ★ DCS 适配层（单入口 + mode 分发）
-│   ├── prediction_service.py  # 预测服务层
-│   ├── igv_payload.py      # IGV 数据构建
-│   ├── rice_reg/
-│   │   ├── core/
-│   │   │   ├── rice_reg.py     # 核心推理类 (RiceRegPredictor)
-│   │   │   ├── scaling.py      # 数据标准化
-│   │   │   ├── model/          # 模型定义（pipeline, encoder, predictor 等）
-│   │   │   └── __init__.py
+│   ├── rice_reg/main.py    # FastAPI 入口（网页端 + DCS 子路径同一进程）
+│   ├── rice_reg/api.py     # API 路由（网页端内部端点 + DCS 子路径）
+│   ├── rice_reg/prediction_service.py  # 预测服务层
+│   ├── rice_reg/igv_payload.py  # IGV 数据构建
+│   ├── rice_reg/cache_service.py    # 内容寻址缓存 / 自定义基因组注册
+│   ├── rice_reg/core/
+│   │   ├── rice_reg.py     # 核心推理类 (RiceRegPredictor)
+│   │   ├── scaling.py      # 数据标准化
+│   │   ├── model/          # 模型定义（pipeline, encoder, predictor 等）
 │   │   └── __init__.py
 │   ├── requirements.txt     # 后端依赖
 │   ├── run_backend.sh       # 后端启动脚本
 │   └── stop_backend.sh      # 后端停止脚本
 ├── frontend/
-│   ├── app.py               # Gradio 前端界面
+│   ├── app.py               # Gradio 前端界面（API Key 输入框 + /backend/* 反代）
 │   ├── config.py            # 前端配置
 │   ├── igv_payload.py       # IGV 辅助函数
 │   ├── requirements.txt     # 前端依赖
@@ -79,11 +77,9 @@ bash backend/run_backend.sh
 bash frontend/run_frontend.sh
 ```
 
-**启动 DCS 适配层**（供 DCS 网关转发，独立于网页版进程；建议用 `.env` 的 `BACKEND_PYTHON_BIN` 解释器）：
-
-```bash
-cd backend && python dcs_adapter.py
-```
+**DCS 子路径**已并入统一后端（`rice_reg/main.py`），网页端与纯 API 同一进程/端口，
+**不再需要单独启动 `dcs_adapter.py`**。网关/纯 API 直接调用后端的
+`/api/aigress/openai/OGR-Regulation/{Genome,Chromosome,Prediction,RegisterGenome}`。
 
 ### 4. 停止服务
 
@@ -101,35 +97,44 @@ tail -f frontend/logs/frontend.nohup.log
 ## 配置说明
 
 关键配置项（`.env`）：
-- `BACKEND_PYTHON_BIN` / `FRONTEND_PYTHON_BIN`: Python 解释器路径（可指向同一个环境）
-- `BASE_MODEL_PATH`: 基础模型路径（HuggingFace 格式）
-- `CHECKPOINT_PATH`: 模型 checkpoint (.safetensors)
-- `GENOME_*_FASTA` / `GENOME_*_FAI` / `GENOME_*_GFF`: 参考基因组文件
-- `ATAC_PATH_*`: 内置 ATAC bigWig 文件路径
+- `BACKEND_PYTHON_BIN` / `FRONTEND_PYTHON_BIN`: Python 解释器路径（可指向同一个环境，部署均为 vllm）
+- `BACKEND_PORT` / `FRONTEND_PORT`: 后端 7001 / 前端 7000
+- `BASE_MODEL_PATH`: 基础模型路径（HuggingFace 格式，`rice_1B_32k_hf`）
+- `CHECKPOINT_PATH`: 模型 checkpoint (`three_sam2.model.safetensors`)
+- `GENOME_*_FASTA` / `GENOME_*_FAI` / `GENOME_*_GFF`: 参考基因组文件（MH63 / NIP）
+- `ATAC_PATH_*`: 内置 ATAC bigWig 文件路径（`SAM2_MH63_1` / `SAM2_NIP_1`）
+- `TARGET_LEN`: 预测窗口长度（默认 32768）
+- `CACHE_MODE`: `true` = 懒加载 + 内容寻址缓存（相同窗口复用、跳过 GPU）；`false`（当前部署）= 每次重跑 GPU；两种模式中间 bigWig 均写 `BACKEND_PREDICTION_CACHE`，服务重启自动清空
 
 ## API 文档
 
-完整 API 调用说明（本机 + DCS 两套测试代码）见 **[API.md](API.md)**。
+完整 API 调用说明（本机 + DCS 测试代码）见 **[API.md](API.md)**。
 
-网页版后端简要接口一览：
+接口一览（网页端前端与纯 API **走同一套 DCS 子路径**，camelCase + 1-based）：
 
 | 接口 | 方法 | 说明 |
 |---|---|---|
-| `/health` | GET | 健康检查 |
-| `/uploadFile` | POST | 上传 ATAC bigWig 文件（multipart，字段名 `file`） |
-| `/predict/rice-reg` | POST | 执行基因表达预测 |
+| `/api/aigress/openai/OGR-Regulation/Prediction` | POST | ATAC→RNA-seq 表达预测（网页端与纯 API 共用） |
+| `/api/aigress/openai/OGR-Regulation/Genome` | POST | 基因组列表 |
+| `/api/aigress/openai/OGR-Regulation/Chromosome` | POST | 某基因组染色体列表 |
+| `/api/aigress/openai/OGR-Regulation/RegisterGenome` | POST | 按本机路径注册 FASTA / 挂载 GFF |
+| `/health` | GET | 健康检查（免鉴权） |
+| `/uploadFile` | POST | 上传 ATAC bigWig（multipart，字段名 `file`；网页端内部端点） |
 
-> 网页版请求/响应示例见 `test/test_api.sh`；DCS 适配层（单入口 + mode 分发）的完整调用见 [API.md](API.md)。
+> 网页 Gradio 前端通过 `_call_dcs()` 直接调用上述 DCS 子路径（`/backend/*` 反代），浏览器只连前端端口；
+> 纯 API 调用方拿到**同一份**返回（`{model_name, usage, token_cnt, status, message, result}`）。
+> 旧版独立 `dcs_adapter.py` 与 body `mode` 分发均已废弃。
 
 ## 前端使用
 
 1. 打开浏览器访问 `http://<host>:7000`
-2. 选择基因组（MH63RS3 / NIP）
-3. 选择染色体（chr1-chr12）
-4. 输入起始位置（窗口长度固定为 32768 bp，结束位置自动计算）
-5. 选择内置 ATAC 文件或上传自己的 bigWig 文件（二选一）
-6. 点击 "Predict" 按钮
-7. 在 IGV 浏览器中查看预测结果
+2. 在 **「API Key（必填）」** 输入框填写 DCS API Key（后端启用鉴权时必填；前端只把它作为 `Authorization: Bearer <key>` 发送，不读 `.env`）
+3. 选择基因组（`MH63` / `NIP`）
+4. 选择染色体（chr01–chr12）
+5. 输入起始位置（1-based，窗口长度固定 32768 bp，结束位置自动计算）
+6. 选择内置 ATAC 文件或上传自己的 bigWig 文件（二选一；两者都给时上传优先）
+7. 点击 "Predict" 按钮
+8. 在 IGV 浏览器中查看预测结果（浏览器只连前端端口，IGV/静态资源经 `/backend/*` 反代）
 
 ## 测试
 

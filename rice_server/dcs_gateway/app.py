@@ -6,18 +6,19 @@
     POST .../api/aigress/openai/OGR                          # body model_sub 路由
 
 网关优先解析 URL 路径段（model_sub / subpath，可选），否则读取请求体 JSON 中
-的 `model_sub` 字段路由到各后端 dcs_adapter 进程，并把路径重写为后端
+的 `model_sub` 字段路由到各后端统一服务进程（OGR-Prediction/Regulation/Introgression
+的网页端与纯 API 同一进程；OGR-Base 仍为独立 dcs_adapter），并把路径重写为后端
 期望的入口（/api/aigress/openai/OGR-Prediction/Prediction 等）。
 
 路由表（model_sub 小写匹配，连字符自动归一为下划线，缺省走主服务 ogr_base）：
 
     model_sub=OGR-Prediction   → 127.0.0.1:8001  /api/aigress/openai/OGR-Prediction/{Prediction,SNV,RegisterGenome}
     model_sub=OGR-Regulation   → 127.0.0.1:7001  /api/aigress/openai/OGR-Regulation/{Genome,Chromosome,Prediction,RegisterGenome}
-    model_sub=OGR-Introgression→ 127.0.0.1:5001  /api/aigress/openai/OGR-Introgression/{predict,RegisterGenome}
+    model_sub=OGR-Introgression→ 127.0.0.1:5001  /api/aigress/openai/OGR-Introgression/{Genome,Chromosome,Prediction,RegisterGenome}
     model_sub=OGR-Base         → 127.0.0.1:6001  /api/aigress/openai/OGR-Base/{Embedding,NTP}   (缺省)
 
 说明：
-- 四个后端 dcs_adapter 均为**纯子路径路由（无 body mode）**：URL 路径的第二段
+- 各后端均为**纯子路径路由（无 body mode）**：URL 路径的第二段
   （Prediction/SNV/Genome/Chromosome/Embedding/NTP/predict/RegisterGenome）映射到后端子路径，
   网关只做路径重写，**不注入任何 mode 字段**；请求体其余字段原样透传。
 - RegisterGenome：三个服务（OGR-Prediction/Regulation/Introgression）支持**传本地文件路径**
@@ -63,6 +64,8 @@ BACKENDS: Dict[str, dict] = {
         "host": os.getenv("RICE_MUT_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_MUT_PORT", "8001")),
         "path": "/api/aigress/openai/OGR-Prediction",
+        # body model_sub 路由且 URL 无子路径段时的默认子路径（旧式单地址兼容）
+        "default_subpath": "/Prediction",
         "subpath_modes": ("prediction", "snv", "registergenome"),   # URL 第二段 → 后端子路径（归一形式）
         "subpath_map": {
             "prediction": "Prediction", "snv": "SNV",
@@ -73,6 +76,7 @@ BACKENDS: Dict[str, dict] = {
         "host": os.getenv("RICE_REG_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_REG_PORT", "7001")),
         "path": "/api/aigress/openai/OGR-Regulation",
+        "default_subpath": "/Prediction",
         "subpath_modes": ("genome", "chromosome", "prediction", "registergenome"),
         "subpath_map": {
             "genome": "Genome", "chromosome": "Chromosome", "prediction": "Prediction",
@@ -83,9 +87,11 @@ BACKENDS: Dict[str, dict] = {
         "host": os.getenv("RICE_INTRO_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_INTRO_PORT", "5001")),
         "path": "/api/aigress/openai/OGR-Introgression",
-        "subpath_modes": ("predict", "health", "registergenome"),
+        "default_subpath": "/Prediction",
+        "subpath_modes": ("genome", "chromosome", "prediction", "health", "registergenome"),
         "subpath_map": {
-            "predict": "predict", "health": "health",
+            "genome": "Genome", "chromosome": "Chromosome",
+            "prediction": "Prediction", "health": "health",
             "registergenome": "RegisterGenome",
         },
     },
@@ -93,6 +99,7 @@ BACKENDS: Dict[str, dict] = {
         "host": os.getenv("RICE_OGR_HOST", "127.0.0.1"),
         "port": int(os.getenv("RICE_OGR_PORT", "6001")),  # 与 OGR-Prediction 错开
         "path": "/api/aigress/openai/OGR-Base",
+        "default_subpath": "/Embedding",
         "subpath_modes": ("embedding", "ntp"),
         "subpath_map": {"embedding": "Embedding", "ntp": "NTP"},
     },
@@ -215,6 +222,10 @@ async def _forward(request: Request, full_path: str = "") -> Response:
         else:
             # 未知子路径段：透传原样，由后端报错（含英文使用说明）
             extra_path = "/" + path_mode
+    else:
+        # body model_sub 路由（旧式单地址）且 URL 无子路径段：用该服务的默认子路径
+        # （例如 OGR-Prediction → /Prediction），保证与网页端/纯 API 一致。
+        extra_path = cfg.get("default_subpath", "")
 
     # 剥离仅供路由使用的 model_sub，其余字段原样透传
     if body:

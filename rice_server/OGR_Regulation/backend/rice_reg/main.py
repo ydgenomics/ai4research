@@ -18,6 +18,8 @@ def _load_env_file(path: Path):
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, val = line.split("=", 1)
+        # 剥离行内注释(# 前截断),避免 "KEY=200     # 注释" 被原样读入
+        val = val.split("#", 1)[0].strip()
         os.environ.setdefault(key.strip(), val.strip())
 
 

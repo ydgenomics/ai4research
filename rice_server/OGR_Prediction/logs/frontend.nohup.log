@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/frontend/app.py", line 1382, in <module>
+    demo.queue().launch(
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/gradio/blocks.py", line 2635, in launch
+    ) = http_server.start_server(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/gradio/http_server.py", line 157, in start_server
+    raise OSError(
+OSError: Cannot find empty port in range: 8000-8000. You can specify a different port by setting the GRADIO_SERVER_PORT environment variable or passing the `server_port` parameter to `launch()`.
+Traceback (most recent call last):
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/frontend/app.py", line 1417, in <module>
+    demo.queue().launch(
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/gradio/blocks.py", line 2635, in launch
+    ) = http_server.start_server(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/gradio/http_server.py", line 157, in start_server
+    raise OSError(
+OSError: Cannot find empty port in range: 8000-8000. You can specify a different port by setting the GRADIO_SERVER_PORT environment variable or passing the `server_port` parameter to `launch()`.

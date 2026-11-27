@@ -1,321 +1,313 @@
-# rice_reg API 调用文档
+# OGR-Regulation API 调用文档
 
-> 适用服务：`rice_reg/backend/dcs_adapter.py`（ATAC → RNA-seq 表达预测）
-> 功能：输入 DNA 区域 + ATAC 信号，输出 **RNA-seq +/− 两通道** 表达轨迹（按 `output_format` 为逐碱基数组 / 标量均值 / 降采样）。
-> 本文档包含 **本机（host）测试** 与 **DCS 平台测试** 两套可直接复制的 curl 代码。
+> 适用服务：`OGR_Regulation/backend/rice_reg/api.py`（ATAC → RNA-seq 表达预测）
+> 功能：输入 DNA 区域 + ATAC 信号，输出 **RNA-seq +/− 两通道** 表达值（`Format=Full` 逐碱基数组 / `Format=Mean` 标量均值）。
+> **网页端（Gradio :7000）与纯 API（curl）走同一套端点、同一套参数键、同一套坐标语义、同一返回信封** —— 一个后端进程（:7001）同时服务网页(/backend/* 反代)与纯 API。所有 1-based → 0-based 转换都在后端完成。
 
 ---
 
 ## 1. 入口总览
 
-| 场景 | 入口 | 说明 |
+后端统一进程（默认 `:7001`）暴露 4 个 **纯子路径** 端点（camelCase 键、1-based 坐标）。每个端点都有「带前缀」和「简写」两个等价路径：
+
+| 功能 | 端点（两个路径等价） | 说明 |
 |---|---|---|
-| **本机后端直连** | `POST http://127.0.0.1:7001/api/aigress/openai/rice_reg` | 本地调试（模型加载约 30–40s） |
-| **本机后端简写** | `POST http://127.0.0.1:7001/rice_reg` | 同上，简写路径 |
-| **DCS 统一网关（URL 路径，推荐）** | `POST https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/{predict,genomes,chromosomes}` | 服务与功能放路径段，body 无 `model_sub`/`mode` |
-| **DCS 统一网关（body 字段，兼容）** | `POST https://www.dcs.cloud/api/aigress/openai/OGR` + body `model_sub=rice_reg` | 旧式调用 |
+| ATAC→RNA-seq 预测 | `POST /api/aigress/openai/OGR-Regulation/Prediction`<br>`POST /OGR-Regulation/Prediction` | 表达预测（+ IGV payload） |
+| 基因组列表 | `POST /api/aigress/openai/OGR-Regulation/Genome`<br>`POST /OGR-Regulation/Genome` | 已配置/已注册基因组 |
+| 染色体列表 | `POST /api/aigress/openai/OGR-Regulation/Chromosome`<br>`POST /OGR-Regulation/Chromosome` | 某基因组的染色体 |
+| 注册基因组 | `POST /api/aigress/openai/OGR-Regulation/RegisterGenome`<br>`POST /OGR-Regulation/RegisterGenome` | 按本机路径注册 FASTA / 挂载 GFF |
+| 健康检查 | `GET /health` | 免鉴权，模型加载状态 |
 
-> 统一网关由 `dcs_gateway/` 提供（唯一入口 `…/OGR`），完整说明见 [dcs_gateway/API.md](../dcs_gateway/API.md)。
-> 后端自身也保留子路径：`/api/aigress/openai/rice_reg/predict`、`…/rice_reg/genomes`、`…/rice_reg/chromosomes`、`…/health`（免鉴权）。
+> **没有 `mode` 分发、没有 `model_sub`、没有 `end`、没有 `downsample`/`max_points`/`output_format`**（`Format` 为 `Full`/`Mean`）。功能完全由 URL 子路径决定。
 
-### 1.1 模式分发（单入口 `POST /rice_reg` + body `mode`）
+### 1.1 与旧版（`rice_reg` 单入口 + body `mode` + 独立 `dcs_adapter.py`）的区别
 
-| 请求体 | 推断模式 | 说明 |
+| 项 | 旧 | 新 |
 |---|---|---|
-| `{"mode":"health"}` | **health** | 健康检查（免鉴权） |
-| `{"mode":"genomes"}` | **genomes** | 已配置基因组列表 |
-| `{"mode":"chromosomes","genome":"MH63RS3"}` | **chromosomes** | 指定基因组的染色体列表 |
-| `{"mode":"predict", ...}` | **predict** | ATAC→RNA-seq 表达预测 |
-| `{}` 空 body | **health** | 自动推断 |
-| 其他（含 `start` 等，无 mode） | **predict** | 默认预测 |
-| `{"mode":"xxx"}` | 400 | 未知 mode 报错 |
-
-> **显式 `mode` 优先级最高**；未指定时按「空 body → health、其余 → predict」自动推断。
+| 进程/端口 | 网页版 `api.py` 与 `dcs_adapter.py` 两个进程抢 7001 | **同一进程、同一端口 7001** |
+| 入口 | `…/rice_reg` + body `mode` 分发 | `…/OGR-Regulation/{Prediction,Genome,Chromosome,RegisterGenome}` |
+| 参数键 | `genome/chromosome/start/end/atac_source`（snake_case） | `Genome/Chromosome/Start/ATAC-seq_Source/uploaded_atac`（camelCase） |
+| 格式 | `output_format: full/mean/downsample` | `Format: Full|Mean` |
+| 坐标 | 前端 `-1` 转 0-based | 1-based `Start`，后端 `start_0 = Start - 1` |
+| 上传 | multipart 传文件 | 传本机路径（懒注册/懒加载） |
 
 ---
 
-## 2. 请求头
+## 2. 请求头与鉴权
 
 | Header | 必填 | 说明 |
 |---|---|---|
 | `Content-Type` | ✅ | `application/json` |
-| `Authorization` | ⚠️ | `Bearer <DCS_API_KEY>`；部署端 `.env` 配置了 `DCS_API_KEY` 时 POST 推理必填，`health` 始终免鉴权 |
+| `Authorization` | ⚠️ | `Bearer <DCS_API_KEY>`；仅当后端 `.env` 配置了 `DCS_API_KEY` 时必填 |
+| `X-API-Key` | ⚠️ | `Authorization` 的等价替代 |
 
-> 鉴权同时兼容 `X-API-Key: <DCS_API_KEY>` 头。服务端 `.env` 未配置 `DCS_API_KEY` 则所有 POST 免鉴权。
-> 本机 `.env` 未配置 `DCS_API_KEY` 时**无需** `Authorization` 头；若提示 `address already in use`，说明 7001 已有服务：`fuser -k 7001/tcp` 清理后重启。
+> - 后端 `_check_api_key` 校验 `Authorization: Bearer <key>` 或 `X-API-Key: <key>`。
+> - 后端 `.env` 的 `DCS_API_KEY` **为空时所有请求免鉴权**（本地直连 / 开发测试）。
+> - **网页端**：Gradio 页面在 Predict 按钮上方有 **API Key 输入框（必填）**，运行时由用户填写；前端只把输入框的值作为 `Authorization: Bearer <key>` 发送，**不读 `.env`**。
+> - 若提示 `address already in use`，说明 7001 已有服务：`fuser -k 7001/tcp` 后重启。
 
 ---
 
-## 3. 健康检查（mode=health）
+## 3. 健康检查（GET /health，免鉴权）
 
 ```bash
-# ── 本机 ──
-curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/rice_reg \
-  -H "Content-Type: application/json" \
-  -d '{"mode":"health"}' | python3 -m json.tool
-
-# ── DCS（URL 路径 /health）──
-curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/health \
-  -H "Content-Type: application/json" | python3 -m json.tool
+curl -s http://127.0.0.1:7001/health | python3 -m json.tool
 ```
 
-示例返回（节选）：
+```json
+{"status": "ok", "predictor_initialized": true}
+```
+
+| 字段 | 含义 |
+|---|---|
+| `predictor_initialized` | 模型是否加载完成（`false` 时等待约 30–40s） |
+
+---
+
+## 4. 统一响应信封
+
+所有 4 个 DCS 子路径（含错误）都返回同一外层结构：
 
 ```json
 {
-    "status": "ok",
-    "predictor_initialized": true,
-    "genomes": ["MH63RS3", "NIP"],
-    "atac_sources": ["SAM2_MH63_1", "SAM2_NIP_1"],
-    "diagnostics": {
-        "python": {"version": "3.12.12", ...},
-        "deps": {"torch": ..., "pyBigWig": ...},
-        "gpu": {"cuda_available": true, "device_count": 1, "device_name": "NVIDIA A40"},
-        "files": {"base_model_exists": true, "checkpoint_exists": true},
-        "genomes": {"MH63RS3": true, "NIP": true},
-        "atac_sources": {"SAM2_MH63_1": true, "SAM2_NIP_1": true},
-        "listen": {"BACKEND_HOST": "0.0.0.0", "BACKEND_PORT": "7001", "PORT": "", "actual_host": "0.0.0.0", "actual_port": 7001},
-        "init_error": null
-    },
-    "gateway": {"received_path": "/api/aigress/openai/rice_reg", "served_port": 7001, "actual_port": 7001, "path_matches": true, ...}
+    "model_name": "OGR",
+    "usage": {"prompt_tokens": 32768, "completion_tokens": 65536},
+    "token_cnt": 98304,
+    "status": 200,
+    "message": "...",
+    "result": { ... }
 }
 ```
 
-### 关键字段解读
-
-| 字段 | 含义 | 排查用途 |
-|---|---|---|
-| `predictor_initialized` | 模型是否加载完成 | `false` 时看 `diagnostics.init_error` |
-| `diagnostics.genomes` | 各基因组 FASTA 文件是否存在 | — |
-| `diagnostics.atac_sources` | 各内置 ATAC 源 bigWig 是否存在 | — |
-| `diagnostics.listen.actual_port` | **容器内实际监听端口** | 与 `gateway.served_port` 比对 |
-| `gateway.served_port` | **平台实际转发到达的容器端口** | 转发端口配错时二者不一致 |
-| `gateway.received_path` | 平台实际转发进来的路径 | 排查 404 / 路径剥离问题 |
+| 字段 | 说明 |
+|---|---|
+| `model_name` | 固定 `"OGR"` |
+| `usage.prompt_tokens` | 输入窗口碱基数 × `DCS_PROMPT_TOKEN_MULTIPLIER`（默认 1） |
+| `usage.completion_tokens` | 输出数组元素总数 × `DCS_COMPLETION_TOKEN_MULTIPLIER`（默认 1） |
+| `token_cnt` | `prompt_tokens + completion_tokens` |
+| `status` | 200/400/401/404/500 |
+| `result` | 成功时业务数据；失败时 `null` |
 
 ---
 
-## 4. ATAC → RNA-seq 表达预测（predict，默认模式）
+## 5. ATAC → RNA-seq 表达预测（Prediction）
 
-### 4.1 请求体参数
+### 5.1 请求体参数
 
 | 字段 | 必填 | 类型 | 说明 |
 |---|---|---|---|
-| `genome` | ✅* | string | 基因组 ID（如 `MH63RS3`、`NIP`）；缺省时用第一个已配置基因组 |
-| `chromosome` | ❌ | string | 染色体（如 `chr01`），支持别名；缺省 `chr01` |
-| `start` | ✅ | int | **1-based inclusive** 起始坐标 |
-| `end` | ❌ | int | 1-based inclusive 结束坐标；缺省则自动取 `TARGET_LEN` 窗口 |
-| `atac_source` | ⚠️ | string | 内置 ATAC 源 ID（如 `SAM2_MH63_1` → `.env` 的 `ATAC_PATH_SAM2_MH63_1`） |
-| `uploaded_atac` | ⚠️ | string | 服务器上已上传的 ATAC bigWig 文件路径（**优先于** `atac_source`） |
-| `output_format` | ❌ | string | `full`（默认）/ `mean` / `downsample` |
-| `max_points` | ❌ | int | `downsample` 时的目标点数（默认 1024） |
+| `Genome` | ❌ | string | 基因组 ID（如 `MH63`、`NIP`）；缺省取第一个已配置基因组 |
+| `Chromosome` | ❌ | string | 染色体（如 `chr01`），支持别名；缺省 `chr01` |
+| `Start` | ✅ | int | **1-based** 起始坐标；后端居中到 `TARGET_LEN`(32768) 窗口 |
+| `ATAC-seq_Source` | ⚠️ | string | 内置 ATAC 源 ID（如 `SAM2_MH63_1`） |
+| `uploaded_atac` | ⚠️ | string | ATAC bigWig 的**本机路径**（优先于 `ATAC-seq_Source`） |
+| `Format` | ❌ | string | `Full`（默认，数组）/ `Mean`（标量） |
+| `fasta_path` | ❌ | string | 可选：懒注册自定义基因组 FASTA |
+| `gff_path` | ❌ | string | 可选：随 `fasta_path` 一并挂载 GFF |
 
-> ⚠️ `atac_source` 与 `uploaded_atac` **至少提供一个**；两者都给时 `uploaded_atac` 优先。
-> 坐标约定：网页版输入框是 1-based inclusive，`start` 与 `end` 都按此理解；内部自动归一化到模型窗口（center-align + truncate/pad 到 `TARGET_LEN`）。
+> ⚠️ `ATAC-seq_Source` 与 `uploaded_atac` **至少提供一个**；两者都给时 `uploaded_atac` 优先。
+> **自定义基因组直接传路径即可（懒注册）**：带 `fasta_path`（+ 可选 `gff_path`）时后端就地注册并使用，**无需先 RegisterGenome**。
 
-### 4.2 mean 格式（每轨道标量均值，最常用）
+### 5.2 Mean 格式（标量均值，最常用）
 
 ```bash
-# ── 本机 ──
-curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/rice_reg \
+curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/OGR-Regulation/Prediction \
   -H "Content-Type: application/json" \
   -d '{
-    "mode": "predict",
-    "genome": "MH63RS3",
-    "chromosome": "chr01",
-    "start": 20716774,
-    "end": 20749541,
-    "atac_source": "SAM2_MH63_1",
-    "output_format": "mean"
-  }' | python3 -m json.tool
-
-# ── DCS（推荐：URL 路径带服务与功能，body 无 mode）──
-curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/predict \
-  -H "Authorization: Bearer <DCS_API_KEY>" -H "Content-Type: application/json" \
-  -d '{
-    "genome": "MH63RS3",
-    "chromosome": "chr01",
-    "start": 20716774,
-    "end": 20749541,
-    "atac_source": "SAM2_MH63_1",
-    "output_format": "mean"
+    "Genome": "MH63",
+    "Chromosome": "chr01",
+    "Start": 20716774,
+    "ATAC-seq_Source": "SAM2_MH63_1",
+    "Format": "Mean"
   }' | python3 -m json.tool
 ```
 
-示例返回：
+示例返回（节选 `result`）：
 
 ```json
 {
-    "usage": {"prompt_tokens": 32768, "completion_tokens": 2},
-    "status": 200,
-    "message": "ATAC→RNA-seq expression prediction succeeded",
     "result": {
-        "model": "rice_reg",
-        "genome": "MH63RS3",
-        "chromosome": "chr01",
-        "position_1based": {"start": 20703125, "end": 20735892},
+        "model": "OGR-Regulation",
+        "Genome": "MH63",
+        "fasta_path": "",
+        "gff_path": "",
+        "Chromosome": "chr1",
+        "Start": 20716774,
+        "window_start": 20716773,
         "window_len": 32768,
-        "atac_source": "SAM2_MH63_1",
-        "atac_path": "/mnt/.../ATAC_SAM2_MH63_1.bw",
-        "output_format": "mean",
-        "values": {
-            "RNA-seq_+": 2.830175,
-            "RNA-seq_-": 2.851024
-        }
+        "ATAC-seq_Source": "SAM2_MH63_1",
+        "atac_path": "/mnt/.../ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw",
+        "Format": "Mean",
+        "values": {"RNA-seq_+": 6.6e-05, "RNA-seq_-": 6.3e-05},
+        "igv_payload": { "reference": {...}, "locus": "chr1:20,716,774-20,749,541", "tracks": [...] }
     }
 }
 ```
 
-### 4.3 full 格式（完整逐碱基数组，每个值都是 `(window_len,)` 的浮点数组）
+### 5.3 Full 格式（逐碱基数组）
 
 ```bash
-# ── 本机 ──
-curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/rice_reg \
+curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/OGR-Regulation/Prediction \
   -H "Content-Type: application/json" \
-  -d '{
-    "mode": "predict",
-    "genome": "MH63RS3",
-    "chromosome": "chr01",
-    "start": 20716774,
-    "end": 20749541,
-    "atac_source": "SAM2_MH63_1",
-    "output_format": "full"
-  }' | python3 -c "
+  -d '{"Genome":"MH63","Chromosome":"chr01","Start":20716774,"ATAC-seq_Source":"SAM2_MH63_1","Format":"Full"}' \
+  | python3 -c "
 import json, sys
-d = json.load(sys.stdin)
-r = d['result']['values']
-print('shape: +', len(r['RNA-seq_+']), '-', len(r['RNA-seq_-']))
-print('plus[:5] :', r['RNA-seq_+'][:5])
-print('minus[:5]:', r['RNA-seq_-'][:5])
+r = json.load(sys.stdin)['result']
+print('window_start(0-based):', r['window_start'], '| len:', r['window_len'])
+print('plus[:5] :', r['values']['RNA-seq_+'][:5])
+print('minus[:5]:', r['values']['RNA-seq_-'][:5])
 "
 ```
 
-### 4.4 downsample 格式（降采样到 max_points 点，适合画图）
+`result` 关键字段：
 
-```bash
-# ── DCS ──
-curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/predict \
-  -H "Authorization: Bearer <DCS_API_KEY>" -H "Content-Type: application/json" \
-  -d '{
-    "genome": "MH63RS3",
-    "chromosome": "chr01",
-    "start": 20716774,
-    "end": 20749541,
-    "atac_source": "SAM2_MH63_1",
-    "output_format": "downsample",
-    "max_points": 1024
-  }' | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-r = d['result']['values']
-print('status:', d['status'], '| points:', len(r['RNA-seq_+']))
-"
-```
+| 字段 | 说明 |
+|---|---|
+| `Genome` / `Chromosome` | 回显（`Chromosome` 为归一化后的 FASTA 实际名，如 `chr1`） |
+| `Start` | **1-based** 窗口起点 |
+| `window_start` | **0-based** 窗口起点 |
+| `window_len` | 窗口长度（默认 32768） |
+| `ATAC-seq_Source` / `atac_path` | 请求的内置源 / 解析到的 bigWig 路径 |
+| `Format` | `Full` / `Mean` |
+| `values` | `{"RNA-seq_+": ..., "RNA-seq_-": ...}`（Full 数组 / Mean 标量） |
+| `igv_payload` | IGV 可视化（reference/locus/tracks） |
 
-> `downsample` 用 `np.linspace` 均匀取点，保留整体趋势。
+> **自定义 ATAC（按路径）**：`uploaded_atac` 传本机 bigWig 绝对路径，后端懒加载，无文件传输。
 
 ---
 
-## 5. 基因组 / 染色体查询
+## 6. 基因组 / 染色体 / 注册
 
-### 5.1 基因组列表（mode=genomes）
-
-```bash
-# ── 本机 ──
-curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/rice_reg \
-  -H "Content-Type: application/json" \
-  -d '{"mode":"genomes"}' | python3 -m json.tool
-
-# ── DCS（URL 路径方式）──
-curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/genomes \
-  -H "Content-Type: application/json" | python3 -m json.tool
-```
-
-```json
-{
-    "status": 200,
-    "result": {"model": "rice_reg", "genomes": ["MH63RS3", "NIP"]}
-}
-```
-
-### 5.2 染色体列表（mode=chromosomes）
+### 6.1 基因组列表
 
 ```bash
-# ── 本机 ──
-curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/rice_reg \
-  -H "Content-Type: application/json" \
-  -d '{"mode":"chromosomes","genome":"MH63RS3"}' | python3 -m json.tool
-
-# ── DCS ──
-curl -s https://www.dcs.cloud/api/aigress/openai/OGR/rice_reg/chromosomes \
-  -H "Content-Type: application/json" \
-  -d '{"genome":"MH63RS3"}' | python3 -m json.tool
+curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/OGR-Regulation/Genome \
+  -H "Content-Type: application/json" -d '{}' | python3 -m json.tool
 ```
 
-```json
-{
-    "status": 200,
-    "result": {
-        "model": "rice_reg",
-        "genome": "MH63RS3",
-        "chromosomes": ["chr01", "chr02", "chr03", "...", "chr12"]
-    }
-}
+`result`：`{"model":"OGR-Regulation","Genome":["MH63","NIP"]}`
+
+### 6.2 染色体列表
+
+```bash
+curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/OGR-Regulation/Chromosome \
+  -H "Content-Type: application/json" -d '{"Genome":"MH63"}' | python3 -m json.tool
+```
+
+`result`：`{"model":"OGR-Regulation","Genome":"MH63","Chromosome":["chr01",...,"chr12"]}`
+
+### 6.3 注册自定义基因组（RegisterGenome）
+
+按**本机路径**注册（零拷贝、自动建 `.fai`）。两种模式：
+
+- **注册**：`fasta_path` 非空 → 注册新基因组（可带 `genome_id` / `gff_path`）。
+- **挂载注释**：`fasta_path` 为空 + `genome_id` + `gff_path` → 给已注册基因组挂 GFF。
+
+```bash
+# 注册
+curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/OGR-Regulation/RegisterGenome \
+  -H "Content-Type: application/json" \
+  -d '{"fasta_path":"/abs/path/to/my.fa","gff_path":"/abs/path/to/my.gff3"}' | python3 -m json.tool
+
+# 挂载注释
+curl -s -X POST http://127.0.0.1:7001/api/aigress/openai/OGR-Regulation/RegisterGenome \
+  -H "Content-Type: application/json" \
+  -d '{"genome_id":"test_mh63","gff_path":"/abs/path/to/my.gff3"}' | python3 -m json.tool
+```
+
+`result`：`{"model":"OGR-Regulation","Genome":"<final_id>","fasta_path":...,"gff_path":...,"chromosomes":[...]}`
+
+> **不是必需步骤**：`Prediction` 请求直接携带 `fasta_path`（+ `gff_path`）即可懒注册并预测。
+> **网页端**：选择「📤 自定义基因组」后，FASTA / GFF 两栏是**文本框**（填本机绝对路径）；注册后前端记住路径，预测时自动携带。
+
+---
+
+## 7. Python 调用示例
+
+```python
+import json, urllib.request
+
+BASE = "http://127.0.0.1:7001/api/aigress/openai/OGR-Regulation"
+API_KEY = ""  # 后端 .env 启用鉴权时填入
+
+def call(subpath: str, payload: dict) -> dict:
+    headers = {"Content-Type": "application/json"}
+    if API_KEY:
+        headers["Authorization"] = f"Bearer {API_KEY}"
+    req = urllib.request.Request(f"{BASE}/{subpath}",
+        data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+    with urllib.request.urlopen(req) as resp:
+        return json.load(resp)
+
+# 参考（内置 ATAC）
+r = call("Prediction", {"Genome": "MH63", "Chromosome": "chr01",
+                        "Start": 20716774, "ATAC-seq_Source": "SAM2_MH63_1",
+                        "Format": "Mean"})
+print(r["result"]["values"])              # {"RNA-seq_+":..., "RNA-seq_-":...}
+
+# 自定义 ATAC（按路径）+ 自定义基因组（懒注册）
+r = call("Prediction", {"fasta_path": "/abs/to/genome.fa", "Chromosome": "chr01",
+                        "Start": 20716774, "uploaded_atac": "/abs/to/atac.bw",
+                        "Format": "Mean"})
+print(r["result"]["Genome"])
 ```
 
 ---
 
-## 6. 错误语义
+## 8. 错误语义与计费
 
-| HTTP code（`status` 字段）| 场景 | `message` 示例 |
-|---|---|---|
-| 400 | 请求参数错误 | `Request body is not a valid JSON object` / `Prediction failed: missing ATAC input:...` / `Unknown mode 'xxx',...` |
-| 401 | API Key 无效 | `Invalid or missing API Key` |
-| 404 | 文件不存在（ATAC / FASTA） | `Prediction failed: ATAC bigWig not found: ...` |
-| 500 | 预测/服务内部错误 | `Prediction failed: <error>`（带 `detail.error_type` / `traceback`） |
-| 503 | 预测器未初始化 | `Predictor initialization failed, cannot infer: ...`（带 `detail.init_error`） |
+### 8.1 HTTP 状态码
 
-错误响应结构：
+| 状态 | 含义 |
+|---|---|
+| 200 | 成功（信封内 `status` 也为 200） |
+| 400 | 参数校验错误（缺 `Start`、非法 `Format`、缺 ATAC 输入等） |
+| 401 | API Key 无效或缺失（仅当后端配置了 `DCS_API_KEY`） |
+| 404 | ATAC / FASTA 文件不存在 |
+| 500 | 预测执行错误 |
+
+错误也走统一信封，`result` 为 `null`，`detail.request` 回显请求摘要：
 
 ```json
 {
+    "model_name": "OGR",
     "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+    "token_cnt": 0,
     "status": 400,
-    "message": "Prediction failed: missing ATAC input: need 'atac_source' (built-in) or 'uploaded_atac' (file path)",
+    "message": "Prediction failed: Missing ATAC input: provide 'ATAC-seq_Source' (built-in) or 'uploaded_atac' (file path). Usage: ...",
     "result": null,
-    "detail": {"request": {"genome": "MH63RS3", "start": 1000}}
+    "detail": {"request": {"Genome": "MH63", "Start": 1000}}
 }
 ```
 
-> 400 的 `detail` 带 `request`（请求摘要）；500 额外带 `error_type` + `traceback`；503 带 `init_error`（含完整 traceback）。所有错误信息已随响应返回，无需 SSH 进容器即可定位。
+### 8.2 计费口径
+
+| 字段 | 计算方式 |
+|---|---|
+| `prompt_tokens` | 窗口碱基数（`window_len`）× `DCS_PROMPT_TOKEN_MULTIPLIER`（默认 1） |
+| `completion_tokens` | 输出数组元素总数（plus + minus）× `DCS_COMPLETION_TOKEN_MULTIPLIER`（默认 1） |
 
 ---
 
-## 7. 计费口径
+## 9. 部署与排查
 
-| 字段 | 口径 | 可调环境变量 |
-|---|---|---|
-| `usage.prompt_tokens` | 输入窗口碱基数（`position.end - position.start`） | `DCS_PROMPT_TOKEN_MULTIPLIER`（默认 1） |
-| `usage.completion_tokens` | 输出元素总数（plus + minus 数组元素数） | `DCS_COMPLETION_TOKEN_MULTIPLIER`（默认 1） |
-
----
-
-## 8. 部署与排查
-
-### 8.1 启动
+### 9.1 启动（单进程，网页 + API 同端口）
 
 ```bash
-cd /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/rice_reg
-nohup /path/to/python backend/dcs_adapter.py > backend/logs/dcs_adapter.nohup.log 2>&1 &
+cd /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation
+bash backend/run_backend.sh      # 后端(:7001)，含 DCS 子路径
+bash frontend/run_frontend.sh    # 网页(:7000)
 ```
 
-- 监听端口优先级：`PORT`（平台注入）> `BACKEND_PORT`（默认 7001）
-- 模型初始化失败**不会退出进程**：服务照常监听（平台探活不挂），原因写入 `diagnostics.init_error`，health 即可查看
+- 监听端口：`BACKEND_PORT`（默认 7001）
+- `dcs_adapter.py` 独立进程已废弃，其 DCS 子路径已合并进 `rice_reg/api.py`。
 
-### 8.2 常见排查
+### 9.2 常见排查
 
 | 症状 | 检查 |
 |---|---|
-| 外网调用 404 | `gateway.received_path` 看平台实际转发路径；确认容器跑的是最新 `dcs_adapter.py`（不是旧的 `api.py` 入口） |
-| 外网调用无响应/连接失败 | `gateway.served_port` 与 `diagnostics.listen.actual_port` 是否一致（转发端口配置） |
-| `predictor_initialized: false` | `diagnostics.init_error` 看模型加载失败原因（路径 / HF 模型名等） |
+| `Start` 坐标偏移 | 传 **1-based** `Start`；`result.Start`(1-based) 与 `result.window_start`(0-based) 差 1 |
+| 400 缺 ATAC | 需 `ATAC-seq_Source` 或 `uploaded_atac` 至少一个 |
+| 401 | 后端配置了 `DCS_API_KEY` 时需带 `Authorization: Bearer <key>`；本地开发留空即免鉴权 |
+| `predictor_initialized: false` | `GET /health` 查看，等待模型加载约 30–40s |
 | 端口冲突 | 改 `PORT` 或 `BACKEND_PORT` 后重启 |

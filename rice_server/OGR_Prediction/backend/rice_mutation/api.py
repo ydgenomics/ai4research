@@ -22,7 +22,8 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+import numpy as np
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,11 +33,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from rice_mutation.cache_service import prediction_cache, start_bigwig_cleanup
 from rice_mutation.igv_payload import set_static_base_url
 from rice_mutation.prediction_service import (
+    CACHE_MODE,
     _adjust_window,
     attach_uploaded_gff,
     compute_region_means,
     compute_region_stats,
+    get_bigwig_cleanup_settings,
     get_genome_chromosomes,
+    get_prediction_cache_dir,
     init_predictor,
     list_genomes,
     register_uploaded_genome,
@@ -59,6 +63,8 @@ PREDICTION_CACHE_DIR_ABS = os.path.abspath(os.getenv(
     "BACKEND_PREDICTION_CACHE",
     str(PROJECT_DIR / "cache" / "predictions"),
 ))
+# bigWig output dir follows cache mode (persistent vs temp)
+PREDICTION_BW_DIR_ABS = get_prediction_cache_dir()
 UPLOADED_GENOMES_DIR_ABS = os.path.abspath(os.getenv(
     "BACKEND_UPLOADED_GENOMES",
     str(PROJECT_DIR / "cache" / "uploaded_genomes"),
@@ -153,6 +159,203 @@ class PredictResponse(BaseModel):
     figure_format: Optional[str] = None
     elapsed_seconds: Optional[float] = None
     metadata: Optional[dict] = None
+    # --- unified DCS-style envelope (also returned by every prediction route) ---
+    model_name: Optional[str] = "OGR"
+    usage: Optional[dict] = None
+    token_cnt: Optional[int] = 0
+    status: Optional[int] = 200
+    result: Optional[dict] = None
+
+
+# ---------------------------------------------------------------------------
+#  Unified DCS-style response wrapper
+# ---------------------------------------------------------------------------
+# All prediction endpoints return the same outer envelope (whether they are
+# called from the web front end via the snake_case paths or by pure API /
+# gateway clients via the DCS-style camelCase sub-paths):
+#
+#     {
+#       "model_name": "OGR",
+#       "usage": {"prompt_tokens": N, "completion_tokens": M},
+#       "token_cnt": N + M,
+#       "status": 200,
+#       "message": "...",
+#       "result": {
+#         "model": "OGR-Prediction",
+#         "Genome": "...", "Chromosome": "...", "Start": N, "window_len": N,
+#         "Format": "Full|Mean",
+#         "values": {...},          # numeric result (ref prediction)
+#         "igv_payload": {...}      # visualisation URLs (fa/gff/bw + locus + tracks)
+#         # SNV additionally: ref_values / mut_values
+#       }
+#     }
+#
+# ``metadata`` (ref_id / snv_id / window info) is merged into ``result`` so a
+# pure API caller has everything the web front end needs to render IGV.
+PROMPT_TOKEN_MULTIPLIER = float(os.getenv("DCS_PROMPT_TOKEN_MULTIPLIER", "1"))
+COMPLETION_TOKEN_MULTIPLIER = float(os.getenv("DCS_COMPLETION_TOKEN_MULTIPLIER", "1"))
+# Optional API-key auth for the DCS-style sub-paths (empty = disabled).
+DCS_API_KEY = os.getenv("DCS_API_KEY", "").strip()
+
+
+def _count_elements(values: dict) -> int:
+    """Count total output array elements (for completion_tokens)."""
+    total = 0
+    for bios_map in values.values():
+        for arr in bios_map.values():
+            total += int(np.asarray(arr).size)
+    return total
+
+
+def _format_values(values: dict, fmt: str) -> dict:
+    """Convert {assay: {biosample: np.ndarray}} to JSON-serialisable values.
+
+    full — full arrays (rounded to 6 dp); mean — per-track window mean scalar.
+    """
+    out: dict = {}
+    for assay, bios_map in values.items():
+        out[assay] = {}
+        for bios, arr in bios_map.items():
+            arr = np.asarray(arr, dtype=float)
+            if fmt == "mean":
+                out[assay][bios] = round(float(arr.mean()), 6)
+            else:  # full
+                out[assay][bios] = [round(float(x), 6) for x in arr]
+    return out
+
+
+def _dcs_usage(prompt_tokens: int, completion_tokens: int) -> dict:
+    pt = int(prompt_tokens * PROMPT_TOKEN_MULTIPLIER)
+    ct = int(completion_tokens * COMPLETION_TOKEN_MULTIPLIER)
+    return {"prompt_tokens": pt, "completion_tokens": ct}
+
+
+def _dcs_ok(usage: dict, message: str, result: dict) -> dict:
+    """Unified success envelope shared by web and API routes."""
+    return {
+        "model_name": "OGR",
+        "usage": usage,
+        "token_cnt": usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0),
+        "status": 200,
+        "message": message,
+        "result": result,
+    }
+
+
+def _dcs_err(message: str, status: int = 400, detail: dict | None = None) -> dict:
+    """Unified error envelope (matches the DCS error dialect)."""
+    resp = {
+        "model_name": "OGR",
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+        "token_cnt": 0,
+        "status": status,
+        "message": message,
+        "result": None,
+    }
+    if detail:
+        resp["detail"] = detail
+    return resp
+
+
+# ---------------------------------------------------------------------------
+#  DCS-style parameter parsing (camelCase, 1-based Start)
+# ---------------------------------------------------------------------------
+_USAGE = (
+    "Usage: POST /api/aigress/openai/OGR-Prediction/Prediction "
+    "or .../OGR-Prediction/SNV. "
+    "Body keys: model (OGR-Prediction, optional), Genome (optional, default first), "
+    "Chromosome (optional, default chr01), Start (required, 1-based int), "
+    "Format (optional, Full|Mean, default Full), "
+    "biosample_names (optional, list or comma-separated string); "
+    "SNV additionally: SNV_position (required, 1-based int), "
+    "SNV_base (required, A/C/G/T). No mode/end/max_points keys."
+)
+
+
+class RequestError(ValueError):
+    """Request parameter error (→ 400), distinct from execution errors (→ 500)."""
+
+
+def _parse_common(body: dict):
+    """Parse Genome / Chromosome / Start / Format / biosample_names.
+
+    Returns (genome, chromosome, start_1, biosample_names, output_format).
+    Coordinates are 0-based half-open internally (window 32768 centre-aligned).
+    """
+    genome = str(body.get("Genome", "") or "")
+    if not genome:
+        genomes = list_genomes()
+        genome = genomes[0] if genomes else "osa1_r7"
+    chromosome = str(body.get("Chromosome", "") or "chr01")
+    if "Start" not in body or body.get("Start") is None or str(body.get("Start", "")).strip() == "":
+        raise RequestError("Missing required parameter 'Start' (1-based int). " + _USAGE)
+    try:
+        start_1 = int(body["Start"])
+    except (TypeError, ValueError):
+        raise RequestError(f"Invalid 'Start' value '{body.get('Start')}': must be an int. " + _USAGE)
+    biosample_names = body.get("biosample_names")
+    if isinstance(biosample_names, str) and biosample_names.strip():
+        biosample_names = [s.strip() for s in biosample_names.split(",") if s.strip()]
+    if not isinstance(biosample_names, list):
+        biosample_names = None
+    output_format = str(body.get("Format", "Full") or "Full").strip().lower()
+    if output_format not in ("full", "mean"):
+        raise RequestError(
+            f"Invalid 'Format' '{body.get('Format')}': must be Full or Mean. " + _USAGE
+        )
+    return genome, chromosome, start_1, biosample_names, output_format
+
+
+def _check_api_key(authorization: str | None = None, x_api_key: str | None = None) -> None:
+    """Validate API key; no-op when DCS_API_KEY is unset (backward compatible)."""
+    if not DCS_API_KEY:
+        return
+    key = ""
+    if authorization:
+        auth = authorization.strip()
+        if auth.lower().startswith("bearer "):
+            key = auth[7:].strip()
+    if not key and x_api_key:
+        key = x_api_key.strip()
+    if key != DCS_API_KEY:
+        raise RequestError("Invalid or missing API Key")
+
+
+def _unauthorized(message: str = "Invalid or missing API Key") -> dict:
+    return {
+        "model_name": "OGR",
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+        "token_cnt": 0,
+        "status": 401,
+        "message": message,
+        "result": None,
+    }
+
+
+def _lazy_register_genome(body: dict) -> tuple:
+    """If body carries fasta_path, register it in place (managed=False) and
+    attach optional gff_path.  Returns (genome_id, cfg-or-None)."""
+    fasta_path = str(body.get("fasta_path", "") or "").strip()
+    if not fasta_path:
+        return "", None
+    gff_path = str(body.get("gff_path", "") or "").strip() or ""
+    fname = os.path.basename(fasta_path) or "custom.fa"
+    genome_id = f"{time.time_ns()}_{fname}"
+    cfg = register_uploaded_genome(fasta_path, genome_id=genome_id, managed=False)
+    genome_id = str(cfg.get("id") or genome_id)
+    if gff_path:
+        cfg = attach_uploaded_gff(genome_id, gff_path)
+    return genome_id, cfg
+
+
+def _summarize_body(body: dict) -> dict:
+    """Request-body digest: only fields needed to locate / reproduce an error."""
+    keys = (
+        "model", "Genome", "Chromosome", "Start",
+        "SNV_position", "SNV_base", "Format", "biosample_names",
+        "fasta_path", "genome_id", "gff_path",
+    )
+    return {k: body[k] for k in keys if k in body}
 
 
 # ---------------------------------------------------------------------------
@@ -160,8 +363,9 @@ class PredictResponse(BaseModel):
 # ---------------------------------------------------------------------------
 @app.on_event("startup")
 def on_startup():
-    # Clean caches from previous runs
-    for d in (PREDICTION_CACHE_DIR_ABS, FASTA_CACHE_DIR_ABS, UPLOADED_GENOMES_DIR_ABS):
+    # Clean caches from previous runs: uploaded dirs are always service-owned,
+    # and the prediction bigWig dir is wiped on every start (both cache modes).
+    for d in (FASTA_CACHE_DIR_ABS, UPLOADED_GENOMES_DIR_ABS, PREDICTION_BW_DIR_ABS):
         if os.path.isdir(d):
             shutil.rmtree(d)
             print(f"[startup] Cleaned cache: {d}")
@@ -170,13 +374,23 @@ def on_startup():
     # Mount root filesystem so IGV.js can load local files via HTTP.
     static_mount_path = "/static-files"
     app.mount(static_mount_path, StaticFiles(directory="/"), name="static-files")
-    static_base_url = f"http://127.0.0.1:{BACKEND_PORT}{static_mount_path}"
-    set_static_base_url(static_base_url)
+
+    # IGV track URLs are generated as **frontend same-origin relative paths**
+    # (/backend/static-files/<abs path>).  The browser always talks to the
+    # frontend port (:8000), which reverse-proxies /backend/* to this backend,
+    # so a relative URL is directly consumable by the front end without any
+    # host rewriting.  (An absolute http://127.0.0.1:8001/... URL would force
+    # the front end to rewrite it, and would break when the browser cannot
+    # reach the backend port directly.)
+    set_static_base_url("/backend/static-files")
 
     init_predictor()
 
-    # Background cleanup of stale prediction bigWig files.
-    start_bigwig_cleanup(PREDICTION_CACHE_DIR_ABS)
+    # Background cleanup of stale prediction bigWig files (interval/TTL follow
+    # the cache mode; lightweight mode cleans the temp dir aggressively).
+    bw_interval, bw_ttl = get_bigwig_cleanup_settings()
+    start_bigwig_cleanup(PREDICTION_BW_DIR_ABS,
+                         interval_seconds=bw_interval, ttl_seconds=bw_ttl)
 
     # Runtime TTL cleanup of idle uploaded custom genomes (FASTA + .fai + GFF).
     _genome_ttl = float(os.getenv("UPLOADED_GENOMES_TTL_HOURS", "0.5"))
@@ -233,12 +447,49 @@ def biosamples():
 
 
 @app.post("/uploadFasta")
-async def upload_fasta(file: UploadFile = File(...)):
+async def upload_fasta(
+    file: UploadFile = File(...),
+    path: str = Form(default=""),
+):
     """Upload a custom genome FASTA file.  Automatically builds the .fai index
     and registers it as a new genome (priority over built-in genomes).
 
+    Lightweight cache mode (``CACHE_MODE=false``): the front end sends the local
+    ``path`` of the file (front/back end share the machine); the backend
+    registers that path in place without copying the file.  Otherwise the file
+    content is stored into the upload cache directory as before.
+
     Returns the new genome id, its config paths and chromosome names.
     """
+    # Zero-copy registration path (lightweight mode): validate + register the
+    # given local path directly.  The multipart content is still transmitted
+    # (kept for the full-cache mode), but we prefer the path when available.
+    local_path = str(path or "").strip()
+    if local_path and not CACHE_MODE:
+        if not os.path.isfile(local_path):
+            raise HTTPException(400, f"Path not found on server: {local_path}")
+        suffix = Path(local_path).suffix.lower()
+        if suffix not in (".fa", ".fasta", ".fna"):
+            raise HTTPException(
+                400,
+                f"Unsupported file type '{suffix}'. Only .fa / .fasta accepted.",
+            )
+        try:
+            cfg = register_uploaded_genome(local_path, managed=False)
+            genome_id = str(cfg.get("id") or "")
+            chromosomes = get_genome_chromosomes(genome_id, cfg)
+        except Exception as e:
+            raise HTTPException(400, f"Failed to index FASTA: {e}")
+        return {
+            "success": True,
+            "genome": genome_id,
+            "file_path": cfg["fasta"],
+            "file_name": Path(local_path).name,
+            "size_bytes": os.path.getsize(local_path),
+            "chromosomes": chromosomes,
+            "registered_in_place": True,
+        }
+
     if not file.filename:
         raise HTTPException(400, "No file provided.")
 
@@ -261,7 +512,7 @@ async def upload_fasta(file: UploadFile = File(...)):
     try:
         # Build .fai if missing, read chromosomes, register as genome
         cfg = register_uploaded_genome(str(dest))
-        genome_id = _find_uploaded_genome_id(cfg["fasta"])
+        genome_id = str(cfg.get("id") or "")
         chromosomes = get_genome_chromosomes(genome_id, cfg)
     except Exception as e:
         # clean up the file so a bad upload doesn't linger
@@ -285,15 +536,45 @@ async def upload_fasta(file: UploadFile = File(...)):
 async def upload_gff(
     genome: str = Form(...),
     file: UploadFile = File(...),
+    path: str = Form(default=""),
 ):
     """Attach an annotation GFF to an uploaded custom genome.
 
     - ``genome``: the custom genome id returned by ``/uploadFasta``.
     - ``file``:  .gff / .gff3 / .gtf (optionally gzipped).
+    - ``path``:  optional local path (lightweight cache mode) — when set and
+      ``CACHE_MODE=false`` the GFF is registered in place without copying.
 
     Updates the in-memory registry so IGV payloads include a Genes track for
     the custom genome.  Only uploaded (custom) genomes can be annotated.
     """
+    # Zero-copy registration path (lightweight mode).
+    local_path = str(path or "").strip()
+    if local_path and not CACHE_MODE:
+        if not os.path.isfile(local_path):
+            raise HTTPException(400, f"Path not found on server: {local_path}")
+        lower_name = local_path.lower()
+        if not (
+            lower_name.endswith((".gff", ".gff3", ".gtf"))
+            or lower_name.endswith((".gff.gz", ".gff3.gz", ".gtf.gz"))
+        ):
+            raise HTTPException(
+                400,
+                "Unsupported file type. Only .gff / .gff3 / .gtf (optionally .gz) accepted.",
+            )
+        try:
+            cfg = attach_uploaded_gff(genome, local_path)
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(400, str(e))
+        return {
+            "success": True,
+            "genome": genome,
+            "gff_path": cfg["gff"],
+            "file_name": Path(local_path).name,
+            "size_bytes": os.path.getsize(local_path),
+            "registered_in_place": True,
+        }
+
     if not file.filename:
         raise HTTPException(400, "No file provided.")
 
@@ -334,16 +615,6 @@ async def upload_gff(
     }
 
 
-def _find_uploaded_genome_id(fasta_path: str) -> str:
-    from rice_mutation.prediction_service import _UPLOADED_GENOMES
-
-    for gid, cfg in _UPLOADED_GENOMES.items():
-        if os.path.abspath(cfg["fasta"]) == os.path.abspath(fasta_path):
-            return gid
-    raise ValueError("Uploaded genome not found in registry")
-
-
-
 @app.get("/download")
 def download(fname: str):
     """Force-download a generated figure file (png/svg/html).
@@ -374,32 +645,67 @@ def download(fname: str):
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    """Run reference-sequence expression prediction (content-cached)."""
+    """Run reference-sequence expression prediction (content-cached).
+
+    Returns the unified DCS-style envelope; ``result`` carries both the
+    numeric values (Full/Mean) and the igv_payload (visualisation URLs).
+    """
     t0 = time.time()
     try:
         predictor = require_predictor()
 
-        # Deterministic window normalisation (mirrors run_prediction_core) so
-        # equivalent requests share a single cache entry.
-        norm_start, norm_end = _adjust_window(req.start, req.end, predictor.max_seq_len)
-        cache_key = prediction_cache.build_key(
-            "ref",
-            genome=req.genome,
-            chromosome=req.chromosome,
-            start=norm_start,
-            end=norm_end,
-            biosample=",".join(req.biosample_names) if req.biosample_names else "*",
-        )
-        hit = prediction_cache.get(cache_key)
-        if hit is not None:
-            elapsed = time.time() - t0
-            return PredictResponse(
-                success=True,
-                message=f"cached ({elapsed:.1f}s)",
-                igv_payload=hit["igv_payload"],
-                elapsed_seconds=elapsed,
-                metadata=hit["metadata"],
+        # Content-addressed cache is only used in full cache mode; lightweight
+        # mode re-runs every request (temp bigWigs are still short-TTL cleaned).
+        if CACHE_MODE:
+            # Deterministic window normalisation (mirrors run_prediction_core) so
+            # equivalent requests share a single cache entry.
+            norm_start, norm_end = _adjust_window(req.start, req.end, predictor.max_seq_len)
+            cache_key = prediction_cache.build_key(
+                "ref",
+                genome=req.genome,
+                chromosome=req.chromosome,
+                start=norm_start,
+                end=norm_end,
+                biosample=",".join(req.biosample_names) if req.biosample_names else "*",
             )
+            hit = prediction_cache.get(cache_key)
+            if hit is not None:
+                elapsed = time.time() - t0
+                # Reuse cached payload + metadata (values arrays stay in _REF_CACHE).
+                meta = hit["metadata"] or {}
+                ref_id = meta.get("ref_id", "")
+                prompt_tokens = int(meta.get("window_len", 0))
+                # Cached hit: values arrays are still in _REF_CACHE under ref_id.
+                ref_entry = _REF_CACHE.get(ref_id)
+                fmt = "full"
+                return PredictResponse(
+                    success=True,
+                    message=f"cached ({elapsed:.1f}s)",
+                    igv_payload=hit["igv_payload"],
+                    elapsed_seconds=elapsed,
+                    metadata=meta,
+                    # extra unified envelope fields (consumed by pure API callers)
+                    model_name="OGR",
+                    usage=_dcs_usage(prompt_tokens, 0),
+                    token_cnt=prompt_tokens,
+                    status=200,
+                    result={
+                        "model": "OGR-Prediction",
+                        "Genome": req.genome,
+                        "Chromosome": meta.get("chromosome", req.chromosome),
+                        "Start": int(meta.get("window_start", 0)) + 1,
+                        "window_start": int(meta.get("window_start", 0)),
+                        "window_len": int(meta.get("window_len", 0)),
+                        "Format": fmt,
+                        "values": _format_values(ref_entry["ref_values"], fmt) if ref_entry else None,
+                        "mean_values": _format_values(ref_entry["ref_values"], "mean") if ref_entry else None,
+                        "igv_payload": hit["igv_payload"],
+                        "ref_id": ref_id,
+                    },
+                )
+        else:
+            hit = None
+            cache_key = None
 
         genome_config = resolve_genome_config(req.genome)
         result = run_prediction_core(
@@ -452,9 +758,13 @@ def predict(req: PredictRequest):
             "window_start": start,
             "window_len": end - start,
         }
-        prediction_cache.put(cache_key, ref_id, igv_payload, metadata, "ref")
+        if CACHE_MODE and cache_key is not None:
+            prediction_cache.put(cache_key, ref_id, igv_payload, metadata, "ref")
 
         elapsed = time.time() - t0
+        window_len = end - start
+        # Numeric result — default Full arrays (web front end consumes igv_payload;
+        # pure API callers get both values and visualisation URLs).
         return PredictResponse(
             success=True,
             message=f"Prediction completed in {elapsed:.1f}s",
@@ -463,6 +773,26 @@ def predict(req: PredictRequest):
             figure_format=req.figure_format,
             elapsed_seconds=elapsed,
             metadata=metadata,
+            model_name="OGR",
+            usage=_dcs_usage(window_len, _count_elements(result["values"])),
+            token_cnt=_dcs_usage(window_len, _count_elements(result["values"]))["prompt_tokens"]
+            + _dcs_usage(window_len, _count_elements(result["values"]))["completion_tokens"],
+            status=200,
+            result={
+                "model": "OGR-Prediction",
+                "Genome": req.genome,
+                "Chromosome": chromosome,
+                "Start": start + 1,
+                "window_start": start,
+                "window_len": window_len,
+                "Format": "full",
+                "values": _format_values(result["values"], "full"),
+                "mean_values": _format_values(result["values"], "mean"),
+                "igv_payload": igv_payload,
+                "figure_url": figure_url,
+                "figure_format": req.figure_format,
+                "ref_id": ref_id,
+            },
         )
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
@@ -479,34 +809,67 @@ def predict(req: PredictRequest):
 def predict_snv(req: SnvRequest):
     """Single-nucleotide variant prediction — result1 (ref) vs result2 (mut).
 
-    Content-cached: identical (genome, window, snv, base) requests skip the GPU.
+    Returns the unified DCS-style envelope; ``result`` carries both the
+    numeric ref/mut values (Full/Mean) and the igv_payload (dual tracks).
     """
     t0 = time.time()
     try:
         predictor = require_predictor()
 
-        # Deterministic window normalisation (mirrors run_snv_core).
-        norm_start, norm_end = _adjust_window(req.start, req.end, predictor.max_seq_len)
-        cache_key = prediction_cache.build_key(
-            "snv",
-            genome=req.genome,
-            chromosome=req.chromosome,
-            start=norm_start,
-            end=norm_end,
-            snv_index=req.snv_index,
-            snv_base=req.snv_base,
-            biosample=",".join(req.biosample_names) if req.biosample_names else "*",
-        )
-        hit = prediction_cache.get(cache_key)
-        if hit is not None:
-            elapsed = time.time() - t0
-            return PredictResponse(
-                success=True,
-                message=f"cached ({elapsed:.1f}s)",
-                igv_payload=hit["igv_payload"],
-                elapsed_seconds=elapsed,
-                metadata=hit["metadata"],
+        # Content-addressed cache is only used in full cache mode; lightweight
+        # mode re-runs every request.
+        if CACHE_MODE:
+            # Deterministic window normalisation (mirrors run_snv_core).
+            norm_start, norm_end = _adjust_window(req.start, req.end, predictor.max_seq_len)
+            cache_key = prediction_cache.build_key(
+                "snv",
+                genome=req.genome,
+                chromosome=req.chromosome,
+                start=norm_start,
+                end=norm_end,
+                snv_index=req.snv_index,
+                snv_base=req.snv_base,
+                biosample=",".join(req.biosample_names) if req.biosample_names else "*",
             )
+            hit = prediction_cache.get(cache_key)
+            if hit is not None:
+                elapsed = time.time() - t0
+                meta = hit["metadata"] or {}
+                snv_id = meta.get("snv_id", "")
+                entry = _SNV_CACHE.get(snv_id)
+                fmt = "full"
+                return PredictResponse(
+                    success=True,
+                    message=f"cached ({elapsed:.1f}s)",
+                    igv_payload=hit["igv_payload"],
+                    elapsed_seconds=elapsed,
+                    metadata=meta,
+                    model_name="OGR",
+                    usage=_dcs_usage(int(meta.get("window_len", 0)), 0),
+                    token_cnt=int(meta.get("window_len", 0)),
+                    status=200,
+                    result={
+                        "model": "OGR-Prediction",
+                        "Genome": req.genome,
+                        "Chromosome": meta.get("chromosome", req.chromosome),
+                        "Start": int(meta.get("window_start", 0)) + 1,
+                        "window_start": int(meta.get("window_start", 0)),
+                        "window_len": int(meta.get("window_len", 0)),
+                        "SNV_position": int(meta.get("snv_index", 0)) + 1,
+                        "ref_base": meta.get("ref_base", ""),
+                        "SNV_base": meta.get("snv_base", ""),
+                        "Format": fmt,
+                        "ref_values": _format_values(entry["ref_values"], fmt) if entry else None,
+                        "mut_values": _format_values(entry["mut_values"], fmt) if entry else None,
+                        "ref_mean_values": _format_values(entry["ref_values"], "mean") if entry else None,
+                        "mut_mean_values": _format_values(entry["mut_values"], "mean") if entry else None,
+                        "igv_payload": hit["igv_payload"],
+                        "snv_id": snv_id,
+                    },
+                )
+        else:
+            hit = None
+            cache_key = None
 
         genome_config = resolve_genome_config(req.genome)
         result = run_snv_core(
@@ -567,15 +930,41 @@ def predict_snv(req: SnvRequest):
             "window_len": result["window_len"],
             "window_start": start,
         }
-        prediction_cache.put(cache_key, snv_id, igv_payload, metadata, "snv")
+        if CACHE_MODE and cache_key is not None:
+            prediction_cache.put(cache_key, snv_id, igv_payload, metadata, "snv")
 
         elapsed = time.time() - t0
+        window_len = result["window_len"]
+        completion = _count_elements(result["ref_values"]) + _count_elements(result["mut_values"])
+        usage = _dcs_usage(window_len, completion)
         return PredictResponse(
             success=True,
             message=f"SNV prediction completed in {elapsed:.1f}s",
             igv_payload=igv_payload,
             elapsed_seconds=elapsed,
             metadata=metadata,
+            model_name="OGR",
+            usage=usage,
+            token_cnt=usage["prompt_tokens"] + usage["completion_tokens"],
+            status=200,
+            result={
+                "model": "OGR-Prediction",
+                "Genome": req.genome,
+                "Chromosome": chromosome,
+                "Start": start + 1,
+                "window_start": start,
+                "window_len": window_len,
+                "SNV_position": result["snv_index"] + 1,
+                "ref_base": result["ref_base"],
+                "SNV_base": result["snv_base"],
+                "Format": "full",
+                "ref_values": _format_values(result["ref_values"], "full"),
+                "mut_values": _format_values(result["mut_values"], "full"),
+                "ref_mean_values": _format_values(result["ref_values"], "mean"),
+                "mut_mean_values": _format_values(result["mut_values"], "mean"),
+                "igv_payload": igv_payload,
+                "snv_id": snv_id,
+            },
         )
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
@@ -602,13 +991,17 @@ def predict_snv_stat(req: SnvStatRequest):
             req.region_start,
             req.region_end,
         )
-        return {
-            "success": True,
-            "snv_id": req.snv_id,
-            "region": [req.region_start, req.region_end],
-            "stats": stats,
-            "meta": entry["meta"],
-        }
+        return _dcs_ok(
+            _dcs_usage(0, 0),
+            "snv stat computed",
+            {
+                "success": True,
+                "snv_id": req.snv_id,
+                "region": [req.region_start, req.region_end],
+                "stats": stats,
+                "meta": entry["meta"],
+            },
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -643,14 +1036,18 @@ def predict_bar(req: BarRequest):
     ov_start = max(region_start, win_start)
     ov_end = min(region_end, win_end)
     if ov_end <= ov_start:
-        return {
-            "success": True,
-            "overlap": False,
-            "kind": kind,
-            "window": [win_start, win_end],
-            "region": [region_start, region_end],
-            "values": [],
-        }
+        return _dcs_ok(
+            _dcs_usage(0, 0),
+            "no overlap",
+            {
+                "success": True,
+                "overlap": False,
+                "kind": kind,
+                "window": [win_start, win_end],
+                "region": [region_start, region_end],
+                "values": [],
+            },
+        )
 
     start_idx = ov_start - win_start
     end_idx = ov_end - win_start
@@ -673,7 +1070,7 @@ def predict_bar(req: BarRequest):
                 "result2": r2[assay][bios] if r2 is not None else None,
             })
 
-    return {
+    data = {
         "success": True,
         "overlap": True,
         "kind": kind,
@@ -682,6 +1079,11 @@ def predict_bar(req: BarRequest):
         "region": [region_start, region_end],
         "values": values,
     }
+    return _dcs_ok(
+        _dcs_usage(len(values), 0),
+        "bar data computed",
+        data,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -729,7 +1131,9 @@ def _render_figure(
             start=start,
             end=end,
             annotation_path=annotation_path,
-            out_dir=PREDICTION_CACHE_DIR_ABS,
+            # Figures follow the same cache-mode directory as bigWigs (persistent
+            # cache or temp dir); they are served via /static-files either way.
+            out_dir=PREDICTION_BW_DIR_ABS,
             fmt=fmt,
         )
         if not fig_path:
@@ -738,3 +1142,292 @@ def _render_figure(
     except Exception as e:
         traceback.print_exc()
         return None
+
+
+# ---------------------------------------------------------------------------
+#  DCS-style sub-path routes (camelCase params, 1-based Start)
+# ---------------------------------------------------------------------------
+# These are the same backend process as the web routes: a pure API caller
+# (curl / DCS gateway) hits the same inference core and receives the same
+# unified envelope, so the web front end and the API path are one route.
+#  - /api/aigress/openai/OGR-Prediction/Prediction   → reference prediction
+#  - /api/aigress/openai/OGR-Prediction/SNV          → SNV prediction
+#  - /api/aigress/openai/OGR-Prediction/Genome       → genome list
+#  - /api/aigress/openai/OGR-Prediction/Chromosome   → chromosome list
+#  - /api/aigress/openai/OGR-Prediction/RegisterGenome → register fasta_path
+@app.post("/api/aigress/openai/OGR-Prediction/Prediction")
+@app.post("/OGR-Prediction/Prediction")
+async def dcs_predict_ref(
+    req: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    """Reference prediction (DCS-style sub-path)."""
+    try:
+        body = await req.json()
+    except Exception:
+        return JSONResponse(_dcs_err("Request body is not valid JSON. " + _USAGE, 400), status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse(_dcs_err("Request body is not valid JSON. " + _USAGE, 400), status_code=400)
+    try:
+        _check_api_key(authorization, x_api_key)
+    except RequestError as e:
+        return JSONResponse(_unauthorized(str(e)), status_code=401)
+
+    try:
+        # Lazy register fasta_path (managed=False) → replaces Genome key.
+        lazy_genome, lazy_cfg = _lazy_register_genome(body)
+        if lazy_genome:
+            body["Genome"] = lazy_genome
+
+        genome, chromosome, start_1, biosample_names, fmt = _parse_common(body)
+        start_0 = max(0, start_1 - 1)
+        # Reuse the exact same core endpoint → same unified envelope.
+        web_req = PredictRequest(
+            genome=genome,
+            chromosome=chromosome,
+            start=start_0,
+            end=None,
+            biosample_names=biosample_names,
+            figure_format="none",
+        )
+        resp: PredictResponse = predict(web_req)
+    except RequestError as e:
+        return JSONResponse(
+            _dcs_err(f"Reference prediction failed: {e}", 400,
+                     detail={"request": _summarize_body(body)}),
+            status_code=400,
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(
+            _dcs_err(f"Reference prediction failed: {e}", 500,
+                     detail={"request": _summarize_body(body)}),
+            status_code=500,
+        )
+
+    result = resp.result or {}
+    # Override Format per caller's request: Mean collapses the per-base arrays
+    # to scalars and drops the Full-only mean_values duplicate.
+    if fmt == "mean" and result.get("values"):
+        result = {**result, "Format": "mean",
+                  "values": _format_values(resp.result["values"] or {}, "mean")}
+        result.pop("mean_values", None)
+    # Attach fasta_path/gff_path for lazy-registered custom genomes.
+    if lazy_cfg:
+        result["fasta_path"] = lazy_cfg.get("fasta", "")
+        result["gff_path"] = lazy_cfg.get("gff", "")
+    payload = {
+        "model_name": resp.model_name,
+        "usage": resp.usage,
+        "token_cnt": resp.token_cnt,
+        "status": resp.status,
+        "message": resp.message,
+        "result": result,
+    }
+    return JSONResponse(payload)
+
+
+@app.post("/api/aigress/openai/OGR-Prediction/SNV")
+@app.post("/OGR-Prediction/SNV")
+async def dcs_predict_snv(
+    req: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    """SNV prediction (DCS-style sub-path)."""
+    try:
+        body = await req.json()
+    except Exception:
+        return JSONResponse(_dcs_err("Request body is not valid JSON. " + _USAGE, 400), status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse(_dcs_err("Request body is not valid JSON. " + _USAGE, 400), status_code=400)
+    try:
+        _check_api_key(authorization, x_api_key)
+    except RequestError as e:
+        return JSONResponse(_unauthorized(str(e)), status_code=401)
+
+    try:
+        lazy_genome, lazy_cfg = _lazy_register_genome(body)
+        if lazy_genome:
+            body["Genome"] = lazy_genome
+
+        genome, chromosome, start_1, biosample_names, fmt = _parse_common(body)
+        if "SNV_position" not in body or body.get("SNV_position") is None or str(body.get("SNV_position", "")).strip() == "":
+            raise RequestError("Missing required parameter 'SNV_position' (1-based int). " + _USAGE)
+        try:
+            snv_1 = int(body["SNV_position"])
+        except (TypeError, ValueError):
+            raise RequestError(
+                f"Invalid 'SNV_position' value '{body.get('SNV_position')}': must be an int. " + _USAGE
+            )
+        snv_base = str(body.get("SNV_base", "") or "").strip().upper()
+        if snv_base not in ("A", "C", "G", "T"):
+            raise RequestError(
+                f"Invalid 'SNV_base' '{body.get('SNV_base')}': must be A/C/G/T. " + _USAGE
+            )
+
+        start_0 = max(0, start_1 - 1)
+        snv_0 = max(0, snv_1 - 1)
+        web_req = SnvRequest(
+            genome=genome,
+            chromosome=chromosome,
+            start=start_0,
+            end=None,
+            biosample_names=biosample_names,
+            snv_index=snv_0,
+            snv_base=snv_base,
+        )
+        resp: PredictResponse = predict_snv(web_req)
+    except RequestError as e:
+        return JSONResponse(
+            _dcs_err(f"SNV prediction failed: {e}", 400,
+                     detail={"request": _summarize_body(body)}),
+            status_code=400,
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(
+            _dcs_err(f"SNV prediction failed: {e}", 500,
+                     detail={"request": _summarize_body(body)}),
+            status_code=500,
+        )
+
+    result = resp.result or {}
+    if fmt == "mean":
+        result = {
+            **result, "Format": "mean",
+            "ref_values": _format_values(resp.result.get("ref_values") or {}, "mean"),
+            "mut_values": _format_values(resp.result.get("mut_values") or {}, "mean"),
+        }
+        # Full-only scalar duplicates are not returned in Mean mode.
+        result.pop("ref_mean_values", None)
+        result.pop("mut_mean_values", None)
+    if lazy_cfg:
+        result["fasta_path"] = lazy_cfg.get("fasta", "")
+        result["gff_path"] = lazy_cfg.get("gff", "")
+    payload = {
+        "model_name": resp.model_name,
+        "usage": resp.usage,
+        "token_cnt": resp.token_cnt,
+        "status": resp.status,
+        "message": resp.message,
+        "result": result,
+    }
+    return JSONResponse(payload)
+
+
+@app.post("/api/aigress/openai/OGR-Prediction/Genome")
+@app.post("/OGR-Prediction/Genome")
+async def dcs_genomes(authorization: str | None = Header(default=None),
+                      x_api_key: str | None = Header(default=None)):
+    """List configured genomes (DCS-style sub-path)."""
+    try:
+        _check_api_key(authorization, x_api_key)
+    except RequestError as e:
+        return JSONResponse(_unauthorized(str(e)), status_code=401)
+    return JSONResponse(_dcs_ok(
+        _dcs_usage(0, 0), "genome list",
+        {"model": "OGR-Prediction", "Genome": list_genomes()},
+    ))
+
+
+@app.post("/api/aigress/openai/OGR-Prediction/Chromosome")
+@app.post("/OGR-Prediction/Chromosome")
+async def dcs_chromosomes(
+    req: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    """List chromosomes of a genome (DCS-style sub-path)."""
+    try:
+        body = await req.json()
+    except Exception:
+        body = {}
+    try:
+        _check_api_key(authorization, x_api_key)
+    except RequestError as e:
+        return JSONResponse(_unauthorized(str(e)), status_code=401)
+    genome = str((body or {}).get("Genome", "") or "") or (list_genomes() or ["osa1_r7"])[0]
+    try:
+        cfg = resolve_genome_config(genome)
+        chrs = get_genome_chromosomes(genome, cfg)
+    except Exception as e:
+        return JSONResponse(_dcs_err(f"Chromosome list failed: {e}", 400), status_code=400)
+    return JSONResponse(_dcs_ok(
+        _dcs_usage(0, 0), "chromosome list",
+        {"model": "OGR-Prediction", "Genome": genome, "Chromosome": chrs},
+    ))
+
+
+@app.post("/api/aigress/openai/OGR-Prediction/RegisterGenome")
+@app.post("/OGR-Prediction/RegisterGenome")
+async def dcs_register_genome(
+    req: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None),
+):
+    """Register a custom genome by local path (DCS-style sub-path).
+
+    Body (camelCase, same dialect as curl callers):
+      {"fasta_path": "/abs/path/to/xxx.fa",
+       "genome_id": "my_id",           # optional, default auto timestamp id
+       "gff_path": "/abs/path/xxx.gff3"}  # optional annotation
+
+    Two modes:
+      - fasta_path present          → register a new genome (auto .fai index).
+      - fasta_path empty + genome_id + gff_path → attach a GFF to an already
+        registered custom genome (frontend "attach GFF" action).
+    Files must already exist on the backend machine (no file transfer).
+    """
+    try:
+        body = await req.json()
+    except Exception:
+        return JSONResponse(_dcs_err("Request body is not valid JSON.", 400), status_code=400)
+    try:
+        _check_api_key(authorization, x_api_key)
+    except RequestError as e:
+        return JSONResponse(_unauthorized(str(e)), status_code=401)
+    try:
+        fasta_path = str(body.get("fasta_path", "") or "").strip()
+        gff_path = str(body.get("gff_path", "") or "").strip()
+        genome_id = str(body.get("genome_id", "") or "").strip()
+
+        if not fasta_path:
+            # Attach-GFF mode: the genome must already be registered.
+            if not genome_id or not gff_path:
+                raise RequestError(
+                    "RegisterGenome needs 'fasta_path' (register) or "
+                    "'genome_id' + 'gff_path' (attach annotation)."
+                )
+            cfg = attach_uploaded_gff(genome_id, gff_path)
+            message = "annotation attached"
+        else:
+            if not genome_id:
+                genome_id = f"{time.time_ns()}_{os.path.basename(fasta_path) or 'custom.fa'}"
+            cfg = register_uploaded_genome(
+                fasta_path, genome_id=genome_id, managed=False
+            )
+            # register_uploaded_genome may suffix the id on collision; the cfg
+            # records the final id, so prefer it over the requested one.
+            genome_id = str((cfg or {}).get("id") or genome_id)
+            if gff_path:
+                cfg = attach_uploaded_gff(genome_id, gff_path)
+            message = "genome registered"
+    except RequestError as e:
+        return JSONResponse(_dcs_err(f"Register genome failed: {e}", 400), status_code=400)
+    except FileNotFoundError as e:
+        return JSONResponse(_dcs_err(f"Register genome failed: {e}", 404), status_code=404)
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(_dcs_err(f"Register genome failed: {e}", 500), status_code=500)
+    return JSONResponse(_dcs_ok(
+        _dcs_usage(0, 0), message,
+        {
+            "model": "OGR-Prediction",
+            "Genome": genome_id,
+            "fasta_path": (cfg or {}).get("fasta", ""),
+            "gff_path": (cfg or {}).get("gff", ""),
+            "chromosomes": get_genome_chromosomes(genome_id, cfg),
+        },
+    ))

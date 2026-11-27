@@ -938,3 +938,99 @@ INFO:     Waiting for application shutdown.
 11/19/2026 16:29:25 - INFO - rice_reg.prediction_service - Predictor released.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [4113070]
+INFO:     Started server process [1607111]
+INFO:     Waiting for application startup.
+11/26/2026 16:14:32 - INFO - rice_reg.core.rice_reg - Initializing RiceRegPredictor ...
+11/26/2026 16:14:32 - INFO - rice_reg.core.rice_reg -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/rice_1B_32k_hf
+11/26/2026 16:14:32 - INFO - rice_reg.core.rice_reg -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/three_sam2.model.safetensors
+11/26/2026 16:14:32 - INFO - rice_reg.core.rice_reg -   predictor_type  = fusion
+11/26/2026 16:14:32 - INFO - rice_reg.core.rice_reg -   device          = cuda:0
+11/26/2026 16:14:32 - INFO - rice_reg.core.rice_reg - Loading base model and tokenizer ...
+11/26/2026 16:14:32 - INFO - root - >>> Loading pretrained model and tokenizer...
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+11/26/2026 16:14:45 - INFO - rice_reg.core.rice_reg - Building multimodal predictor (fusion) ...
+11/26/2026 16:14:45 - INFO - root - Identified 12 transformer layers (fusion predictor; base frozen)
+11/26/2026 16:14:47 - INFO - rice_reg.core.rice_reg - Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/three_sam2.model.safetensors
+11/26/2026 16:14:48 - INFO - rice_reg.core.rice_reg - Checkpoint loaded (non-strict mode).
+11/26/2026 16:14:48 - INFO - rice_reg.core.rice_reg - RiceRegPredictor initialized successfully.
+11/26/2026 16:14:48 - INFO - rice_reg.prediction_service - RiceRegPredictor initialised and ready.
+11/26/2026 16:14:48 - INFO - rice_reg.cache_service - Started bigWig cleanup thread (dir=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions, interval=600s, ttl=1800s)
+11/26/2026 16:14:48 - INFO - rice_reg.prediction_service - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:7001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:47706 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47722 - "POST /api/aigress/openai/OGR-Regulation/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42872 - "POST /api/aigress/openai/OGR-Regulation/Chromosome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42886 - "GET /health HTTP/1.1" 200 OK
+11/26/2026 16:15:01 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+11/26/2026 16:15:06 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+INFO:     127.0.0.1:42900 - "POST /api/aigress/openai/OGR-Regulation/Prediction HTTP/1.1" 200 OK
+11/26/2026 16:15:20 - INFO - rice_reg.prediction_service - Registered uploaded genome 'test_mh63' (12 chromosomes): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/genome/MH63RS2.fa
+INFO:     127.0.0.1:42496 - "POST /api/aigress/openai/OGR-Regulation/RegisterGenome HTTP/1.1" 200 OK
+11/26/2026 16:15:20 - INFO - rice_reg.prediction_service - Registered uploaded genome '1795680920986688964_MH63RS2.fa' (12 chromosomes): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/genome/MH63RS2.fa
+11/26/2026 16:15:20 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+11/26/2026 16:15:25 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+INFO:     127.0.0.1:42498 - "POST /api/aigress/openai/OGR-Regulation/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42648 - "POST /api/aigress/openai/OGR-Regulation/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42656 - "POST /api/aigress/openai/OGR-Regulation/Chromosome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42658 - "POST /api/aigress/openai/OGR-Regulation/Chromosome HTTP/1.1" 200 OK
+11/26/2026 16:16:25 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+11/26/2026 16:16:30 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+INFO:     127.0.0.1:56754 - "POST /api/aigress/openai/OGR-Regulation/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56766 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/frontend/static/igv.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58024 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/genome/MH63RS2.fa.fai HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58030 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/genome/MH63RS2.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58032 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_plus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58038 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58046 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_minus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58066 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_plus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58070 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_minus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58060 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58074 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_minus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58086 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58076 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_plus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58114 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_minus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58098 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_plus_1795680990319718097.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58126 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:58138 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/ATAC/ATAC_SAM2_MH63_1.MH63RS2.q30.bin5.CPM.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:35254 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_plus_1795680990319718097.bw HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:35270 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions/chr1_20716773_20749541_minus_1795680990319718097.bw HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:35280 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/genome/MH63RS2.fa HTTP/1.1" 206 Partial Content
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+11/26/2026 16:29:10 - INFO - rice_reg.core.rice_reg - RiceRegPredictor released.
+11/26/2026 16:29:10 - INFO - rice_reg.prediction_service - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1607111]
+INFO:     Started server process [1618013]
+INFO:     Waiting for application startup.
+11/26/2026 16:30:28 - INFO - rice_reg.core.rice_reg - Initializing RiceRegPredictor ...
+11/26/2026 16:30:28 - INFO - rice_reg.core.rice_reg -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/rice_1B_32k_hf
+11/26/2026 16:30:28 - INFO - rice_reg.core.rice_reg -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/three_sam2.model.safetensors
+11/26/2026 16:30:28 - INFO - rice_reg.core.rice_reg -   predictor_type  = fusion
+11/26/2026 16:30:28 - INFO - rice_reg.core.rice_reg -   device          = cuda:0
+11/26/2026 16:30:28 - INFO - rice_reg.core.rice_reg - Loading base model and tokenizer ...
+11/26/2026 16:30:28 - INFO - root - >>> Loading pretrained model and tokenizer...
+You are attempting to use Flash Attention 2.0 with a model not initialized on GPU. Make sure to move the model to GPU after initializing it on CPU with `model.to('cuda')`.
+11/26/2026 16:30:30 - INFO - rice_reg.core.rice_reg - Building multimodal predictor (fusion) ...
+11/26/2026 16:30:30 - INFO - root - Identified 12 transformer layers (fusion predictor; base frozen)
+11/26/2026 16:30:32 - INFO - rice_reg.core.rice_reg - Loading checkpoint: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/three_sam2.model.safetensors
+11/26/2026 16:30:33 - INFO - rice_reg.core.rice_reg - Checkpoint loaded (non-strict mode).
+11/26/2026 16:30:33 - INFO - rice_reg.core.rice_reg - RiceRegPredictor initialized successfully.
+11/26/2026 16:30:33 - INFO - rice_reg.prediction_service - RiceRegPredictor initialised and ready.
+11/26/2026 16:30:33 - INFO - rice_reg.cache_service - Started bigWig cleanup thread (dir=/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions, interval=600s, ttl=1800s)
+11/26/2026 16:30:33 - INFO - rice_reg.prediction_service - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:7001 (Press CTRL+C to quit)
+11/26/2026 16:30:49 - INFO - rice_reg.core.rice_reg - Running inference on 1 window(s), batch_size=8
+11/26/2026 16:30:54 - INFO - rice_reg.core.rice_reg - Inference completed: 1 windows
+[startup] Cleaned prediction cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/predictions
+[startup] Cleaned upload cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/uploaded_atac
+[startup] Cleaned uploaded genomes: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Regulation/cache/uploaded_genomes
+INFO:     127.0.0.1:40858 - "POST /api/aigress/openai/OGR-Regulation/Prediction HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+11/26/2026 16:31:26 - INFO - rice_reg.core.rice_reg - RiceRegPredictor released.
+11/26/2026 16:31:27 - INFO - rice_reg.prediction_service - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1618013]

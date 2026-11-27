@@ -1,6 +1,11 @@
-# AGENT.md — rice-mut 测试套件使用说明
+# AGENT.md — OGR-Prediction 测试套件使用说明
 
-本目录包含 rice-mut 项目的完整测试套件:**单元测试(离线)** + **DCS API curl 测试** + **网页端(Gradio)测试**,以及一键运行入口。
+> **注（2026-11-26）**：`backend/dcs_adapter.py` 已删除，其 DCS 子路径已并入
+> `backend/rice_mutation/api.py`。因此 `test_dcs_adapter.py` / `test_dcs_api.sh` 仅作**历史參考**，
+> 不再适用于当前服务；当前 DCS 子路径（`/api/aigress/openai/OGR-Prediction/*`）的验证请用
+> [README.md](README.md) 或 [../API.md](../API.md) 中的 curl 示例，网页内部端点用 `test_api.sh`。
+
+本目录包含 OGR-Prediction 的测试套件:**单元测试(离线)** + **DCS API curl 测试** + **网页端(Gradio)测试**,以及一键运行入口。
 
 > 本文件供**开发者 / AI 编码代理 / 测试人员**快速了解:测什么、怎么跑、需要什么前置条件、常见问题怎么排查。
 

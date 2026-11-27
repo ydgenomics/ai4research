@@ -18,8 +18,8 @@
 ## 项目结构
 
 ```
-rice-mutation/
-├── .env / .env.example          # 环境配置(模型、基因组、推理参数)
+OGR_Prediction/
+├── .env / .env.example          # 环境配置(模型、基因组、推理参数、CACHE_MODE)
 ├── requirements.txt             # 统一依赖清单
 ├── backend/
 │   ├── inference.ipynb          # 原始推理原型(保留)
@@ -28,10 +28,11 @@ rice-mutation/
 │   ├── run_backend.sh / stop_backend.sh
 │   └── rice_mutation/
 │       ├── main.py              # uvicorn 入口(加载 .env + sys.path)
-│       ├── api.py               # FastAPI 路由
+│       ├── api.py               # FastAPI 路由(网页端点 + DCS 子路径)
 │       ├── prediction_service.py# 单例预测器 + 核心预测逻辑 + bigWig 写盘
 │       ├── igv_payload.py       # IGV payload 构建(ref/mut 双轨)
-│       ├── cache_service.py     # 内容寻址预测缓存(LRU+TTL) + bigWig 后台清理
+│       ├── plot_service.py      # 柱状图/统计等绘图服务
+│       ├── cache_service.py     # 内容寻址预测缓存(LRU+TTL) + 上传注册表
 │       └── core/
 │           └── predictor.py     # ★ RiceMutationPredictor(移植自 inference.ipynb)
 ├── frontend/
@@ -54,28 +55,54 @@ cp .env.example .env
 # 注意:缓存目录请用绝对路径(静态文件服务按绝对路径解析)
 ```
 
+### 1.1 缓存模式（`CACHE_MODE`）
+
+部署前先选好缓存策略（`.env` 的 `CACHE_MODE`，默认 `true`）：
+
+| 模式 | 上传自定义基因组 | 预测 bigWig | 内容寻址缓存 |
+|---|---|---|---|
+| `CACHE_MODE=true`（默认，全量缓存） | 复制到 `cache/uploaded_fasta`（服务托管，TTL 可清理） | 持久写入 `BACKEND_PREDICTION_CACHE`（长 TTL） | 开启：相同 (genome, window, SNV) 请求直接命中，跳过 GPU |
+| `CACHE_MODE=false`（轻量，推荐部署） | **只注册本机路径，不复制**（前端会把 Gradio 临时文件路径传给后端，后端原地注册） | 写入临时目录 `BACKEND_PREDICTION_TMP`（默认 `/tmp/rice_prediction_tmp`，短 TTL 自动清理） | 关闭：每次预测重跑 GPU |
+
+> - 轻量模式下上传文件**零拷贝**（前端/后端同机时前端直接把文件路径发给后端注册），预测 bigWig 仍会生成（IGV 渲染必需）但落在临时目录、由后台线程按 `TMP_BIGWIG_TTL_SECONDS`（默认 900s）自动清理，不长期占用磁盘。
+> - 轻量模式下 TTL 清理**只移除注册表、不删除外部原文件**（`managed=False`），用户文件不受影响。
+> - 两种模式下前端展示 / API 返回结构完全一致（`igv_payload` + `ref_id`/`snv_id`），切换模式无需改前端。
+
 ### 2. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. 启动服务
+### 3. 启动服务（统一启动，网页端 + 纯 API 一套命令）
 
 ```bash
 # 自检(推荐)
 bash tools/startup_self_check.sh
 
-bash backend/run_backend.sh && bash frontend/run_frontend.sh
+# ★ 统一启动：一个命令拉起【网页端(:8000) + API 后端(:8001)】
+bash start.sh all
+# 也可分别控制：
+bash start.sh backend   # 只启动 API 后端（纯 API 场景，不拉网页）
+bash start.sh status    # 查看状态
+bash start.sh stop      # 停止
 ```
+
+> **统一架构说明**：网页端与纯 API 调用是**同一套后端进程**（`rice_mutation/main.py`，:8001）。
+> 网页 Gradio(:8000) 通过 `/backend/*` 反代调用后端；纯 API 调用方 / DCS 网关直接调用后端
+> 的 DCS 风格子路径 `/api/aigress/openai/OGR-Prediction/{Prediction,SNV,Genome,Chromosome,RegisterGenome}`。
+> 两条路共用同一推理核心、同一统一返回结构
+> `{model_name, usage, token_cnt, status, message, result{values, igv_payload}}` ——
+> 前端 JS 就是"填好参数的 curl"，拿到返回后直接渲染；纯 API 调用方拿到同样内容。
+> （不再需要单独启动 `dcs_adapter.py`，其功能已并入后端。）
 
 ### 4. 停止 / 日志
 
 ```bash
-bash backend/stop_backend.sh && bash frontend/stop_frontend.sh
+bash start.sh stop
 
-tail -f backend/logs/backend.nohup.log
-tail -f frontend/logs/frontend.nohup.log
+tail -f logs/backend.nohup.log
+tail -f logs/frontend.nohup.log
 ```
 
 ## 前端使用
@@ -99,12 +126,15 @@ tail -f frontend/logs/frontend.nohup.log
 
 ### 自定义基因组 + 注释 GFF
 
-1. 在**基因组下拉**选 **📤 Custom Genome** — **Genome 一行**自动拆分为三个等宽列:**Genome | Upload Genome FASTA | Upload Annotation GFF**;其余参数(染色体/起始位置/SNV)保持全宽
-2. 在 **Upload Genome FASTA** 上传 **Genome FASTA**(.fa/.fasta/.fna,≤`MAX_UPLOAD_MB`MB,默认 640),后端自动建 `.fai` 索引并注册为 `custom_<ts>` 基因组,下拉自动切换到该 id、染色体列表按实际 FASTA 刷新
-3. (可选)在 **Upload Annotation GFF** 上传 **GFF**(.gff/.gff3/.gtf,可 .gz),IGV 即显示该自定义基因组的 Genes 轨道
-4. 之后即可按该自定义基因组预测(优先级高于内嵌基因组);切换回内置基因组时 Genome 行恢复全宽、上传列隐藏
+1. 在**基因组下拉**选 **📤 Custom Genome** — **Genome 一行**拆分为三个等宽列:**Genome | Genome FASTA | Annotation GFF**;其余参数(染色体/起始位置/SNV)保持全宽
+2. 在 **Genome FASTA** 填**后端机器上的 FASTA 绝对路径**(`.fa`/`.fasta`/`.fna`, ≤`MAX_UPLOAD_MB`MB,默认 640),后端自动注册(自动建 `.fai` 索引)并为该基因组生成 id,下拉自动切换到该 id、染色体列表按实际 FASTA 刷新
+3. (可选)在 **Annotation GFF** 填**GFF 绝对路径**(`.gff`/`.gff3`/`.gtf`,可 `.gz`),IGV 即显示该自定义基因组的 Genes 轨道
+4. 之后即可按该自定义基因组预测(优先级高于内嵌基因组);切换回内置基因组时 Genome 行恢复全宽、自定义列隐藏
 
-> 提示:若 FASTA 较大、GFF 较小,先选好 GFF 时(FASTA 尚未上传完)**不会报错** —— GFF 会排队等待,FASTA 上传完成注册成功后自动附加(GFF 已就绪状态 → 自动附加成功)。
+> 提示:若先填 GFF 而 FASTA 尚未填好**不会报错** —— GFF 会排队等待,FASTA 注册成功后自动附加。
+>
+> 提示(`CACHE_MODE=false` 轻量模式):两个自定义文件列均为**路径文本框(非文件上传)**,后端把该路径直接注册为自定义基因组(零拷贝)。请确保路径在后端机器上存在且可读;如需长期稳定引用,建议使用部署机上的固定目录。
+> 若使用 `CACHE_MODE=true` 全量模式,则为真正的文件上传(上传后复制到 `cache/uploaded_fasta`,由服务托管并可按 TTL 清理)。
 
 #### 上传文件要求(命名 / 内容)
 
@@ -126,20 +156,43 @@ tail -f frontend/logs/frontend.nohup.log
 
 完整 API 调用说明（本机 + DCS 两套测试代码）见 **[API.md](API.md)**。
 
-简要接口一览（网页版后端 `:8001`，DCS 适配层 `backend/dcs_adapter.py` 亦兼容）：
+**统一返回结构**：所有预测接口（网页端小写路径 + DCS 风格子路径）返回同一外层包装：
 
-| 接口 | 方法 | 说明 |
-|---|---|---|
-| `/health` | GET | 健康检查 + 模型元信息 |
-| `/genomes` | GET | 已配置基因组列表(内置 + 上传) |
-| `/genomes/{id}/chromosomes` | GET | 某基因组的染色体列表(chrNN 风格) |
-| `/assays` | GET | assay 列表(来自 index_stat) |
-| `/biosamples` | GET | biosample 列表(来自 index_stat) |
-| `/uploadFasta` | POST | 上传**自定义基因组** FASTA(≤`MAX_UPLOAD_MB`MB,默认 640,自动建 .fai 并注册) |
-| `/uploadGff` | POST | 上传**注释 GFF**(.gff/.gff3/.gtf,可 .gz)并附加到指定自定义基因组(`genome` + `file` 表单) |
-| `/predict` | POST | 参考序列表达预测(内容寻址缓存,相同输入命中直接返回) |
-| `/predict/snv` | POST | 单碱基突变对比(result1 ref / result2 mut),返回 `snv_id`(内容寻址缓存) |
-| `/predict/snv/stat` | POST | 按 `snv_id` 对窗口内区域计算 (result1−result2)/result1 差异统计 |
-| `/predict/bar` | POST | 按 `prediction_id` 计算当前区域各轨道平均表达量(前端柱状图数据) |
+```json
+{
+  "model_name": "OGR",
+  "usage": {"prompt_tokens": 32768, "completion_tokens": 32768},
+  "token_cnt": 65536,
+  "status": 200,
+  "message": "Prediction completed in 3.5s",
+  "result": {
+    "model": "OGR-Prediction", "Genome": "osa1_r7", "Chromosome": "Chr9",
+    "Start": 20716773, "window_len": 32768, "Format": "Full|Mean",
+    "values": {...},          // 参考预测数值（Full 数组 / Mean 标量）
+    "igv_payload": {...}      // 可视化：reference{fastaURL,indexURL,Genes}, locus, tracks[{bw url}]
+    // SNV 另有 ref_values / mut_values 双轨
+  }
+}
+```
 
-> 网页版请求/响应示例见 `test/test_api.sh`；DCS 适配层（单入口 + mode 分发）的调用方式见 [API.md](API.md)。
+> 网页端与纯 API 拿到**同一份**返回：`result.igv_payload` 可直接喂给 IGV 渲染，`result.values` 是数值结果。
+> 网页 Gradio 就是"填好参数的 curl"——调用 API 后把返回内容填回页面展示。
+
+**接口一览**（网页端路径 :8001 / DCS 风格子路径 `/api/aigress/openai/OGR-Prediction/...`）：
+
+| 网页端路径 | DCS 子路径 | 方法 | 说明 |
+|---|---|---|---|
+| `/health` | `/health` | GET | 健康检查 + 模型元信息 |
+| `/genomes` | `.../Genome` | GET/POST | 已配置基因组列表(内置 + 上传) |
+| `/genomes/{id}/chromosomes` | `.../Chromosome` | GET/POST | 某基因组的染色体列表(chrNN 风格) |
+| `/assays` | — | GET | assay 列表(来自 index_stat) |
+| `/biosamples` | — | GET | biosample 列表(来自 index_stat) |
+| `/uploadFasta` | — | POST | 上传自定义基因组 FASTA(轻量模式零拷贝注册) |
+| `/uploadGff` | — | POST | 上传注释 GFF 并附加到自定义基因组 |
+| `/predict` | `.../Prediction` | POST | 参考序列表达预测(内容寻址缓存仅在 `CACHE_MODE=true` 时生效) |
+| `/predict/snv` | `.../SNV` | POST | 单碱基突变对比(result1 ref / result2 mut),返回 `snv_id` |
+| `/predict/snv/stat` | — | POST | 按 `snv_id` 对窗口内区域计算差异统计 |
+| `/predict/bar` | — | POST | 按 `prediction_id` 计算当前区域各轨道平均表达量(前端柱状图) |
+| — | `.../RegisterGenome` | POST | 传本地 `fasta_path` 懒注册自定义基因组(纯 API) |
+
+> 网页版请求/响应示例见 `test/test_api.sh`；纯 API 调用（curl）见 [API.md](API.md)。

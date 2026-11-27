@@ -118,31 +118,34 @@ genos-metax-image
 ### 提取 DNA 序列嵌入
 
 ```bash
-curl -X POST http://localhost:8000/extract \
+curl -X POST http://localhost:8000/OGR-Base/Embedding \
 -H "Content-Type: application/json" \
--d '{"sequence": "GGATCCGGATCCGGATCCGGATCC", "model_name": "10B", "pooling_method": "max"}'
+-d '{"sequence": "GGATCCGGATCCGGATCCGGATCC", "pooling_method": "max"}'
 ```
+
+> 服务已取消息 `model_name` 参数：模型由 `.env` 注册表固定（OGR-Base 固定 `1B_8k`）。
 
 ### 预测 DNA 序列的下游核苷酸
 
 ```bash
-curl -X POST http://localhost:8000/predict \
+curl -X POST http://localhost:8000/OGR-Base/NTP \
 -H "Content-Type: application/json" \
--d '{"sequence": "GGATCCGGATCCGGATCCGGATCC", "model_name": "10B", "predict_length": 25}'
+-d '{"sequence": "GGATCCGGATCCGGATCCGGATCC", "predict_length": 25}'
 ```
 
 ## 6. API 接口文档
 
 ###  嵌入提取接口
 
-**URL**：`/extract`  
+**URL**：`/OGR-Base/Embedding`  
 **方法**：`POST`  
 **Content-Type**：`application/json`
 
 **请求参数**：
 - `sequence`（必需）：输入的 DNA 序列
-- `model_name`（必需）：模型名称（"1.2B" 或 "10B"）
 - `pooling_method`（可选）：池化方法（"mean"、"max"、"last"、"none"，默认值："mean"）
+
+> 模型固定为注册表 `1B_8k`，不接受 `model_name` / `mode` 参数。
 
 **响应示例**：
 ```json
@@ -165,13 +168,12 @@ curl -X POST http://localhost:8000/predict \
 
 ###  核苷酸预测接口
 
-**URL**：`/predict`  
+**URL**：`/OGR-Base/NTP`  
 **方法**：`POST`  
 **Content-Type**：`application/json`  
 
 **请求参数**：
 - `sequence`（必需）：输入的 DNA 序列
-- `model_name`（必需）：模型名称（"1.2B" 或 "10B"）
 - `predict_length`（可选）：要预测的核苷酸数量（默认值：10，最大值：1000）
 
 **响应示例**：

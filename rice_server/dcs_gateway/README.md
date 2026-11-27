@@ -1,7 +1,7 @@
 # dcs_gateway — 统一网关（单端口收口多服务）
 
-DCS 平台侧只需配置 **一个外部地址**，网关按请求体 `model_sub` 字段把请求
-路由到各后端 `dcs_adapter` 进程（**不加载任何模型、不持有 GPU**，纯轻量反向代理）：
+DCS 平台侧只需配置 **一个外部地址**，网关按 URL 路径（或请求体 `model_sub` 字段）把请求
+路由到各后端统一服务进程（**不加载任何模型、不持有 GPU**，纯轻量反向代理）：
 
 | `model_sub` | 后端服务 | 后端监听（默认） |
 |---|---|---|
@@ -42,28 +42,35 @@ dcs_gateway/
 ### 2.0 推荐：一键拉起（各后端 + 网关）
 
 ```bash
-cd dcs_gateway && bash start_all.sh        # 全部服务
+cd dcs_gateway && bash start_all.sh        # 全部后端 + 网关
 bash start_all.sh ogr_prediction ogr_regulation        # 位置参数：只启动指定后端 + 网关（服务开关）
 ENABLED_SERVICES=ogr_prediction,ogr_regulation bash start_all.sh   # 或环境变量方式（.env 的 ENABLED_SERVICES 亦可）
+
+# 其它动作
+bash start_all.sh web                      # 后端 + 三个 Gradio 网页前端 + 网关
+bash start_all.sh monitor                  # 后端 + 实时跟随日志（Ctrl-C 只退出跟随）
+bash start_all.sh monitor-web               # web + 实时跟随日志
+bash start_all.sh stop                      # 停止全部（含前端与网关）
+bash start_all.sh stop ogr_prediction ogr_regulation   # 只停指定后端
 ```
 
 脚本启动时**先 `conda activate vllm`**（`python`=vllm 环境，含 sanic/transformers/torch+cuda），
 再自动解析每个后端的 Python 解释器（**本目录 `.env` 的 `RICE_*_PYTHON`** > shell 环境变量 >
 各服务 `.env` 的 `BACKEND_PYTHON_BIN` > 激活后的 `python`）；
 端口同理（`.env` 的 `RICE_*_PORT` / `GATEWAY_PORT` 优先级最高）。
-后端日志写在 `/tmp/rice_dcs/*.log`，等待各自 `/health` 就绪（最长 180s）后前台拉起网关（默认 4000）。
+后端以 `setsid` 脱离终端后台启动，日志写在 `/tmp/rice_dcs/*.log`，等待各自 `/health` 就绪（最长 180s）后前台拉起网关（默认 4000）。
 
 ### 2.1 手动：先启动四个后端（各占一个 GPU 进程）
 
 ```bash
-# ── 后端 1：OGR-Prediction（端口 8001）────────────────────────────
-cd ../OGR_Prediction/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py
+# ── 后端 1：OGR-Prediction（端口 8001，网页端与 API 同进程）────────
+cd ../OGR_Prediction/backend && /root/miniconda3/envs/vllm/bin/python rice_mutation/main.py
 
-# ── 后端 2：OGR-Regulation（端口 7001）────────────────────────────
-cd ../OGR_Regulation/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py
+# ── 后端 2：OGR-Regulation（端口 7001，网页端与 API 同进程）────────
+cd ../OGR_Regulation/backend && /root/miniconda3/envs/vllm/bin/python rice_reg/main.py
 
-# ── 后端 3：OGR-Introgression（端口 5001）─────────────────────────
-cd ../OGR_Introgression/backend && /root/miniconda3/envs/vllm/bin/python dcs_adapter.py
+# ── 后端 3：OGR-Introgression（端口 5001，网页端与 API 同进程）─────
+cd ../OGR_Introgression/backend && /root/miniconda3/envs/vllm/bin/python rice_introgression/main.py
 
 # ── 后端 4：OGR-Base（gateway .env 的 RICE_OGR_PORT 决定，示例 6001）──
 cd ../OGR_Base && BACKEND_PORT=6001 /root/miniconda3/envs/vllm/bin/python dcs_adapter.py
@@ -82,7 +89,7 @@ GATEWAY_PORT=9111 python app.py  # 显式指定端口
 
 监听端口优先级：**`PORT`（DCS 平台注入）> `GATEWAY_PORT` > 9000**。
 
-> 停止：后端 `pkill -f dcs_adapter.py`；网关 Ctrl-C 即可。
+> 停止：`bash start_all.sh stop`（精确匹配各服务命令行）；或手动 `pkill -f rice_mutation/main.py`、`pkill -f rice_reg/main.py`、`pkill -f rice_introgression/main.py`、`pkill -f dcs_adapter.py`；网关 Ctrl-C 即可。
 
 ---
 

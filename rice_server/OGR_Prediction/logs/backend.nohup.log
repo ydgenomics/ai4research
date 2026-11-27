@@ -1,0 +1,225 @@
+INFO:     Started server process [1464767]
+INFO:     Waiting for application startup.
+2026-11-26 12:54:47,452 - INFO - Initializing RiceMutationPredictor ...
+2026-11-26 12:54:47,452 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/rice_1B_stage2_8k_hf
+2026-11-26 12:54:47,452 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/csq-5_model.safetensors
+2026-11-26 12:54:47,452 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/index_stat.json
+2026-11-26 12:54:47,452 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa
+2026-11-26 12:54:47,452 - INFO -   device          = cuda:0
+2026-11-26 12:54:47,452 - INFO -   inference_batch_size = 4
+2026-11-26 12:54:47,457 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-11-26 12:54:47,463 - INFO - Loading GenOmics model ...
+Flash Attention 2.0 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `torch_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", torch_dtype=torch.float16)`
+2026-11-26 12:55:07,620 - INFO - RiceMutationPredictor initialized successfully.
+2026-11-26 12:55:07,622 - INFO - RiceMutationPredictor initialised and ready.
+2026-11-26 12:55:07,625 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/uploaded_genomes
+INFO:     127.0.0.1:42404 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42416 - "GET /genomes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50454 - "GET /health HTTP/1.1" 200 OK
+2026-11-26 12:55:47,321 - INFO - Inference on Chr9:20716773-20749541 (seq_len=32768) done in 4.01 s
+INFO:     127.0.0.1:50964 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58828 - "GET /health HTTP/1.1" 200 OK
+2026-11-26 12:56:25,072 - INFO - Inference on Chr9:20716773-20749541 (seq_len=32768) done in 2.61 s
+INFO:     127.0.0.1:33260 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+2026-11-26 12:56:37,306 - INFO - Inference on Chr9:20716773-20749541 (seq_len=32768) done in 2.68 s
+2026-11-26 12:56:40,000 - INFO - Inference on Chr9:20716773-20749541 (seq_len=32768) done in 2.67 s
+INFO:     127.0.0.1:56098 - "POST /api/aigress/openai/OGR-Prediction/SNV HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56098 - "POST /api/aigress/openai/OGR-Prediction HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:48396 - "POST /api/aigress/openai/OGR-Prediction HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:36302 - "GET /health HTTP/1.1" 200 OK
+2026-11-26 12:58:02,672 - INFO - Inference on Chr9:20716773-20749541 (seq_len=32768) done in 1.95 s
+INFO:     127.0.0.1:49122 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-11-26 12:58:34,021 - INFO - RiceMutationPredictor released.
+2026-11-26 12:58:34,450 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1464767]
+INFO:     Started server process [1540214]
+INFO:     Waiting for application startup.
+2026-11-26 14:48:07,087 - INFO - Initializing RiceMutationPredictor ...
+2026-11-26 14:48:07,087 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/rice_1B_stage2_8k_hf
+2026-11-26 14:48:07,087 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/csq-5_model.safetensors
+2026-11-26 14:48:07,087 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/index_stat.json
+2026-11-26 14:48:07,087 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa
+2026-11-26 14:48:07,087 - INFO -   device          = cuda:0
+2026-11-26 14:48:07,087 - INFO -   inference_batch_size = 4
+2026-11-26 14:48:07,092 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-11-26 14:48:07,102 - INFO - Loading GenOmics model ...
+Flash Attention 2.0 only supports torch.float16 and torch.bfloat16 dtypes, but the current dype in MixtralModel is torch.float32. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator, or load the model with the `torch_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", torch_dtype=torch.float16)`
+2026-11-26 14:48:25,561 - INFO - RiceMutationPredictor initialized successfully.
+2026-11-26 14:48:25,561 - INFO - RiceMutationPredictor initialised and ready.
+2026-11-26 14:48:25,562 - INFO - Started uploaded-genome cleanup thread (ttl=0.5h, interval=300s)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/uploaded_genomes
+INFO:     127.0.0.1:40128 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40132 - "POST /api/aigress/openai/OGR-Prediction/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60964 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/frontend/static/plotly.min.js HTTP/1.1" 200 OK
+2026-11-26 14:50:00,316 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 3.46 s
+INFO:     127.0.0.1:51594 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51600 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/frontend/static/igv.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53020 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa.fai HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53024 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53028 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_ref_1795675800.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53032 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_ref_1795675800.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53034 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_ref_1795675800.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53050 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_ref_1795675800.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:54368 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55774 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:55776 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55788 - "POST /predict/bar HTTP/1.1" 200 OK
+2026-11-26 14:50:57,011 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.65 s
+2026-11-26 14:50:59,678 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.64 s
+INFO:     127.0.0.1:42978 - "POST /api/aigress/openai/OGR-Prediction/SNV HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42982 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44630 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44640 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44642 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44650 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44664 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44688 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44676 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44704 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795675859.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:44718 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42738 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:42748 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42756 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:42768 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42784 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59576 - "GET /health HTTP/1.1" 200 OK
+2026-11-26 14:51:50,323 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 2.69 s
+INFO:     127.0.0.1:48660 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+2026-11-26 14:52:46,142 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 2.60 s
+[cache] cleaned 1 stale bigWig file(s)
+INFO:     127.0.0.1:42308 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+2026-11-26 14:52:54,619 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 2.38 s
+INFO:     127.0.0.1:55564 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+2026-11-26 14:53:49,816 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 2.58 s
+2026-11-26 14:53:52,425 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 2.58 s
+INFO:     127.0.0.1:57636 - "POST /api/aigress/openai/OGR-Prediction/SNV HTTP/1.1" 200 OK
+[cache] cleaned 4 stale bigWig file(s)
+INFO:     127.0.0.1:53982 - "POST /api/aigress/openai/OGR-Prediction/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51016 - "POST /api/aigress/openai/OGR-Prediction/Chromosome HTTP/1.1" 200 OK
+[cache] cleaned 2 stale bigWig file(s)
+[cache] cleaned 1 stale bigWig file(s)
+[cache] cleaned 1 stale bigWig file(s)
+INFO:     127.0.0.1:58280 - "GET /health HTTP/1.1" 200 OK
+2026-11-26 15:11:07,105 - INFO - Registered uploaded genome '1795677067090635354_osa1_r7.asm.ch.fa' (14 chromosomes, managed=False): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa
+2026-11-26 15:11:09,818 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 2.68 s
+2026-11-26 15:11:12,512 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 2.67 s
+INFO:     127.0.0.1:54484 - "POST /api/aigress/openai/OGR-Prediction/SNV HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55644 - "POST /api/aigress/openai/OGR-Prediction/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55646 - "POST /api/aigress/openai/OGR-Prediction/Chromosome HTTP/1.1" 200 OK
+2026-11-26 15:15:24,849 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.63 s
+2026-11-26 15:15:27,528 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.65 s
+INFO:     127.0.0.1:41156 - "POST /api/aigress/openai/OGR-Prediction/SNV HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41168 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:41176 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:41182 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:41180 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:41212 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:41198 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:41238 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:41222 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41246 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677327.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53962 - "POST /predict/bar HTTP/1.1" 200 OK
+2026-11-26 15:15:48,659 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.44 s
+2026-11-26 15:15:51,341 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.65 s
+INFO:     127.0.0.1:39492 - "POST /api/aigress/openai/OGR-Prediction/SNV HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40548 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40556 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40562 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40578 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40592 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40604 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40624 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:40612 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40632 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677351.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:53700 - "POST /predict/bar HTTP/1.1" 200 OK
+[cache] cleaned 3 stale bigWig file(s)
+INFO:     127.0.0.1:55142 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55146 - "POST /api/aigress/openai/OGR-Prediction/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55156 - "POST /api/aigress/openai/OGR-Prediction/Chromosome HTTP/1.1" 200 OK
+2026-11-26 15:21:35,205 - INFO - Registered uploaded genome 'fe_1795677695201' (14 chromosomes, managed=False): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa
+[cache] cleaned 3 stale bigWig file(s)
+[cache] cleaned 2 stale bigWig file(s)
+INFO:     127.0.0.1:42678 - "POST /api/aigress/openai/OGR-Prediction/RegisterGenome HTTP/1.1" 200 OK
+2026-11-26 15:21:44,298 - INFO - Attached GFF to uploaded genome 'fe_1795677695201': /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.all_models.gff3
+INFO:     127.0.0.1:35996 - "POST /api/aigress/openai/OGR-Prediction/RegisterGenome HTTP/1.1" 200 OK
+2026-11-26 15:22:21,999 - INFO - Registered uploaded genome '1795677741997927481_osa1_r7.asm.ch.fa' (14 chromosomes, managed=False): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa
+2026-11-26 15:22:21,999 - INFO - Attached GFF to uploaded genome '1795677741997927481_osa1_r7.asm.ch.fa': /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.all_models.gff3
+2026-11-26 15:22:24,644 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.62 s
+2026-11-26 15:22:27,242 - INFO - Inference on Chr9:20716772-20749540 (seq_len=32768) done in 2.57 s
+INFO:     127.0.0.1:38820 - "POST /api/aigress/openai/OGR-Prediction/SNV HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38828 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.all_models.gff3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38836 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:38848 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:38876 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:38864 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:38892 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:38904 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:38914 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result1_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:38922 - "GET /static-files/tmp/rice_prediction_tmp/Chr9_20716772_20749540_RNA-seq_Leaf_result2_1795677747.bw HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:42950 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42958 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:42962 - "GET /static-files/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa HTTP/1.1" 206 Partial Content
+INFO:     127.0.0.1:42970 - "POST /predict/bar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49788 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49796 - "POST /api/aigress/openai/OGR-Prediction/Genome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49804 - "POST /api/aigress/openai/OGR-Prediction/Chromosome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49814 - "POST /api/aigress/openai/OGR-Prediction/Chromosome HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49818 - "POST /api/aigress/openai/OGR-Prediction/Chromosome HTTP/1.1" 200 OK
+INFO:     Started server process [1562659]
+INFO:     Waiting for application startup.
+2026-11-26 15:23:29,398 - INFO - Initializing RiceMutationPredictor ...
+2026-11-26 15:23:29,399 - INFO -   base_model_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/rice_1B_stage2_8k_hf
+2026-11-26 15:23:29,399 - INFO -   checkpoint_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/csq-5_model.safetensors
+2026-11-26 15:23:29,399 - INFO -   index_stat_path = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/index_stat.json
+2026-11-26 15:23:29,399 - INFO -   fasta_path      = /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Prediction/osa1_r7.asm.ch.fa
+2026-11-26 15:23:29,399 - INFO -   device          = cuda:0
+2026-11-26 15:23:29,399 - INFO -   inference_batch_size = 4
+2026-11-26 15:23:29,405 - INFO - index_stat: assays=['total_RNA-seq_+'] biosamples=['NIP_leaf']
+2026-11-26 15:23:29,412 - INFO - Loading GenOmics model ...
+ERROR:    Traceback (most recent call last):
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/starlette/routing.py", line 694, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/starlette/routing.py", line 571, in __aenter__
+    await self._router.startup()
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/starlette/routing.py", line 673, in startup
+    handler()
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/backend/rice_mutation/api.py", line 389, in on_startup
+    init_predictor()
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/backend/rice_mutation/prediction_service.py", line 650, in init_predictor
+    predictor.initialize()
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/backend/rice_mutation/core/predictor.py", line 174, in initialize
+    model = load_finetuned_model(
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/backend/src/model.py", line 67, in load_finetuned_model
+    state_dict = load_file(ckpt_path, device=device)  # 🔥 直接加载到 GPU
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda3/envs/vllm/lib/python3.12/site-packages/safetensors/torch.py", line 383, in load_file
+    result[k] = f.get_tensor(k)
+                ^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 20.00 MiB. GPU 0 has a total capacity of 44.42 GiB of which 1.12 MiB is free. Process 537921 has 308.00 MiB memory in use. Process 1199146 has 308.00 MiB memory in use. Process 1199302 has 3.59 GiB memory in use. Process 1294987 has 28.05 GiB memory in use. Process 1540214 has 8.79 GiB memory in use. Including non-PyTorch memory, this process has 3.36 GiB memory in use. Of the allocated memory 2.58 GiB is allocated by PyTorch, and 535.17 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+
+ERROR:    Application startup failed. Exiting.
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/uploaded_fasta
+[startup] Cleaned cache: /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/OGR_Prediction/cache/uploaded_genomes
+2026-11-26 15:24:24,678 - INFO - Inference on Chr1:20716773-20749541 (seq_len=32768) done in 1.72 s
+INFO:     127.0.0.1:44192 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+2026-11-26 15:25:39,522 - INFO - Registered uploaded genome '1795677939520453297_MH63RS2.fa' (12 chromosomes, managed=False): /mnt/rice/default/Workspace/yangdong/ai4research/rice_server/source/OGR_Regulation/genome/MH63RS2.fa
+2026-11-26 15:25:41,357 - INFO - Inference on chr1:20716773-20749541 (seq_len=32768) done in 1.81 s
+INFO:     127.0.0.1:35826 - "POST /api/aigress/openai/OGR-Prediction/Prediction HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-11-26 15:27:50,693 - INFO - RiceMutationPredictor released.
+2026-11-26 15:27:50,927 - INFO - Predictor released.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1540214]

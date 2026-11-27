@@ -128,13 +128,85 @@ def _build_fai(fasta_path: str, fai_path: str) -> None:
     logger.info("Built FASTA index (%d records): %s", len(records), fai_path)
 
 
-def _ensure_fai(fasta_path: str) -> str | None:
-    """确保 fasta_path 有可用的 .fai；没有则构建（支持普通 gzip）。"""
-    fai_path = str(fasta_path) + ".fai"
-    if _load_fai_chroms(fai_path):
-        return fai_path
+def _upload_link_dir() -> str:
+    """用于存放 cache-dir FASTA 软链接的目录（在此建 .fai 以规避原目录无写权限）。"""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.abspath(os.getenv(
+        "BACKEND_UPLOADED_FASTA",
+        os.path.join(root, "cache", "uploaded_fasta"),
+    ))
+
+
+def _fai_is_valid(fasta_path: str) -> bool:
+    """仅当 .fai 存在且不早于 FASTA 时才可用。"""
+    fai = str(fasta_path) + ".fai"
+    if not os.path.isfile(fai):
+        return False
     try:
-        _build_fai(fasta_path, fai_path)
+        return os.path.getmtime(fai) >= os.path.getmtime(fasta_path)
+    except OSError:
+        return False
+
+
+def _ensure_fai_link(fasta_path: str, link_dir: str = "") -> tuple[str, str, bool]:
+    """确保 ``fasta_path`` 有可用的 ``<fasta>.fai`` 索引（支持普通 gzip）。
+
+    当原生 ``<fasta>.fai`` 缺失或早于 FASTA 时，**不**写入用户目录（可能只读），
+    而是把 FASTA 软链接到服务自有的 cache 目录并在那里建索引，返回软链接路径
+    供调用方读取缓存索引。
+
+    Returns ``(effective_fasta, fai_path, is_link)``。
+    """
+    fasta_abs = os.path.abspath(fasta_path)
+    if not os.path.isfile(fasta_abs):
+        raise FileNotFoundError(f"FASTA not found: {fasta_abs}")
+
+    link_dir = os.path.abspath(link_dir or _upload_link_dir())
+
+    # 1) FASTA 已在 cache 目录（字节上传副本）→ 原地建 .fai
+    if os.path.dirname(fasta_abs) == link_dir:
+        fai = fasta_abs + ".fai"
+        if not _fai_is_valid(fasta_abs):
+            _build_fai(fasta_abs, fai)
+        return fasta_abs, fai, False
+
+    # 2) 原生 .fai 有效 → 直接用
+    if _fai_is_valid(fasta_abs):
+        return fasta_abs, fasta_abs + ".fai", False
+
+    # 3) 缺失/过期 → 软链接到 cache 目录再建
+    try:
+        os.makedirs(link_dir, exist_ok=True)
+    except OSError as e:
+        logger.warning("Cannot create link dir %s: %s", link_dir, e)
+    fname = os.path.basename(fasta_abs) or "custom.fa"
+    link_fasta = os.path.join(link_dir, f"{time.time_ns()}_{fname}")
+    link_fai = link_fasta + ".fai"
+    try:
+        if os.path.lexists(link_fasta):
+            os.remove(link_fasta)
+        os.symlink(fasta_abs, link_fasta)
+        _build_fai(link_fasta, link_fai)  # 在 cache 目录内建 .fai
+    except Exception as e:
+        logger.warning(
+            "Failed to build .fai via cache symlink for %s (%s); indexing in place",
+            fasta_abs, e,
+        )
+        try:
+            if os.path.lexists(link_fasta):
+                os.remove(link_fasta)
+        except OSError:
+            pass
+        _build_fai(fasta_abs, fasta_abs + ".fai")
+        return fasta_abs, fasta_abs + ".fai", False
+    logger.info("Built .fai via cache symlink: %s", link_fai)
+    return link_fasta, link_fai, True
+
+
+def _ensure_fai(fasta_path: str, link_dir: str = "") -> str | None:
+    """确保有可用 .fai（缺失/过期则软链接到 cache 目录再建，返回 fai 路径）。"""
+    try:
+        _eff, fai_path, _is_link = _ensure_fai_link(fasta_path, link_dir)
         return fai_path
     except Exception as e:
         logger.warning("Failed to build .fai for %s: %s", fasta_path, e)
@@ -234,33 +306,58 @@ def get_chromosome_length(genome: str, chrom: str, genome_config: Optional[dict]
 # ---------------------------------------------------------------------------
 #  上传基因组注册
 # ---------------------------------------------------------------------------
-def register_uploaded_genome(fasta_path: str, genome_id: str = "") -> dict:
-    """注册一个上传的 FASTA 为可用基因组（优先于内置）。自动建 .fai。"""
-    fasta_path = os.path.abspath(fasta_path)
-    if not os.path.isfile(fasta_path):
-        raise FileNotFoundError(f"FASTA not found: {fasta_path}")
-    fai_path = _ensure_fai(fasta_path) or ""
+def register_uploaded_genome(fasta_path: str, genome_id: str = "",
+                             managed: bool = True, link_dir: str = "") -> dict:
+    """注册一个上传的 FASTA 为可用基因组（优先于内置）。
+
+    确保有可用的 .fai：原生 .fai 缺失/过期时，软链接 FASTA 到 cache 目录再建索引
+    （不写入原目录，规避无写权限）。
+
+    ``managed=True``（默认）标记文件为本服务所有（字节上传副本），TTL 清理可删除；
+    ``managed=False`` 表示路径指向外部/用户文件（懒加载路径注册）——清理只移除
+    注册表条目 + 它创建的 cache 软链接/索引，绝不删除用户原始文件。
+
+    未传入 ``genome_id`` 时默认 ``<时间戳ns>_<文件名>``。返回基因组配置（含最终 id）。
+    """
+    fasta_abs = os.path.abspath(fasta_path)
+    if not os.path.isfile(fasta_abs):
+        raise FileNotFoundError(f"FASTA not found: {fasta_abs}")
+    effective_fasta, fai_path, is_link = _ensure_fai_link(fasta_abs, link_dir)
     names = _load_fai_chroms(fai_path)
     if not names:
-        raise ValueError(f"No sequence records found in FASTA: {fasta_path}")
+        raise ValueError(f"No sequence records found in FASTA: {fasta_abs}")
 
     if not genome_id:
-        genome_id = f"custom_{int(time.time())}"
+        genome_id = f"{time.time_ns()}_{os.path.basename(fasta_abs) or 'custom.fa'}"
     while genome_id in _UPLOADED_GENOMES or genome_id in _builtin_genome_ids():
-        genome_id = f"custom_{int(time.time())}_{len(_UPLOADED_GENOMES)}"
+        genome_id = (
+            f"{time.time_ns()}_{os.path.basename(fasta_abs) or 'custom.fa'}"
+            f"_{len(_UPLOADED_GENOMES)}"
+        )
 
     with _REGISTRY_LOCK:
-        cfg = {"fasta": fasta_path, "fai": fai_path, "last_used": time.time()}
+        cfg = {
+            "id": genome_id,
+            "fasta": effective_fasta,   # 读取用路径（软链接或原生路径）
+            "real_fasta": fasta_abs,    # 用户原始绝对路径
+            "fai": fai_path or "",
+            "last_used": time.time(), "managed": managed, "is_link": is_link,
+        }
         _UPLOADED_GENOMES[genome_id] = cfg
     logger.info(
-        "Registered uploaded genome '%s' (%d chromosomes): %s",
-        genome_id, len(names), fasta_path,
+        "Registered uploaded genome '%s' (%d chromosomes, managed=%s, link=%s): %s",
+        genome_id, len(names), managed, is_link, fasta_abs,
     )
     return dict(cfg)
 
 
 def cleanup_expired_uploaded_genomes(ttl_hours: float) -> int:
-    """删除超过 TTL 未使用的上传基因组（内存 + 磁盘 FASTA/.fai）。"""
+    """删除超过 TTL 未使用的上传基因组（内存 + 磁盘 FASTA/.fai）。
+
+    managed=True（本服务复制进 cache 的字节上传副本）删除全部文件；
+    is_link=True（外部 FASTA 经 cache 软链接建索引）只删软链接 + 生成的 .fai；
+    用户原始 FASTA（real_fasta）永不删除。
+    """
     cutoff = time.time() - float(ttl_hours) * 3600
     expired: list = []
     with _REGISTRY_LOCK:
@@ -277,14 +374,21 @@ def cleanup_expired_uploaded_genomes(ttl_hours: float) -> int:
                     pass
 
     for gid, cfg in expired:
-        for key in ("fasta", "fai"):
-            path = cfg.get(key) or ""
-            if path and os.path.isfile(path):
+        managed = cfg.get("managed", True)
+        is_link = cfg.get("is_link", False)
+        if managed or is_link:
+            for key in ("fasta", "fai"):
+                path = cfg.get(key) or ""
+                if not path or not os.path.lexists(path):
+                    continue
                 try:
                     os.remove(path)
                 except OSError as e:
                     logger.warning("Failed to remove %s: %s", path, e)
-        logger.info("Cleaned up expired uploaded genome '%s' (TTL %.1fh)", gid, ttl_hours)
+        logger.info(
+            "Cleaned up expired uploaded genome '%s' (TTL %.1fh, managed=%s, link=%s)",
+            gid, ttl_hours, managed, is_link,
+        )
     return len(expired)
 
 

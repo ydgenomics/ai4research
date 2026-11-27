@@ -3,13 +3,14 @@
 风格与 rice_reg（OGR-Reg）保持一致：
 - 橙色主题 + 顶部标题栏（左）+ EN / 中文 语言切换 pills（右）
 - 卡片式参数面板在上，可视化全宽在下（无左右布局）
-- 基因组提交：下拉含「📤 Custom Genome」哨兵，选中后隐藏的上传 FASTA 组件才显示
-- 中英文切换（I18N）
+- 基因组提交：下拉含「📤 Custom Genome」哨兵，选中后输入本机 FASTA 路径
+  （轻量模式：只传路径，RegisterGenome 零拷贝懒注册，不传文件）
+- 中英文切换（I18N）；API Key 必填（页面输入框，请求头鉴权）
 
-可视化：复刻离线 plot_group_tracks 的全基因组 4 色车道图
-（Ind / Jap / uncertain / uninferenced），Plotly iframe 渲染；
-鼠标悬浮区域显示位置/类别细节；图高随染色体数量动态调整；
-推理进度通过 /progress 端点轮询（每 2s）实时显示。
+可视化：全基因组三 track 图 —— 所有染色体车道（Chr12 顶 → Chr01 底），每条
+染色体 3 个紧密 track（Jap 蓝 / Ind 橘 / uncertain 绿，块内无行距），未推理区
+gray 底色（Plotly iframe 渲染）；鼠标悬浮区域显示位置/类别细节；推理进度通过
+/progress 端点轮询（每 2s）。
 """
 
 import json
@@ -29,11 +30,10 @@ import config  # noqa: E402
 # ---------------------------------------------------------------------------
 # 常量
 # ---------------------------------------------------------------------------
-GROUP_COLORS = {"Jap": "#4874cb", "Ind": "#dc6b2d", "uncertain": "#9e9e9e"}
-# 区域类绘图/图例顺序（与离线 GROUP_ORDER 一致）
-REGION_GROUP_ORDER = ("Ind", "Jap", "uncertain")
-# 未推断（本次推理未覆盖的染色体区域）浅灰底色
-UNINFERENCED_COLOR = "#e8e8e8"
+# 用户 2026-11 指定：Jap 蓝 / Ind 橘 / uncertain 绿 / 未推理 gray
+GROUP_COLORS = {"Jap": "#4874cb", "Ind": "#dc6b2d", "uncertain": "#4caf50"}
+# 未推理（无 region 区域）底色：gray
+UNINFERENCED_COLOR = "#bdbdbd"
 
 DEFAULT_LANG = "en"
 CUSTOM_GENOME_VALUE = "__custom__"
@@ -44,50 +44,60 @@ CUSTOM_GENOME_VALUE = "__custom__"
 # ---------------------------------------------------------------------------
 I18N = {
     "en": {
-        "title": "🧬 OGR-Introgression",
-        "subtitle": "Genome-wide introgression analysis (Jap / Ind). Inference runs only on the requested region; the full-genome view is always shown.",
+        "title": "OGR-Introgression",
+        "subtitle": "Introgression analysis (Jap / Ind) for a region on one chromosome. Inference runs only on the requested region; the result is shown as three per-chromosome tracks (Jap / Ind / uncertain).",
         "genome": "Genome",
         "chromosome": "Chromosome",
-        "start": "Start (optional; empty = maximum window)",
+        "start": "Start (required, 1-based)",
         "end": "End (optional; empty = start+256k)",
         "start_placeholder": "e.g. 100000",
         "end_placeholder": "e.g. 356000",
         "predict": "🚀 Predict",
         "custom_genome_option": "📤 Custom Genome",
-        "upload_genome_fasta": "Upload Genome FASTA",
-        "upload_status_idle": "Select “Custom Genome” and upload a FASTA to register a new genome.",
+        "upload_genome_fasta": "Genome FASTA path (.fa/.fasta/.fna)",
+        "upload_fasta_ph": "/abs/path/to/xxx.fa",
+        "upload_status_idle": "Select “Custom Genome” and enter the local FASTA path to register a new genome (lightweight mode: path-only, no file upload).",
         "upload_status_fasta_ok": "Genome “{gid}” registered ({n} chromosomes).",
-        "upload_status_err_fasta": "FASTA upload failed: {msg}",
-        "placeholder": "Select a genome & chromosome, then click Predict to see the result.",
+        "upload_status_err_fasta": "FASTA registration failed: {msg}",
+        "placeholder": "Select a genome & chromosome, enter Start, then click Predict to see the three-track result.",
         "err_no_genome": "Please select a genome.",
         "err_no_chromosome": "Please select a chromosome.",
-        "err_range": "Start is empty so End must also be empty (maximum window).",
+        "err_no_start": "Please enter a Start (1-based) — it is required.",
+        "err_need_api_key": "API Key is required — please enter your DCS API key.",
+        "api_key": "API Key (required)",
+        "api_key_ph": "sk-... (required — enter your DCS API key)",
         "progress_run": "Running: {pct:.0f}% (batch {done}/{total} · {elapsed:.0f}s) · {chrom}",
         "done": "{cached}Done ({elapsed}s · {n_win} windows · {n_seg} segments)",
         "predict_failed": "Prediction failed: {msg}",
+        "empty_result": "No window to infer: {msg}",
     },
     "zh": {
-        "title": "🧬 OGR-Introgression",
-        "subtitle": "全基因组渗入分析 —— 粳/籼。仅对请求区域推理，展示恒为全基因组视图。",
+        "title": "OGR-Introgression",
+        "subtitle": "渗入分析 —— 粳/籼。仅对一条染色体的请求区域推理，结果按 Jap / Ind / uncertain 三条 track 展示。",
         "genome": "基因组",
         "chromosome": "染色体",
-        "start": "Start（可选，留空=最大窗口）",
+        "start": "Start（必填，1-based）",
         "end": "End（可选，留空=start+256k）",
         "start_placeholder": "如 100000",
         "end_placeholder": "如 356000",
         "predict": "🚀 预测",
         "custom_genome_option": "📤 自定义基因组",
-        "upload_genome_fasta": "上传基因组 FASTA",
-        "upload_status_idle": "选择「自定义基因组」并上传 FASTA 以注册新基因组。",
+        "upload_genome_fasta": "基因组 FASTA 路径 (.fa/.fasta/.fna)",
+        "upload_fasta_ph": "/abs/path/to/xxx.fa",
+        "upload_status_idle": "选择「自定义基因组」并输入本机 FASTA 路径以注册新基因组（轻量模式：只传路径，不传文件）。",
         "upload_status_fasta_ok": "基因组「{gid}」已注册（{n} 条染色体）。",
-        "upload_status_err_fasta": "FASTA 上传失败：{msg}",
-        "placeholder": "选择基因组与染色体后点击预测，查看结果。",
+        "upload_status_err_fasta": "FASTA 注册失败：{msg}",
+        "placeholder": "选择基因组与染色体、填写 Start 后点击预测，查看三 track 结果。",
         "err_no_genome": "请选择基因组。",
         "err_no_chromosome": "请选择染色体。",
-        "err_range": "Start 为空时 End 也必须为空（最大窗口）。",
+        "err_no_start": "请填写 Start（1-based）——该项必填。",
+        "err_need_api_key": "API Key 必填——请输入你的 DCS API Key。",
+        "api_key": "API Key（必填）",
+        "api_key_ph": "sk-...（必填——请输入你的 DCS API Key）",
         "progress_run": "推理中：{pct:.0f}%（批次 {done}/{total} · {elapsed:.0f}s） · {chrom}",
         "done": "{cached}完成（{elapsed}s · {n_win} 窗口 · {n_seg} 片段）",
         "predict_failed": "预测失败：{msg}",
+        "empty_result": "无窗口可推理：{msg}",
     },
 }
 
@@ -118,11 +128,10 @@ main.app {max-width:none !important; width:100% !important;}
 /* ── Card-style panel (white rounded card) ── */
 .card-panel {background:#fff !important; border:1px solid #e5e7eb !important; border-radius:12px !important; padding:14px 16px !important; box-shadow:0 1px 2px rgba(16,24,40,.04) !important;}
 
-/* Genome row splits into equal columns: Genome | Upload FASTA */
+/* Genome row splits into equal columns: Genome | FASTA path */
 .layout-row-2sub {flex-wrap:nowrap !important;}
 .layout-row-2sub > * {min-width:0 !important;}
-#genome-upload {height:110px !important;}
-#genome-upload .wrap, #genome-upload .center {height:100% !important;}
+#genome-upload {min-height:52px !important;}
 
 #predict-btn {min-height:36px !important; height:36px !important; width:100% !important; margin-top:4px !important;}
 
@@ -160,26 +169,68 @@ Plotly.newPlot('chart', FIGURE.data, FIGURE.layout, FIGURE.config);
 _HTTP = httpx.Client(timeout=httpx.Timeout(3600.0, connect=30.0))
 
 
-def _backend_get(path: str):
-    r = _HTTP.get(f"{config.get_backend_base_url()}{path}")
+def _auth_headers(api_key: str = None) -> dict:
+    """根据 API Key 构造鉴权头（空 key 不带头）。
+
+    只使用页面输入框提供的 key；前端故意不读 .env 的 DCS_API_KEY——
+    那是后端校验侧的 key，读了会让输入框失去意义。
+    """
+    key = (api_key or "").strip()
+    if not key:
+        return {}
+    return {"Authorization": f"Bearer {key}"}
+
+
+def _backend_get(path: str, api_key: str = None):
+    r = _HTTP.get(
+        f"{config.get_backend_base_url()}{path}",
+        headers=_auth_headers(api_key),
+    )
     r.raise_for_status()
     return r.json()
 
 
-def _backend_post(path: str, payload: dict):
-    r = _HTTP.post(f"{config.get_backend_base_url()}{path}", json=payload)
+def _backend_post(path: str, payload: dict, api_key: str = None):
+    r = _HTTP.post(
+        f"{config.get_backend_base_url()}{path}",
+        json=payload,
+        headers=_auth_headers(api_key),
+    )
     r.raise_for_status()
     return r.json()
 
 
-def _backend_upload_fasta(filename: str, local_path: str):
+def _backend_upload_fasta(filename: str, local_path: str, api_key: str = None):
+    # 轻量模式（CACHE_MODE=false）下同时带 path 表单字段，后端原地注册零拷贝；
+    # 全量模式忽略 path（或后端未配置 path 分支时自动回退字节上传）。
     with open(local_path, "rb") as f:
         r = _HTTP.post(
             f"{config.get_backend_base_url()}/uploadFasta",
             files={"file": (filename, f)},
+            data={"path": local_path},
+            headers=_auth_headers(api_key),
         )
     r.raise_for_status()
     return r.json()
+
+
+def _backend_register_genome(fasta_path: str, api_key: str = None) -> dict:
+    """经 DCS RegisterGenome 子路径注册本机 FASTA（传路径，零拷贝懒注册）。
+
+    CACHE_MODE=false（轻量模式）下前端/后端同机，用户粘贴绝对路径即可；
+    后端注册该路径（managed=False，不复制文件），返回 {genome, chromosomes}。
+    """
+    r = _HTTP.post(
+        f"{config.get_backend_base_url()}/api/aigress/openai/OGR-Introgression/RegisterGenome",
+        json={"fasta_path": fasta_path},
+        headers=_auth_headers(api_key),
+    )
+    r.raise_for_status()
+    data = r.json()
+    status = data.get("status", 200)
+    if status != 200:
+        raise RuntimeError(data.get("message", "RegisterGenome failed"))
+    return data.get("result") or {}
 
 
 def _uploaded_file_path(file) -> Optional[str]:
@@ -283,32 +334,58 @@ def _region_hover_text(r: dict, group: str) -> str:
 
 
 def _build_genome_figures(payload: dict) -> dict:
-    """全基因组全景：12 条染色体车道图（复刻离线 plot_group_tracks 实际输出）。
+    """全基因组三 track 图：所有染色体车道，每条染色体 3 个紧密 track。
 
-    布局与 4.run_analysis.plot_group_tracks 一致：
-    - y 轴 = 染色体（Chr12 在顶、Chr01 在底，倒序车道）
-    - x 轴 = Mb
-    - 每条染色体：灰骨架线 + uninferenced 浅灰带（未推断区）
-    - 已推断区域按 3 类叠涂：Ind / Jap / uncertain
-    - 图例 4 项：Ind、Jap、uncertain、uninferenced
-
-    推理可以只覆盖局部（单次），未覆盖区即 uninferenced。
+    用户 2026-11 确认：恢复为所有染色体都画，每个染色体有 3 个 track：
+    - x 轴 = 全基因组范围（Mb；各染色体共享同一坐标轴）
+    - y 轴 = 染色体车道（Chr12 顶 → Chr01 底），每条染色体 = 3 个紧密 track
+      （Jap 蓝 / Ind 橘 / uncertain 绿），**块内 track 无行距**，块间留少量间距
+    - 每条 track：未推理区 gray 底色 + 该分组 region 色带
+    - hover 显示类别、区间（bp + Mb）、n_windows、top-k 均值
     """
     chromosomes = payload.get("chromosomes", [])
-    chr_lengths = payload.get("chromosome_lengths", {})
+    chrom_lengths = payload.get("chromosome_lengths", {})
     regions = payload.get("regions", {})
     params = payload.get("params", {})
 
     if not chromosomes:
         return {"data": [], "layout": {"title": {"text": "No data"}}}
 
-    # 车道 y 位置（与离线 build_chrom_y_positions 一致，倒序）
-    ordered = list(reversed(chromosomes))
-    spacing = 1.0
-    y_pos = {chrom: spacing * (len(chromosomes) - i) for i, chrom in enumerate(ordered)}
-    y_ticks = [y_pos[c] for c in reversed(chromosomes)]
+    # 三 track 顺序（每条染色体块内，顶 → 底）：uncertain / Ind / Jap
+    # 视觉上 Jap 蓝在上、Ind 橘在中、uncertain 绿在下，与图例一致
+    track_order = ("Jap", "Ind", "uncertain")
+    # 块内 track 中心相对偏移：Jap=+1/3, Ind=0, uncertain=-1/3
+    # （块高 1.0 三等分，3 track 正好填满块高，间距=0）
+    track_offsets = {"Jap": 1.0 / 3.0, "Ind": 0.0, "uncertain": -1.0 / 3.0}
 
-    max_len_mb = max((chr_lengths.get(c, 0) for c in chromosomes), default=0) / 1e6
+    # 车道 y 位置：Chr12 顶 → Chr01 底（倒序）。
+    # 染色体中心间距 = 1.5（原 3.0 的一半，用户要求间距减半）。
+    ordered = list(reversed(chromosomes))
+    block_stride = 1.5
+    y_block = {
+        chrom: block_stride * (len(chromosomes) - i) for i, chrom in enumerate(ordered)
+    }
+    # 每条 track 的中心 y
+    y_track = {
+        (chrom, g): y_block[chrom] + track_offsets[g]
+        for chrom in chromosomes for g in track_order
+    }
+    y_ticks = [y_block[c] for c in reversed(chromosomes)]
+
+    max_len_mb = max((chrom_lengths.get(c, 0) for c in chromosomes), default=0) / 1e6
+
+    # y 轴范围：底部 = chromosomes[0]（Chr01, y 最小），顶部 = chromosomes[-1]
+    # （Chr12, y 最大）；range=[min, max] 自下而上。
+    y_min = y_block[chromosomes[0]] - 1.0 / 3.0 - 0.5
+    y_max = y_block[chromosomes[-1]] + 1.0 / 3.0 + 0.5
+    y_span = y_max - y_min
+
+    # 图高（每染色体约 56px，紧凑）；线宽动态计算使 3 track 正好填满块高（无间距）
+    layout_height = max(420, len(chromosomes) * 56)
+    margin_t, margin_b = 20, 40
+    plot_h = layout_height - margin_t - margin_b
+    px_per_unit = plot_h / y_span if y_span > 0 else 10.0
+    line_w = max(4.0, px_per_unit / 3.0)  # 每个 track 占块高的 1/3 → 紧密相接
 
     traces = []
     # 背景空白（撑满全宽并保证 x 范围）
@@ -322,104 +399,109 @@ def _build_genome_figures(payload: dict) -> dict:
         "hoverinfo": "skip",
     })
 
-    # ---- 车道骨架 + uninferenced 底色（每染色体两条 trace：细骨架 + 浅灰带） ----
+    # 每条染色体：3 个紧密 track（无行距），先画 gray 未推理底色再画 region 色带
     for chrom in chromosomes:
-        y = y_pos[chrom]
-        length_mb = chr_lengths.get(chrom, 0) / 1e6
-        # 灰色骨架线（离线 #bdbdbd）
-        traces.append({
-            "type": "scatter",
-            "mode": "lines",
-            "x": [0, length_mb],
-            "y": [y, y],
-            "line": {"color": "#bdbdbd", "width": 1.5},
-            "showlegend": False,
-            "hoverinfo": "skip",
-            "name": str(chrom),
-        })
-        # uninferenced 浅灰带（最底层，覆盖最大窗口，被下方已推断色带覆盖）
-        traces.append({
-            "type": "scatter",
-            "mode": "lines",
-            "x": [0, length_mb],
-            "y": [y, y],
-            "line": {"color": UNINFERENCED_COLOR, "width": 14},
-            "legendgroup": "uninferenced",
-            "name": "uninferenced",
-            "showlegend": False,
-            "hoverinfo": "skip",
-            "opacity": 1.0,
-        })
+        block_y = y_block[chrom]
+        length_mb = chrom_lengths.get(chrom, 0) / 1e6
+        for group in track_order:
+            y = y_track[(chrom, group)]
+            color = GROUP_COLORS[group]
+            # gray 未推理底色（整条染色体范围）
+            traces.append({
+                "type": "scatter",
+                "mode": "lines",
+                "x": [0, length_mb],
+                "y": [y, y],
+                "line": {"color": UNINFERENCED_COLOR, "width": line_w},
+                "name": group,
+                "legendgroup": group,
+                "showlegend": False,
+                "hoverinfo": "skip",
+            })
+            # 该分组 region 色带（绝对坐标）
+            recs = regions.get(group, [])
+            xs: list[float] = []
+            ys: list[float] = []
+            hover_texts: list[Optional[str]] = []
+            for r in recs:
+                chrom_r = r.get("chromosome") or r.get("chr_id")
+                if chrom_r != chrom:
+                    continue
+                r0 = max(int(r.get("start", 0)), 0)
+                r1 = min(int(r.get("end", length_mb * 1e6)), int(length_mb * 1e6))
+                if r1 < r0:
+                    continue
+                r0_mb = r0 / 1e6
+                r1_mb = r1 / 1e6
+                tx = _region_hover_text(r, group)
+                n = max(2, min(500, int((r1_mb - r0_mb) / 0.2) + 2))
+                part_x = [r0_mb + (r1_mb - r0_mb) * i / (n - 1) for i in range(n)]
+                xs.extend(part_x)
+                xs.append(None)
+                ys.extend([y] * n)
+                ys.append(None)
+                hover_texts.extend([tx] * n)
+                hover_texts.append(None)
+            if xs:
+                traces.append({
+                    "type": "scatter",
+                    "mode": "lines",
+                    "x": xs,
+                    "y": ys,
+                    "line": {"color": color, "width": line_w},
+                    "name": group,
+                    "legendgroup": group,
+                    "showlegend": False,
+                    "hoverinfo": "text",
+                    "text": hover_texts,
+                    "hovertemplate": "%{text}<extra></extra>",
+                    "opacity": 0.95,
+                })
 
-    # ---- 已推断区域按类叠涂（与离线图例顺序一致：Ind / Jap / uncertain） ----
-    # 每条区域为 [x0, x1, None] 折线段；hover 时显示该区域的位置/类别等细节。
-    region_legend_shown = {g: False for g in REGION_GROUP_ORDER}
-    for group in REGION_GROUP_ORDER:
+    # 图例：每个分组一条（零长占位 trace，位于 Chr01 块）
+    for group in track_order:
         color = GROUP_COLORS[group]
-        xs: list[float] = []
-        ys: list[float] = []
-        hover_texts: list[Optional[str]] = []
-        for r in regions.get(group, []):
-            chrom = r.get("chromosome") or r.get("chr_id")
-            if chrom not in y_pos:
-                continue
-            x0 = r.get("start", 0) / 1e6
-            x1 = r.get("end", 0) / 1e6
-            tx = _region_hover_text(r, group)
-            # 大区域线段中部没有数据点会导致 hover 不触发；
-            # 按 ~0.2Mb 步长插点（上限 500 点，43Mb 染色体约 216 点），
-            # 直线视觉不变但任意位置可悬浮显示。
-            n = max(2, min(500, int((x1 - x0) / 0.2) + 2))
-            part_x = [x0 + (x1 - x0) * i / (n - 1) for i in range(n)]
-            xs.extend(part_x)
-            xs.append(None)
-            ys.extend([y_pos[chrom]] * n)
-            ys.append(None)
-            hover_texts.extend([tx] * n)
-            hover_texts.append(None)
-        if not xs:
-            continue
-        label = _GROUP_LABEL[group]
+        y0 = y_track[(chromosomes[0], group)]
         traces.append({
             "type": "scatter",
             "mode": "lines",
-            "x": xs,
-            "y": ys,
-            "line": {"color": color, "width": 14},
-            "name": label,
-            "legendgroup": label,
-            "showlegend": not region_legend_shown[group],
-            "hoverinfo": "text",
-            "text": hover_texts,
-            "hovertemplate": "%{text}<extra></extra>",
-            "opacity": 0.85,
+            "x": [0, 0],
+            "y": [y0, y0],
+            "line": {"color": color, "width": line_w},
+            "name": group,
+            "legendgroup": group,
+            "showlegend": True,
+            "hoverinfo": "skip",
+            "opacity": 0.95,
         })
-        region_legend_shown[group] = True
-
-    # uninferenced 图例项（占位零长 trace，排在图例最后）
+    # 未推理 gray 图例项
+    y0 = y_block[chromosomes[0]] + 1.0 / 3.0
     traces.append({
         "type": "scatter",
         "mode": "lines",
         "x": [0, 0],
-        "y": [y_pos[chromosomes[0]], y_pos[chromosomes[0]]],
-        "line": {"color": UNINFERENCED_COLOR, "width": 14},
+        "y": [y0, y0],
+        "line": {"color": UNINFERENCED_COLOR, "width": line_w},
         "name": "uninferenced",
         "legendgroup": "uninferenced",
         "showlegend": True,
         "hoverinfo": "skip",
-        "opacity": 1.0,
     })
 
     layout = {
-        "xaxis": {"title": "Position (Mb)", "zeroline": False, "range": [0, max_len_mb]},
+        "xaxis": {
+            "title": "Position (Mb)",
+            "zeroline": False,
+            "range": [0, max_len_mb],
+        },
         "yaxis": {
             "tickvals": y_ticks,
             "ticktext": [str(c) for c in reversed(chromosomes)],
-            "range": [0.2 * spacing, max(y_pos.values()) + 0.35 * spacing] if y_pos else [0, 1],
+            "range": [y_min, y_max],
             "zeroline": False,
         },
-        "height": max(420, len(chromosomes) * 40 + 96),
-        "margin": {"l": 70, "r": 24, "t": 20, "b": 40},
+        "height": layout_height,
+        "margin": {"l": 70, "r": 24, "t": margin_t, "b": margin_b},
         "showlegend": True,
         "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
         "hovermode": "closest",
@@ -429,10 +511,10 @@ def _build_genome_figures(payload: dict) -> dict:
     return {"data": traces, "layout": layout}
 
 
-def _payload_to_html(payload: dict) -> str:
+def _payload_to_html(payload: dict, lang: str | None = None, empty_msg: str = "") -> str:
     plotly_url = config.get_plotly_js_local_url() or "https://cdn.plot.ly/plotly-2.35.2.min.js"
 
-    # 恒为全基因组全景单图（复刻离线 plot_group_tracks，4 色：Ind/Jap/uncertain/uninferenced）
+    # 全基因组三 track 图（所有染色体车道，每染色体 3 个紧密 track）
     figs = _build_genome_figures(payload)
     figure = {"data": figs["data"], "layout": figs["layout"],
               "config": {"responsive": True, "displaylogo": False}}
@@ -448,8 +530,18 @@ def _payload_to_html(payload: dict) -> str:
         .replace("'", "&apos;").replace("<", "&lt;").replace(">", "&gt;")
     )
     height = figs["layout"].get("height", 540) + 30
+    banner = ""
+    if empty_msg:
+        # 空结果提示条（骨架图上方，橙色警示）
+        escaped_msg = empty_msg.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+        banner = (
+            f'<div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;'
+            f'padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:13px;">'
+            f'⚠️ {escaped_msg}</div>'
+        )
     return (
-        '<iframe srcdoc="' + escaped
+        banner
+        + '<iframe srcdoc="' + escaped
         + f'" style="width:100%;height:{height}px;border:none;border-radius:8px;'
         + 'background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);"></iframe>'
     )
@@ -508,10 +600,10 @@ def build_ui():
                         interactive=True,
                     )
                 with gr.Column(visible=False, scale=1, min_width=0, elem_id="fasta-col") as fasta_col:
-                    genome_fasta_upload = gr.File(
-                        file_count="single",
+                    genome_fasta_upload = gr.Textbox(
+                        value="",
                         label=I18N[DEFAULT_LANG]["upload_genome_fasta"],
-                        file_types=[".fa", ".fasta", ".fna"],
+                        placeholder=I18N[DEFAULT_LANG]["upload_fasta_ph"],
                         interactive=True,
                         elem_id="genome-upload",
                     )
@@ -534,6 +626,12 @@ def build_ui():
                     label=I18N[DEFAULT_LANG]["end"], value="",
                     placeholder=I18N[DEFAULT_LANG]["end_placeholder"], scale=1,
                 )
+            # API Key（可选，鉴权请求头；空 = 后端决定是否放行）
+            api_key_input = gr.Textbox(
+                value="", label=I18N[DEFAULT_LANG]["api_key"],
+                placeholder=I18N[DEFAULT_LANG]["api_key_ph"],
+                interactive=True, show_label=True,
+            )
             # 预测按钮 + 进度
             predict_btn = gr.Button(
                 I18N[DEFAULT_LANG]["predict"], variant="primary", elem_id="predict-btn",
@@ -586,14 +684,18 @@ def build_ui():
             outputs=[genome_col, fasta_col, genome_fasta_upload, upload_status_md, chromosome_dd],
         )
 
-        def _on_upload_genome(file, lang):
-            """上传自定义基因组 FASTA，注册后自动选中并刷新染色体。"""
+        def _on_upload_genome(fasta_path, lang, api_key=""):
+            """注册自定义基因组：输入本机 FASTA 路径（轻量模式，零拷贝懒注册）。
+
+            与 OGR-Prediction 一致：前端/后端同机，用户粘贴绝对路径，
+            后端经 /uploadFasta（path 字段）或 DCS RegisterGenome 子路径原地注册。
+            """
             t = _t(lang)
-            local_path = _uploaded_file_path(file)
-            if not local_path or not os.path.exists(local_path):
+            path_str = (fasta_path or "").strip()
+            if not path_str or not os.path.exists(path_str):
                 return gr.update(), gr.update(), gr.update()
             try:
-                out = _backend_upload_fasta(Path(local_path).name, local_path)
+                out = _backend_register_genome(path_str, api_key=api_key)
             except Exception as e:
                 return (
                     gr.update(),
@@ -610,11 +712,11 @@ def build_ui():
 
         genome_fasta_upload.change(
             _on_upload_genome,
-            inputs=[genome_fasta_upload, cur_lang],
+            inputs=[genome_fasta_upload, cur_lang, api_key_input],
             outputs=[genome_dd, chromosome_dd, upload_status_md],
         )
 
-        def _predict(genome, chromosome, start, end, lang):
+        def _predict(genome, chromosome, start, end, lang, api_key=""):
             t = _t(lang)
             if not genome or genome == CUSTOM_GENOME_VALUE:
                 yield "", t["err_no_genome"]
@@ -622,27 +724,41 @@ def build_ui():
             if not chromosome:
                 yield "", t["err_no_chromosome"]
                 return
-            if _parse_pos(start) is None and _parse_pos(end) is not None:
-                yield "", t["err_range"]
+            if _parse_pos(start) is None:
+                yield "", t["err_no_start"]
                 return
+            if not (api_key or "").strip():
+                yield "", t["err_need_api_key"]
+                return
+            # 与纯 API（curl）同一 DCS 子路径 / 同一方言：camelCase + 1-based
             payload = {
-                "genome": genome,
-                "chromosome": chromosome,
-                "start": _parse_pos(start),
-                "end": _parse_pos(end),
+                "Genome": genome,
+                "Chromosome": chromosome,
+                "Start": _parse_pos(start),
+                "End": _parse_pos(end),
             }
             task: dict = {"done": False, "html": "", "msg": ""}
 
             def _run():
                 try:
-                    data = _backend_post("/analyze", payload)
-                    task["html"] = _payload_to_html(data)
-                    elapsed = data.get("elapsed_seconds", "?")
-                    n_win = len(data.get("windows", []))
-                    n_seg = len(data.get("segments", []))
-                    cached = "cached · " if data.get("cached") else ""
-                    task["msg"] = t["done"].format(cached=cached, elapsed=elapsed,
-                                                   n_win=n_win, n_seg=n_seg)
+                    data = _backend_post(
+                        "/api/aigress/openai/OGR-Introgression/Prediction",
+                        payload,
+                        api_key=api_key,
+                    )
+                    # 网页端与 curl 拿同一份返回值：信封 result 即绘图/统计数据
+                    result = data.get("result") or {}
+                    empty_msg = result.get("message", "") if not result.get("windows") else ""
+                    task["html"] = _payload_to_html(result, lang=lang, empty_msg=empty_msg)
+                    elapsed = result.get("elapsed_seconds", "?")
+                    n_win = len(result.get("windows", []))
+                    n_seg = len(result.get("segments", []))
+                    cached = "cached · " if result.get("cached") else ""
+                    if empty_msg:
+                        task["msg"] = t["empty_result"].format(msg=empty_msg)
+                    else:
+                        task["msg"] = t["done"].format(cached=cached, elapsed=elapsed,
+                                                       n_win=n_win, n_seg=n_seg)
                 except Exception as e:
                     task["msg"] = t["predict_failed"].format(msg=e)
                 finally:
@@ -650,7 +766,7 @@ def build_ui():
 
             threading.Thread(target=_run, daemon=True).start()
 
-            # 轮询进度（每 2s），直到 analyze 完成或异常
+            # 轮询进度（每 2s），直到预测完成或异常
             last_status = ""
             while not task["done"]:
                 try:
@@ -668,7 +784,7 @@ def build_ui():
                             last_status = txt
                             yield "", txt
                     elif st in ("done", "error", "idle") and last_status:
-                        # 任务结束但 analyze 尚未返回：显示简短的收尾提示
+                        # 任务结束但预测尚未返回：显示简短的收尾提示
                         pass
                 except Exception:
                     pass
@@ -677,7 +793,7 @@ def build_ui():
             yield task["html"], task["msg"]
         predict_btn.click(
             _predict,
-            inputs=[genome_dd, chromosome_dd, start, end, cur_lang],
+            inputs=[genome_dd, chromosome_dd, start, end, cur_lang, api_key_input],
             outputs=[out_html, status_md],
         )
 
@@ -700,6 +816,7 @@ def build_ui():
                 gr.update(label=t["end"], placeholder=t["end_placeholder"]),
                 gr.update(value=t["predict"]),
                 gr.update(label=t["upload_genome_fasta"]),
+                gr.update(label=t["api_key"], placeholder=t["api_key_ph"]),
                 gr.update(variant="primary" if en else "secondary"),
                 gr.update(variant="primary" if not en else "secondary"),
                 gr.update(value=f"<p style='color:#6B7280;'>{t['placeholder']}</p>"),
@@ -712,7 +829,7 @@ def build_ui():
             inputs=[genome_dd],
             outputs=[
                 header_md, intro_md, genome_dd, chromosome_dd, start, end,
-                predict_btn, genome_fasta_upload,
+                predict_btn, genome_fasta_upload, api_key_input,
                 btn_lang_en, btn_lang_zh,
                 out_html, status_md, cur_lang,
             ],
@@ -723,7 +840,7 @@ def build_ui():
             inputs=[genome_dd],
             outputs=[
                 header_md, intro_md, genome_dd, chromosome_dd, start, end,
-                predict_btn, genome_fasta_upload,
+                predict_btn, genome_fasta_upload, api_key_input,
                 btn_lang_en, btn_lang_zh,
                 out_html, status_md, cur_lang,
             ],

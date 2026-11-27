@@ -1,5 +1,9 @@
 # 水稻 ATAC 预测服务（Rice-Reg Server）执行方案
 
+> **注（2026-11-26）**：本文为初期落地方案，保留作历史记录。
+> 当前架构（网页端与 DCS 子路径同一进程、无 body `mode`、`CACHE_MODE` 懒加载/缓存）以
+> [../README.md](../README.md) 与 [../API.md](../API.md) 为准。
+
 ## 1. 项目概述
 
 基于 Genos-Reg Server 的架构，构建水稻（Rice）ATAC-seq → RNA-seq 表达预测服务。核心推理逻辑遵循 `inference2.ipynb`，前后端架构参考 `genos-reg-server`。
